@@ -1,0 +1,472 @@
+#!/usr/bin/python
+from optparse import OptionParser
+import os, subprocess, sys, re
+import difflib
+import zipfile
+from copy import copy
+from xpkg.xpkg_data import Repo, Release, Version, Dependency
+
+def confirm(msg, default=False):
+    x = raw_input(msg)        
+    if (x in ["n","N","no","No","NO"]):    
+        return False
+    if (x in ["y","Y","yes","Yes","YES"]):    
+        return True
+    return default
+
+
+def xpkg_dep_iter(repo, command, output_repo_names=True):
+    deps = repo.dependencies
+    os.system(command)
+    for dep in deps:
+        cwd = os.getcwd()
+        os.chdir(dep.get_local_path())
+        if output_repo_names:
+            sys.stdout.write("\n"+str(dep)+":\n")
+        os.system(command)
+        os.chdir(cwd)
+
+def xpkg_show_dep(repo, options, args):
+
+    if repo.dependencies == []:
+        print "No dependencies"
+    else:
+        for dep_repo in [repo] + [d.repo for d in repo.dependencies]:
+            if dep_repo:
+                rel = dep_repo.current_release()
+                if dep_repo.has_local_modifications():
+                    local_mod = "(local modifications)"
+                else:
+                    local_mod = ""
+                if rel:
+                    print "%20s: %s %s"%(dep_repo, rel.version, local_mod)
+                else:
+                    print "%20s: Not on released version %s"%(dep_repo, local_mod)
+
+
+def xpkg_remove_dep(repo, options, args):
+    if len(args) < 1:
+        return False
+    to_remove = args[0]
+    deps = repo.dependencies
+
+    for d in deps:
+        if d.repo_name == to_remove:
+            deps.remove(d)
+            print "Removed"
+            return True
+
+    sys.stderr.write("%s is not a current dependency\n" % to_remove)
+    return False
+
+
+def find_current_dependencies(repo):
+    makefiles = []
+    for root, dirs, files in os.walk(repo.path, topdown=False):
+        for f in files:
+            if f=="Makefile":
+                makefiles.append(os.path.join(root,f))
+                
+    modules = set([])
+    for path in makefiles:
+        f = open(path)
+        while True:
+            line = f.readline()
+            if line=="":
+                break
+            m = re.match(r'\s*USED_MODULES\s*\+?=(.*)', line)
+            if m:
+                s = m.groups(0)[0]
+                ms = [m for m in s.split(' ') if m != '']
+                modules = modules | set(ms)
+        f.close()
+
+    root_dir = os.path.join(repo.path,"..")
+
+    repos = set([])
+    for dep_repo in os.listdir(root_dir):
+        repo_path = os.path.join(root_dir,dep_repo)
+        if os.path.isdir(repo_path):
+            for module_dir in os.listdir(repo_path):
+                if os.path.isdir(os.path.join(repo_path,module_dir)):
+                    if module_dir in modules:                        
+                        modules.remove(module_dir)
+                        if not os.path.samefile(repo_path, repo.path):
+                            repos.add(dep_repo)
+
+    if len(modules) != 0:
+        print "WARNING: Can't find repos for the following modules:"
+        for m in modules:
+            print "   " + m
+
+    return repos
+
+def xpkg_check_dep(repo, options, args, return_current_ok=False,
+                   allow_updates=True):
+    deps = [d.repo_name for d in repo.dependencies]
+
+    current_ok = True
+    repos = find_current_dependencies(repo)
+
+    repos = repos - set(deps)
+    update = False
+    for dep_repo in repos:
+        
+        
+        if allow_updates and \
+           confirm("Add %s to dependencies (Y/n)?"%dep_repo,default=True):
+            dep = Dependency(parent=repo)
+            dep.repo_name = dep_repo
+            dep.repo = Repo(dep.get_local_path())
+            dep.uri = dep.repo.uri()
+            dep.githash = dep.repo.current_githash()
+            rel = dep.repo.current_release()
+            if rel:
+                dep.version_str = str(rel.version)
+            repo.dependencies.append(dep)
+            print "Added"
+            update = True
+        else:            
+            if not allow_updates:
+                print "Dependency %s is not up to date" % dep_repo
+            current_ok = False
+
+    for dep in [d for d in repo.dependencies if d.repo]:
+        rel = dep.repo.current_release()
+        if dep.githash != dep.repo.current_githash() or \
+           (rel and dep.version_str != str(rel.version)):
+            if allow_updates and \
+               confirm("%s has new version. Update (Y/n)?"%dep.repo_name,
+                       default=True):
+                dep.githash = dep.repo.current_githash()
+                if rel:
+                    dep.version_str = str(rel.version)
+                else:
+                    dep.version_str = None
+                update = True
+            else:
+                if not allow_updates:
+                    print "Dependency %s is not up to date" % dep.repo_name
+                current_ok = False
+    
+
+    if len(repos) == 0 and current_ok and not update:
+        print "Dependencies OK"
+
+    if return_current_ok:
+        return current_ok
+    else:
+        return update
+
+
+def xpkg_list(repo, options, args):
+    rels = repo.releases
+    rels.sort()
+    rels.reverse()
+    for rel in rels:
+        print rel.version
+            
+# def xpkg_delete_release(repo, options, args):
+#     if len(args) != 1:
+#         sys.stderr.write("Usage: xpkg delete_release version\n")
+#         exit(1)
+
+
+#     version = Version(version_str=args[0])
+
+
+#     for rel in repo.releases:
+#         if rel.version == version:
+#             if confirm("Delete %s. Are you sure (y/N)?"%str(version),
+#                        default=False):
+#                 repo.releases.remove(rel)
+#                 print "Deleted release %s" % str(version)
+#                 return True
+#             else:
+#                 return False
+
+#     return False
+    
+
+def xpkg_create_release(repo, options, args):
+    if hasattr(options,'release_type') and options.release_type:
+        rtype = options.release_type
+    else:
+        x = raw_input("Enter release type (a=alpha,b=beta,rc,r=release): ")
+        if x in ['a','alpha']:
+            rtype='alpha'
+        elif x in ['b','beta']:
+            rtype='beta'
+        elif x in ['rc']:
+            rtype='rc'
+        elif x in ['r','release']:
+            rtype='release'
+        else:
+            sys.stderr.write("Unknown release type")
+            exit(1)
+
+    if hasattr(options,'release_version') and options.release_version:
+        version = Version(version_str=options.release_version)
+    else:
+        latest = repo.latest_full_release()
+        if latest:
+            print "Latest release: %s" % latest.version
+            latest_version = latest.version
+        else:
+            print "There is no full release yet"
+            latest_version = Version(0,0,0,0)
+
+        print "    Next major: %s" % latest_version.major_increment()
+        print "    Next minor: %s" % latest_version.minor_increment()
+        print "    Next point: %s" % latest_version.point_increment()
+
+        latest_pre = repo.latest_pre_release()
+        if latest_pre and (not latest or latest_pre > latest):
+            print "Latest pre-release: %s" % latest_pre.version
+
+        x = raw_input("Enter version number: ")
+        version = Version(version_str=x)        
+
+    version.rtype = rtype
+
+    version.set_rnumber(repo.releases)
+
+    if not confirm("Create release %s. Are you sure (Y/n)?"%version,default=True):
+        return False
+
+
+    # Do some checks
+
+    local_mod = False
+    for r in repo.all_repos():
+        if r.has_local_modifications():
+            print "%s has local modifications" % r
+            local_mod = True
+
+    if local_mod:
+        print "Cannot create release: uncommitted modifications"
+        exit(1)
+
+    current_ok = xpkg_check_dep(repo, options, args)
+
+    if not current_ok:
+        print "Cannot create release: dependencies not up to date"
+        exit(1)
+
+
+
+    release = Release()
+    release.version = version
+
+    # deps = []
+
+    # for head_dep in repo.dependencies:
+    #     dep = copy(head_dep)
+    #     path = dep.get_local_path()        
+    #     dep.gitbranch = dep.repo.current_gitbranch()
+    #     dep.githash = dep.repo.current_githash()
+    #     dep.uri = dep.repo.uri()
+    #     if dep.repo.current_release():
+    #         dep.version_str = str(dep.repo.current_release().version)
+    #     deps.append(dep)
+
+    # release.dependencies = deps
+
+    release.parenthash = repo.current_githash()
+
+    repo.releases.append(release)
+
+    print "Created release %s" % str(release.version)
+
+    repo.save_and_commit_release(release)
+    
+    if confirm("Do you want to make a zipfile (Y/n)? ",default=True):
+        xpkg_make_zip(repo,options,[])
+
+    return True
+
+
+def xpkg_make_zip(repo, options, args):
+
+    # Do some checks
+
+    local_mod = False
+    for r in repo.all_repos():
+        if r.has_local_modifications():
+            print "%s has local modifications" % r
+            local_mod = True
+
+    if local_mod:
+        print "Cannot make zip: uncommitted modifications"
+        exit(1)
+
+    current_ok = xpkg_check_dep(repo, options, args, return_current_ok=True,
+                                allow_updates=False)
+
+    if not current_ok:
+        print "Cannot make zip: dependencies not up to date"
+        exit(1)
+
+    rel = repo.current_release()
+    if rel:
+        vstr = str(rel.version)
+    else:
+        vstr = repo.current_githash()
+        
+    name = repo.name + "_" + vstr
+
+    print "Building repo"
+    ret = subprocess.call(["xmake all"], cwd=repo.path, shell=True)
+    if ret != 0:
+        print "Error building"
+        exit(1)
+    
+    fname = name + ".zip"
+    print "Creating %s" % fname
+        
+    f = zipfile.ZipFile(fname,"w")
+
+    zip_repo(repo, f, include_binaries=True)
+    for dep in repo.dependencies:
+        zip_repo(dep.repo, f)
+    f.close()
+
+
+
+def zip_repo(repo, zipfile, include_binaries=False):
+    process = subprocess.Popen(["git ls-files"], shell=True, 
+                               cwd=repo.path,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE)
+    lines = process.stdout.readlines()    
+    for f in lines:
+        f = f.rstrip()
+        zipfile.write(os.path.join(repo.path, f), arcname=os.path.join(repo.name, f))
+    for root, dirs, files in os.walk(os.path.join(repo.path,".git")):
+        for f in files:     
+            fullpath = os.path.join(root, f)
+            arcname=os.path.join(repo.name,os.path.relpath(root, repo.path))
+            arcname=os.path.join(arcname, f)
+            zipfile.write(fullpath,arcname=arcname)
+                                        
+    if include_binaries:
+        for root, dirs, files in os.walk(os.path.join(repo.path)):
+            for f in files:     
+                if re.match('.*\.xe$',f):
+                    fullpath = os.path.join(root, f)
+                    arcname=os.path.join(repo.name,
+                                         os.path.relpath(root, repo.path))
+                    arcname=os.path.join(arcname, f)
+                    zipfile.write(fullpath,arcname=arcname)
+        
+
+def xpkg_show(repo, options, args):
+    print "INFO:\n"
+    print "              Name: %s" % repo.name
+    print "              Icon: %s" % repo.icon
+    print "          Location: %s" % repo.location
+    print "     Documentation: %s" % repo.doc
+    if repo.description:
+        print "       Description:\n%s" % repo.description
+    else:
+        print "       Description: None"
+        
+    print "\nUSE CASES:\n"
+
+    print "\nDEPENDENCIES:\n"
+    xpkg_show_dep(repo, options, args)
+
+def xpkg_checkout(repo, options, args):
+    if len(args) < 1:
+        return False
+
+    local_mod = False
+    for dep in repo.dependencies:
+        if dep.repo.has_local_modifications():
+            print "%s has local modifications" % dep.repo_name
+            local_mod = True
+
+    if local_mod:
+        exit(1)
+    
+    try:
+        version = Version(version_str=args[0])
+        print version
+    except:
+        xpkg_dep_iter(repo, "git checkout %s" % args[0])
+        return False
+
+    rel = repo.get_release(version)
+    githash = repo.get_child_hash(rel.parenthash)
+    vrepo = repo.get_versioned_repo(version)
+
+    vrepo.checkout(githash)
+    for dep in vrepo.dependencies:
+        dep.repo.checkout(dep.githash)
+
+
+commands = [("show_dep","Show dependencies of the current repository"),
+            ("check_dep","Check dependencies of the current repository"),
+            ("add_dep","Add dependency"),
+            ("remove_dep","Remove dependency"),
+            ("create_release","Create a release"),
+            ("list","List releases"),
+            ("show","Show current state"),
+            ("checkout","Checkout release"),
+            ("make_zip","Make zipfile of release")]
+
+if __name__ == "__main__":
+    usage = "usage: %prog command [options]"
+    usage += "\n\nAvailable commands:\n\n"
+    for c in commands:
+        usage += "%20s: %s"%(c[0],c[1])
+
+        usage += "\n"
+
+    optparser = OptionParser(usage=usage)
+
+    optparser.add_option("-r","--release-version",dest="release_version",
+                         help="release version")
+
+    optparser.add_option("-t","--release-type",dest="release_type",
+                         help="release type: release, alpha, beta or rc")
+
+
+
+    if len(sys.argv) > 1 and sys.argv[1] == 'git':
+        repo = Repo(".")
+        xpkg_dep_iter(repo, ' '.join(sys.argv[1:]))
+        exit(0)
+
+    (options, args) = optparser.parse_args()
+
+
+
+    if len(args) < 1:
+        optparser.error("incorrect number of arguments")
+
+
+
+    
+    repo = Repo(".")
+
+    command = args[0]
+
+    if command == "help":
+        optparser.print_help()
+        exit(0)
+
+    args = args[1:]
+
+    if command in [c[0] for c in commands]:
+        command_fn = eval("xpkg_%s" % command)
+        if command_fn(repo, options, args):
+            repo.save()
+    else:
+        matches = difflib.get_close_matches(command, commands)
+        sys.stderr.write("Unknown command %s.\n" % command)
+        if matches != []:
+            sys.stderr.write("Did you mean one of:\n")
+            for m in matches:
+                sys.stderr.write("   %s\n" % m)
+
