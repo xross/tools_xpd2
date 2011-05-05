@@ -70,7 +70,12 @@ class Version(object):
         elif self.point != other.point:
             return cmp(self.point, other.point)
         elif self.rtype != other.rtype:
-            return cmp(self.rtype, other.rtype)
+            if self.rtype == '':
+                return 1
+            elif other.rtype == '':
+                return -1
+            else:            
+                return cmp(self.rtype, other.rtype)
         else:
             return cmp(self.rnumber, other.rnumber)
             
@@ -140,6 +145,10 @@ class Release(XmlObject):
         else:
             self.version_str = None
 
+    def merge(self, other):
+        #TODO - merge usecase and location info
+        pass
+
     def __cmp__(self, other):
         if other == None:
             return 1
@@ -149,6 +158,8 @@ class Release(XmlObject):
     def __str__(self):
         return "<release:" + str(self.version) + ">"
 
+
+    
 class Repo(XmlObject):
 
     dependencies = XmlNodeList(Dependency, tagname="dependency")
@@ -161,7 +172,7 @@ class Repo(XmlObject):
 
     path = None
 
-    def __init__(self,path,parenthash=None,**kwargs):
+    def __init__(self,path,parenthash=None,master=False,**kwargs):
         path = os.path.abspath(path)
         self.path = path
         self.git = True
@@ -189,6 +200,19 @@ class Repo(XmlObject):
 
         if parenthash:
              relhash = self.get_child_hash(parenthash)
+             process = subprocess.Popen(["git show %s:.xpkg"%relhash], 
+                                       shell=True,
+                                       cwd=path,
+                                       stdout=subprocess.PIPE,
+                                       stderr=subprocess.PIPE)
+            
+             err_lines = process.stderr.readlines()
+             if err_lines == []:
+                      read_file = False            
+                      self.parseString(process.stdout.read())
+
+
+        if master:
              process = subprocess.Popen(["git show master:.xpkg"], 
                                        shell=True,
                                        cwd=path,
@@ -208,6 +232,22 @@ class Repo(XmlObject):
             except IOError:
                 self.parseString("<xpkg></xpkg>")
             
+        if not master and not parenthash:
+            master_repo = Repo(self.path,master=True)
+            self.merge_releases(master_repo)
+
+    def merge_releases(self, other):
+        for rel_other in other.releases:
+            rel = None
+            for r in self.releases:
+                if rel_other.version == r.version:
+                    rel = r
+            if rel:
+                rel.merge(rel_other)
+            else:
+                self.releases.append(rel_other)
+                
+            
 
     def get_release(self, version):
         found = None
@@ -225,10 +265,17 @@ class Repo(XmlObject):
                     parenthash = rel.parenthash)
 
 
-    def checkout(self, githash):
-        subprocess.call(["git checkout %s"%githash],
-                        shell=True,
-                        cwd=self.path)
+    def checkout(self, githash, silent=False):
+        if silent:
+            subprocess.call(["git checkout %s"%githash],
+                            shell=True,
+                            cwd=self.path,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)            
+        else:
+            subprocess.call(["git checkout %s"%githash],
+                            shell=True,
+                            cwd=self.path)
 
             
     def save(self):
@@ -245,7 +292,20 @@ class Repo(XmlObject):
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
         
-        
+            ref = self.current_gitref()
+            if ref != "master":
+                self.checkout("master",silent=True)
+                master_repo = Repo(self.path)
+                master_repo.releases.append(release)   
+                master_repo.save()
+                subprocess.call(["git add .xpkg;git commit -m 'Record release: %s'"%str(release.version)],
+                                shell=True,
+                                cwd=self.path,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)                
+                self.checkout(ref,silent=True)
+
+
     def latest_full_release(self):
         rels = [r for r in self.releases if r.version.is_full()]
         rels.sort()
@@ -309,6 +369,15 @@ class Repo(XmlObject):
                               r'.*Fetch URL: (.*)',
                               cwd=self.path)
         
+    def current_gitref(self):
+        symref = exec_and_match("git symbolic-ref HEAD",r'refs/heads/(.*)',
+                                cwd=self.path)
+        if symref == None:
+            return self.current_githash()
+        else:
+            return symref
+        
+
     def current_githash(self):
         return exec_and_match("git rev-parse HEAD",r'(.*)',cwd=self.path)
  

@@ -79,6 +79,8 @@ def find_current_dependencies(repo):
                 s = m.groups(0)[0]
                 ms = [m for m in s.split(' ') if m != '']
                 modules = modules | set(ms)
+            if re.match(r'.include.*module_xcommon', line):
+                modules.add('module_xcommon')
         f.close()
 
     root_dir = os.path.join(repo.path,"..")
@@ -247,7 +249,7 @@ def xpkg_create_release(repo, options, args):
         print "Cannot create release: uncommitted modifications"
         exit(1)
 
-    current_ok = xpkg_check_dep(repo, options, args)
+    current_ok = xpkg_check_dep(repo, options, args, return_current_ok=True)
 
     if not current_ok:
         print "Cannot create release: dependencies not up to date"
@@ -444,8 +446,6 @@ if __name__ == "__main__":
 
     if len(args) < 1:
         optparser.error("incorrect number of arguments")
-
-
 
     
     repo = Repo(".")
