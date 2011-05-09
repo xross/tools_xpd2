@@ -31,17 +31,26 @@ def xpkg_show_dep(repo, options, args):
     if repo.dependencies == []:
         print "No dependencies"
     else:
-        for dep_repo in [repo] + [d.repo for d in repo.dependencies]:
-            if dep_repo:
-                rel = dep_repo.current_release()
-                if dep_repo.has_local_modifications():
+        print "Actual:"
+        for dep in repo.dependencies:
+            if dep.repo:
+                rel = dep.repo.current_release()
+                if dep.repo.has_local_modifications():
                     local_mod = "(local modifications)"
                 else:
                     local_mod = ""
                 if rel:
-                    print "%20s: %s %s"%(dep_repo, rel.version, local_mod)
+                    print "%20s: %s %s"%(dep.repo, rel.version, local_mod)
                 else:
-                    print "%20s: Not on released version %s"%(dep_repo, local_mod)
+                    print "%20s: %s %s"%(dep.repo, dep.repo.current_githash(),local_mod)
+
+        print "\nExpected:"
+        for dep in repo.dependencies:
+            if dep.version_str:
+                print "%20s: %s"%(dep.repo_name, dep.version_str)
+            else:
+                print "%20s: %s"%(dep.repo_name, dep.githash)
+
 
 
 def xpkg_remove_dep(repo, options, args):
@@ -256,6 +265,7 @@ def xpkg_create_release(repo, options, args):
         exit(1)
 
 
+    xpkg_check_info(repo, options, args)
 
     release = Release()
     release.version = version
@@ -292,6 +302,8 @@ def xpkg_make_zip(repo, options, args):
 
     # Do some checks
 
+    alternate_name = False
+
     local_mod = False
     for r in repo.all_repos():
         if r.has_local_modifications():
@@ -306,14 +318,17 @@ def xpkg_make_zip(repo, options, args):
                                 allow_updates=False)
 
     if not current_ok:
-        print "Cannot make zip: dependencies not up to date"
-        exit(1)
+        print "warning: Current dependency versions do not match meta-data"
+        alternate_name = True
 
     rel = repo.current_release()
     if rel:
         vstr = str(rel.version)
     else:
         vstr = repo.current_githash()
+        
+    if alternate_name:
+        vstr = raw_input("Please give a name for this snapshot: ")
         
     name = repo.name + "_" + vstr
 
@@ -333,6 +348,7 @@ def xpkg_make_zip(repo, options, args):
         zip_repo(dep.repo, f)
     f.close()
 
+    return False
 
 
 def zip_repo(repo, zipfile, include_binaries=False):
@@ -363,17 +379,20 @@ def zip_repo(repo, zipfile, include_binaries=False):
         
 
 def xpkg_show(repo, options, args):
+
+    rel = repo.current_release()
+    if rel:
+        version = str(rel.version)
+    else:
+        version = str(repo.current_githash())
+
     print "INFO:\n"
     print "              Name: %s" % repo.name
+    print "           Version: %s" % version
     print "              Icon: %s" % repo.icon
     print "          Location: %s" % repo.location
     print "     Documentation: %s" % repo.doc
-    if repo.description:
-        print "       Description:\n%s" % repo.description
-    else:
-        print "       Description: None"
-        
-    print "\nUSE CASES:\n"
+    print "       Description: %s" % repo.description
 
     print "\nDEPENDENCIES:\n"
     xpkg_show_dep(repo, options, args)
@@ -407,6 +426,48 @@ def xpkg_checkout(repo, options, args):
         dep.repo.checkout(dep.githash)
 
 
+def xpkg_check_info(repo, options, args):
+    update = False
+    if repo.description==None or repo.description=="":
+        if confirm("No description found. Add one (Y/n)?",default=True):
+            print "Enter paragraph description:\n"
+            repo.description = raw_input()            
+            update = True
+
+    if repo.icon==None:
+        if confirm("No icon found. Add one (Y/n)?",default=True):
+            print "Enter path to icon: "
+            repo.icon = raw_input()
+            update = True
+
+    if repo.doc==None:
+        if confirm("No documentation uri found. Add one (Y/n)?",default=True):
+            print "Enter documentation uri: "
+            repo.doc = raw_input()
+            update = True
+        
+    return update
+
+def xpkg_tag(repo, options, args):
+    if len(args) < 1:
+        sys.stderr.write("error: requires version number\n")        
+        exit(1)
+    
+    v = Version(version_str=args[0])
+
+    rel = repo.get_release(v)
+
+    relhash = repo.get_child_hash(rel.parenthash)
+
+    if not relhash:
+        sys.stderr.write("error: cannot determine release hash\n")        
+        exit(1)
+    
+    subprocess.call(["git tag v%s %s"%(str(v), relhash)],cwd=Repo.path,
+                    shell=True)
+
+    print "Tagged"
+
 commands = [("show_dep","Show dependencies of the current repository"),
             ("check_dep","Check dependencies of the current repository"),
             ("add_dep","Add dependency"),
@@ -415,7 +476,9 @@ commands = [("show_dep","Show dependencies of the current repository"),
             ("list","List releases"),
             ("show","Show current state"),
             ("checkout","Checkout release"),
-            ("make_zip","Make zipfile of release")]
+            ("make_zip","Make zipfile of release"),
+            ("check_info","Check related information"),
+            ("tag","Tag the repo with a version")]
 
 if __name__ == "__main__":
     usage = "usage: %prog command [options]"
