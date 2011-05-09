@@ -88,7 +88,7 @@ def find_current_dependencies(repo):
                 s = m.groups(0)[0]
                 ms = [m for m in s.split(' ') if m != '']
                 modules = modules | set(ms)
-            if re.match(r'.include.*module_xcommon', line):
+            if re.match(r'.*include.*module_xcommon', line):
                 modules.add('module_xcommon')
         f.close()
 
