@@ -2,6 +2,35 @@ import xml.dom.minidom
 from xml.dom.minidom import parse, parseString
 import sys
 
+def pp_xml(dom, elem, indent=''):
+    if hasattr(elem,"tagName"):
+        s = indent + '<' + str(elem.tagName)
+        try:
+            for (key, value) in elem.attributes.items():
+                s += " %s = \"%s\"" % (key, value.strip())
+        except:
+            pass
+        s += '>'
+        found_subnode = False
+        child_str = ''
+        for c in elem.childNodes:
+            if hasattr(c, 'tagName'):
+                found_subnode = True
+            child_str += pp_xml(dom, c, indent + '    ')
+        if found_subnode:
+           s += '\n' + child_str + indent
+        else:
+           s += child_str                
+       
+        s += '</' + str(elem.tagName) + '>\n'
+    elif hasattr(elem,"wholeText"):
+        s = str(elem.wholeText).strip()
+    else:
+        s = indent + '<!--' + str(elem.nodeValue) + '-->\n'
+
+    return s
+    
+
 def num (s):
     try:
         return int(s)
@@ -56,6 +85,7 @@ class XmlObject(object):
         self.tags = []
         self.attrs = []
         self.parent = parent
+        self._extra_xml = None
         for attr in dir(self):            
             val = getattr(self,attr)
             if isinstance(val, XmlValue):    
@@ -97,6 +127,7 @@ class XmlObject(object):
             val.pre_export()
             val._add_attributes(dom, elem)
             val._add_children(dom, elem)
+            val._add_extra_xml(dom, elem)
             rootelem.appendChild(elem)
         elif hasattr(val, '__iter__'):
                 for x in val:
@@ -122,6 +153,12 @@ class XmlObject(object):
                 
             
 
+    def _add_extra_xml(self, dom, elem):
+        if self._extra_xml:
+            for c in self._extra_xml.childNodes:
+                elem.appendChild(c)
+                
+            
         
     def toxml(self, root, pretty=True):
         self.pre_export()
@@ -129,19 +166,19 @@ class XmlObject(object):
         rootelem = dom.getElementsByTagName(root)[0]
         self._add_attributes(dom, rootelem)
         self._add_children(dom, rootelem)
-        if pretty:
-            return dom.toprettyxml()
-        else:
-            return dom.toxml()
+        self._add_extra_xml(dom, rootelem)
+        return '<?xml version=\"1.0\" ?>\n' + pp_xml(dom, rootelem).strip()
+#        if pretty:
+#            return dom.toprettyxml()
+#        else:
+#            return dom.toxml()
 
 
     def _fromdom(self, dom, root):
         for attr in self.attrs:
             setattr(self, attr.name,root.getAttribute(attr.attrname))
 
-        for tag in self.tags:
-            
-            
+        for tag in self.tags:                       
             vals = []
             for x in root.childNodes:
                 if hasattr(x,"tagName") and x.tagName == tag.tagname:
@@ -165,13 +202,17 @@ class XmlObject(object):
                         except:
                             pass
                         vals.append(val)
-                 
+                    root.removeChild(x)
+
             if tag.plural:
                 setattr(self, tag.name, vals)
             elif vals != []:
                 setattr(self, tag.name, vals[0])
             else:
                 setattr(self, tag.name, None)
+
+
+        self._extra_xml = root
         self.post_import()
 
     def parseString(self, s):

@@ -112,6 +112,30 @@ def find_current_dependencies(repo):
 
     return repos
 
+def xpkg_add_dep(repo, options, args):
+    if len(args) < 1:
+        sys.stderr.write("ERROR: required repo name")
+        exit(1)
+        
+    for dep in repo.dependencies:
+        if dep.repo_name == args[0]:
+            sys.stderr.write("ERROR: dependency already exists")
+            exit(1)
+
+
+    dep = Dependency(parent=repo)
+    dep.repo_name = args[0]
+    dep.repo = Repo(dep.get_local_path())
+    dep.uri = dep.repo.uri()
+    dep.githash = dep.repo.current_githash()
+    rel = dep.repo.current_release()
+    if rel:
+        dep.version_str = str(rel.version)
+    repo.dependencies.append(dep)
+    print "Added"
+    return True
+
+
 def xpkg_check_dep(repo, options, args, return_current_ok=False,
                    allow_updates=True):
     deps = [d.repo_name for d in repo.dependencies]

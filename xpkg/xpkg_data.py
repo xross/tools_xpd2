@@ -3,6 +3,8 @@ import difflib
 from xmlobject import XmlObject, XmlValue, XmlNode, XmlNodeList, XmlAttribute
 from copy import copy
 
+    
+
 def exec_and_match(command, regexp, cwd=None):
     process = subprocess.Popen([command], cwd=cwd, shell=True, 
                                stdout=subprocess.PIPE,
