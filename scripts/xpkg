@@ -370,6 +370,14 @@ def xpkg_make_zip(repo, options, args):
     zip_repo(repo, f, include_binaries=True)
     for dep in repo.dependencies:
         zip_repo(dep.repo, f)
+    
+    info_string = "<zipinfo>\n"
+    info_string += "   <main>%s</main>\n"%repo.name
+    if not alternate_name:
+        info_string += "   <version>%s</version>\n"%vstr
+    info_string += "</zipinfo>"
+
+    f.writestr('.zipinfo',info_string)
     f.close()
 
     return False
@@ -400,6 +408,8 @@ def zip_repo(repo, zipfile, include_binaries=False):
                                          os.path.relpath(root, repo.path))
                     arcname=os.path.join(arcname, f)
                     zipfile.write(fullpath,arcname=arcname)
+    
+
         
 
 def xpkg_show(repo, options, args):
