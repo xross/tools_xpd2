@@ -134,8 +134,11 @@ class Dependency(XmlObject):
 class Release(XmlObject):
     version_str = XmlAttribute(attrname="version")
     parenthash = XmlAttribute()
+    githash = XmlAttribute()
     
     def post_import(self):
+        if self.parenthash and not self.githash:
+            self.githash = self.parent.get_child_hash(self.parenthash)
         if self.version_str:
             self.version = Version(version_str=self.version_str)
         else:
@@ -173,6 +176,7 @@ class Repo(XmlObject):
     doc = XmlValue()
 
     path = None
+
 
     def __init__(self,path,parenthash=None,master=False,**kwargs):
         path = os.path.abspath(path)
@@ -279,13 +283,14 @@ class Repo(XmlObject):
                             shell=True,
                             cwd=self.path)
 
+
             
     def save(self):
         f = open(self.xpkg_file,"w")
         f.write(self.toxml("xpkg"))
         f.close()
             
-    def save_and_commit_release(self, release):
+    def save_and_commit_release(self, release):        
         self.save()
         if self.git:
             subprocess.call(["git add .xpkg;git commit -m 'Release: %s'"%str(release.version)],
@@ -346,6 +351,8 @@ class Repo(XmlObject):
             self.name = os.path.split(self.path)[-1]
         if self.location == None:
             self.location = self.uri()
+
+
 
 
     def latest_version(self):

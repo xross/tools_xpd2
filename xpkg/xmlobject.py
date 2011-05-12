@@ -156,7 +156,7 @@ class XmlObject(object):
     def _add_extra_xml(self, dom, elem):
         if self._extra_xml:
             for c in self._extra_xml.childNodes:
-                elem.appendChild(c)
+                elem.appendChild(c.cloneNode(True))
                 
             
         
@@ -212,7 +212,7 @@ class XmlObject(object):
                 setattr(self, tag.name, None)
 
 
-        self._extra_xml = root
+        self._extra_xml = root.cloneNode(True)
         self.post_import()
 
     def parseString(self, s):

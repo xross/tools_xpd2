@@ -315,6 +315,8 @@ def xpkg_create_release(repo, options, args):
     print "Created release %s" % str(release.version)
 
     repo.save_and_commit_release(release)
+
+    release.githash = repo.get_child_hash(release.parenthash)
     
     if confirm("Do you want to make a zipfile (Y/n)? ",default=True):
         xpkg_make_zip(repo,options,[])
@@ -391,14 +393,17 @@ def zip_repo(repo, zipfile, include_binaries=False):
     lines = process.stdout.readlines()    
     for f in lines:
         f = f.rstrip()
-        zipfile.write(os.path.join(repo.path, f), arcname=os.path.join(repo.name, f))
+        if f != ".xpkg":
+            zipfile.write(os.path.join(repo.path, f), arcname=os.path.join(repo.name, f))
     for root, dirs, files in os.walk(os.path.join(repo.path,".git")):
-        for f in files:     
-            fullpath = os.path.join(root, f)
-            arcname=os.path.join(repo.name,os.path.relpath(root, repo.path))
-            arcname=os.path.join(arcname, f)
-            zipfile.write(fullpath,arcname=arcname)
-                                        
+        for f in files:    
+                fullpath = os.path.join(root, f)
+                arcname=os.path.join(repo.name,os.path.relpath(root, repo.path))
+                arcname=os.path.join(arcname, f)
+                zipfile.write(fullpath,arcname=arcname)
+     
+    zipfile.writestr(os.path.join(repo.name,".xpkg"), repo.toxml("xpkg"))
+                                   
     if include_binaries:
         for root, dirs, files in os.walk(os.path.join(repo.path)):
             for f in files:     
