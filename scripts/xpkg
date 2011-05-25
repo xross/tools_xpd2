@@ -69,7 +69,7 @@ def xpkg_remove_dep(repo, options, args):
     return False
 
 
-def find_current_dependencies(repo):
+def get_current_modules(repo):
     makefiles = []
     for root, dirs, files in os.walk(repo.path, topdown=False):
         for f in files:
@@ -91,6 +91,11 @@ def find_current_dependencies(repo):
             if re.match(r'.*include.*module_xcommon', line):
                 modules.add('module_xcommon')
         f.close()
+
+    return modules
+
+def find_current_dependencies(repo):
+    modules = get_current_modules(repo)
 
     root_dir = os.path.join(repo.path,"..")
 
@@ -324,9 +329,28 @@ def xpkg_create_release(repo, options, args):
     return True
 
 
+
+def do_exports(repo):
+    for export in repo.exports:
+        print "Exporting %s" % export
+        subprocess.call(["xmake","export"],cwd = os.path.join(repo.path,export))
+    return repo.exports    
+    
 def xpkg_make_zip(repo, options, args):
 
     # Do some checks
+
+    old_style = options.old_style
+
+    if old_style:
+        oldstyle_includes = get_current_modules(repo)
+        for x in os.listdir(repo.path):
+            if re.match('app_.*',x):
+                oldstyle_includes.add(x)    
+        oldstyle_root = repo.name
+    else:
+        oldstyle_includes = []
+        oldstyle_root = None
 
     alternate_name = False
 
@@ -336,7 +360,7 @@ def xpkg_make_zip(repo, options, args):
             print "%s has local modifications" % r
             local_mod = True
 
-    if local_mod:
+    if local_mod and not options.force:
         print "Cannot make zip: uncommitted modifications"
         exit(1)
 
@@ -355,6 +379,9 @@ def xpkg_make_zip(repo, options, args):
         
     if alternate_name:
         vstr = raw_input("Please give a name for this snapshot: ")
+
+    if old_style:
+        vstr += "_flat"
         
     name = repo.name + "_" + vstr
 
@@ -363,15 +390,21 @@ def xpkg_make_zip(repo, options, args):
     if ret != 0:
         print "Error building"
         exit(1)
+
+    exports = []
+    exports += do_exports(repo)
+    for dep in repo.dependencies:
+        exports += do_exports(dep.repo)
+    
     
     fname = name + ".zip"
     print "Creating %s" % fname
         
     f = zipfile.ZipFile(fname,"w")
 
-    zip_repo(repo, f, include_binaries=True)
+    zip_repo(repo, f, exports, old_style,oldstyle_includes,oldstyle_root,include_binaries=True, force=options.force)
     for dep in repo.dependencies:
-        zip_repo(dep.repo, f)
+        zip_repo(dep.repo, f, exports, old_style,oldstyle_includes,oldstyle_root, force=options.force)
     
     info_string = "<zipinfo>\n"
     info_string += "   <main>%s</main>\n"%repo.name
@@ -379,38 +412,117 @@ def xpkg_make_zip(repo, options, args):
         info_string += "   <version>%s</version>\n"%vstr
     info_string += "</zipinfo>"
 
-    f.writestr('.zipinfo',info_string)
+    if not old_style:
+        f.writestr('.zipinfo',info_string)
+
     f.close()
 
     return False
 
+def find_files(path):
+    fs = []
+    for root, dirs, files in os.walk(path):
+        for f in files:
+            fs.append(os.path.relpath(os.path.join(root, f),path))
 
-def zip_repo(repo, zipfile, include_binaries=False):
-    process = subprocess.Popen(["git ls-files"], shell=True, 
-                               cwd=repo.path,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
-    lines = process.stdout.readlines()    
+    return fs
+
+
+def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldstyle_root="",include_binaries=False, force = False):    
+
+    if force:        
+        lines = find_files(repo.path)
+        try:
+            f = open(os.path.join(repo.path,".gitignore"))
+            excludes = [x.strip() for x in f.readlines()]
+            f.close()
+        except:
+            excludes = []
+    else:
+        process = subprocess.Popen(["git ls-files"], shell=True, 
+                                   cwd=repo.path,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE)
+        lines = process.stdout.readlines()    
+        excludes = []
+
     for f in lines:
         f = f.rstrip()
-        if f != ".xpkg":
-            zipfile.write(os.path.join(repo.path, f), arcname=os.path.join(repo.name, f))
-    for root, dirs, files in os.walk(os.path.join(repo.path,".git")):
-        for f in files:    
+        if oldstyle:
+            ok = False
+            for i in oldstyle_includes:
+                if os.path.commonprefix([f,i])==i:
+                    ok = True
+                    prefix = i
+        else:
+            ok = True
+            
+        for i in exports:
+                if os.path.commonprefix([f,i])==i:
+                    ok = False
+
+        if re.match(".*\.git",f):
+            ok = False
+            
+        for pattern in excludes:
+            pattern = pattern.replace("*",".*")
+            if re.match(pattern, f):
+                ok = False
+
+        if ok and f != ".xpkg":
+            if oldstyle:
+                arcname = os.path.join(oldstyle_root, f)
+            else:
+                arcname = os.path.join(repo.name, f)
+
+            if oldstyle and re.match('.*Makefile$',f):
+                fh = open(os.path.join(repo.path,f))
+                lines = fh.readlines()
+                for i in range(len(lines)):
+                    lines[i] = lines[i].replace('../xcommon/module_xcommon','module_xcommon')
+                fh.close()
+                new_makefile = ''.join(lines)
+                zipfile.writestr(arcname, new_makefile)
+            else:
+                try:
+                    zipfile.write(os.path.join(repo.path, f), arcname=arcname)
+                except:
+                    pass
+                    
+    for export in exports:
+        export_path = os.path.join(repo.path,export)
+        export_path = os.path.join(export_path, "export")
+        for root, dirs, files in os.walk(export_path):
+            for f in files:
+                fullpath = os.path.join(root, f)
+                arcname = os.path.relpath(fullpath, export_path)
+                if oldstyle:
+                    arcname = os.path.join(oldstyle_root, arcname)
+                else:
+                    arcname = os.path.join(repo.name, arcname)
+
+                zipfile.write(fullpath,arcname=arcname)
+
+    if not oldstyle and repo.git_export != False:
+        for root, dirs, files in os.walk(os.path.join(repo.path,".git")):
+            for f in files:    
                 fullpath = os.path.join(root, f)
                 arcname=os.path.join(repo.name,os.path.relpath(root, repo.path))
                 arcname=os.path.join(arcname, f)
                 zipfile.write(fullpath,arcname=arcname)
      
-    zipfile.writestr(os.path.join(repo.name,".xpkg"), repo.toxml("xpkg"))
+        zipfile.writestr(os.path.join(repo.name,".xpkg"), repo.toxml("xpkg"))
                                    
     if include_binaries:
         for root, dirs, files in os.walk(os.path.join(repo.path)):
             for f in files:     
                 if re.match('.*\.xe$',f):
                     fullpath = os.path.join(root, f)
-                    arcname=os.path.join(repo.name,
-                                         os.path.relpath(root, repo.path))
+                    arcname=os.path.relpath(root, repo.path)
+                    if oldstyle:
+                        arcname = os.path.join(oldstyle_root, arcname)
+                    else:
+                        arcname=os.path.join(repo.name,arcname)
                     arcname=os.path.join(arcname, f)
                     zipfile.write(fullpath,arcname=arcname)
     
@@ -432,9 +544,17 @@ def xpkg_show(repo, options, args):
     print "          Location: %s" % repo.location
     print "     Documentation: %s" % repo.doc
     print "       Description: %s" % repo.description
+    if repo.git_export != None:
+        print "   Export git info: %s" % repo.git_export
 
     print "\nDEPENDENCIES:\n"
     xpkg_show_dep(repo, options, args)
+
+    if repo.exports != []:
+        print "\nEXPORTS:\n"
+        for export in repo.exports:
+            print "     %s" % export
+
 
 def xpkg_checkout(repo, options, args):
     if len(args) < 1:
@@ -534,6 +654,12 @@ if __name__ == "__main__":
 
     optparser.add_option("-t","--release-type",dest="release_type",
                          help="release type: release, alpha, beta or rc")
+
+    optparser.add_option("--oldstyle",dest="old_style",action="store_true",default=False,
+                         help="create an old style zip")
+
+    optparser.add_option("--force",dest="force",action="store_true",default=False,
+                         help="Ignore safety check")
 
 
 

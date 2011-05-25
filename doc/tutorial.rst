@@ -34,7 +34,9 @@ of a repository including its meta-information and dependencies::
                  Icon: icon/sc_xtcp.png
              Location: ssh://git@github.com/davelxmos/sc_xtcp
         Documentation: http://xcore.github.com/sc_xtcp
-          Description: A TCP/IP stack component. This component is a port of the uIP stack. It requires sc_ethernet to function.
+          Description: A TCP/IP stack component. This component is a
+                       port of the uIP stack. 
+                       It requires sc_ethernet to function.
     
    DEPENDENCIES:
     
@@ -94,7 +96,9 @@ information for this version::
                  Icon: icon/sc_xtcp.png
              Location: ssh://git@github.com/davelxmos/sc_xtcp
         Documentation: http://xcore.github.com/sc_xtcp
-          Description: A TCP/IP stack component. This component is a port of the uIP stack. It requires sc_ethernet to function.
+          Description: A TCP/IP stack component. This component is a
+                       port of the uIP stack. 
+                       It requires sc_ethernet to function.
     
    DEPENDENCIES:
     
@@ -165,4 +169,15 @@ repository which represents the release. It will then ask if you want
 to make a zip of the release. The zip will contain the repository and
 all its dependencies so is self contained for anyone who wishes to use it.
 
+Tagging
+-------
 
+By default, a release is not tagged in the git repository. The idea is
+that only releases that may be of external interest (public betas,
+generally available releases) are tagged.
+
+To tag a particular release you can use ``xpkg`` e.g.::
+
+   xpkg tag 2.0.0
+
+This will tag the git repository at the correct githash with the tag ``v2.0.0``.

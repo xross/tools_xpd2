@@ -42,6 +42,10 @@ class XmlValue(object):
         self.default=default
         self.tagname = tagname
 
+class XmlValueList(object):
+    def __init__(self, tagname=None):
+        self.tagname = tagname
+
 class XmlAttribute(object):
     def __init__(self, attrname=None, default=None):
         self.default=default
@@ -106,6 +110,15 @@ class XmlObject(object):
                         val.tagname = attr
                 self.tags.append(XmlTag(attr,tagname=val.tagname,
                                         typ=val.typ,plural=True))
+                setattr(self, attr, [])
+            elif isinstance(val, XmlValueList):
+                if val.tagname == None:
+                    if attr[-1] == 's':
+                        val.tagname = attr[:-1]
+                    else:
+                        val.tagname = attr
+                self.tags.append(XmlTag(attr,tagname=val.tagname,
+                                        typ=str,plural=True))
                 setattr(self, attr, [])
             elif isinstance(val, XmlAttribute):
                 if val.attrname == None:
@@ -182,7 +195,16 @@ class XmlObject(object):
             vals = []
             for x in root.childNodes:
                 if hasattr(x,"tagName") and x.tagName == tag.tagname:
-                    if hasattr(tag,"typ") and issubclass(tag.typ, XmlObject):
+                    if tag.plural and hasattr(tag,"typ") and tag.typ == str:
+                        current_vals = getattr(self, tag.name)
+                        if not current_vals:
+                            current_vals = []
+                        
+                        val = x.childNodes[0].wholeText
+                        val = val.strip()
+
+                        vals = current_vals + [val]                    
+                    elif hasattr(tag,"typ") and issubclass(tag.typ, XmlObject):
                         val = tag.typ(parent=self)
                         val._fromdom(dom, x)
                         vals.append(val)
@@ -201,6 +223,11 @@ class XmlObject(object):
                             val = num(x)
                         except:
                             pass
+                        if val in ["False","false","F","0"]:
+                            val = False
+                        if val in ["True","true","T","1"]:
+                            val = True
+
                         vals.append(val)
                     root.removeChild(x)
 

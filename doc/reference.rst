@@ -1,5 +1,5 @@
-Reference
-=========
+Command Reference
+=================
 
 The xpkg utility is a command line utility that allows the user to
 manipulate dependencies and releases it is called in the following manner.

@@ -16,4 +16,5 @@ and then run the ``setup.py`` script::
   cd tool_xpkg
   python setup.py install
 
-This should put the script ``xpkg`` into your executable path.
+This should put the script ``xpkg`` into your executable path. You
+will probably need superuser/administrator priveledges to do this.

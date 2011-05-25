@@ -1,6 +1,6 @@
 import os, subprocess, sys, re
 import difflib
-from xmlobject import XmlObject, XmlValue, XmlNode, XmlNodeList, XmlAttribute
+from xmlobject import XmlObject, XmlValue, XmlNode, XmlNodeList, XmlAttribute, XmlValueList
 from copy import copy
 
     
@@ -174,6 +174,9 @@ class Repo(XmlObject):
     icon = XmlValue()
     location = XmlValue()
     doc = XmlValue()
+    exports = XmlValueList(tagname="binary_only")
+    git_export = XmlValue(default=True)
+    xpkg_version = XmlValue(default="1.0")
 
     path = None
 

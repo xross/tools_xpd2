@@ -3,4 +3,5 @@ VERSION=0.1
 DOXYGEN_DIRS=
 SOURCE_INCLUDE_DIRS=
 XDOC_DIR ?= ../../xdoc
+#USE_COMMENTS=1
 include $(XDOC_DIR)/Makefile.inc

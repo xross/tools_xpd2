@@ -6,4 +6,6 @@ The ``xpkg`` packaging tool
   intro
   getting_started
   tutorial
+  advanced
   reference
+  xml_reference
