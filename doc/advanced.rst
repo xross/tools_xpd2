@@ -60,10 +60,10 @@ various distribution methods.
 The ``type`` attribute
 ......................
 
-.. list_table::
+.. list-table::
   
   * - ``general``
-    - blah
+    - 
   * - ``development``
     - blah
   * - ``invalid``

@@ -3,6 +3,7 @@ import difflib
 from xmlobject import XmlObject, XmlValue, XmlNode, XmlNodeList, XmlAttribute, XmlValueList
 from copy import copy
 
+xpkg_version = "1.0"
     
 
 def exec_and_match(command, regexp, cwd=None):
@@ -131,11 +132,41 @@ class Dependency(XmlObject):
     def __str__(self):
         return self.repo_name
 
+class ToolVersion(XmlObject):
+    pass
+
+class ToolChainSection(XmlObject):
+    tools = XmlValueList(tagname="tools")
+
+class Board(XmlObject):
+    is_schematic = False
+
+    portmap = XmlAttribute()
+
+class Schematic(Board):
+    is_schematic = True
+
+class HardwareSection(XmlObject):
+    boards = XmlNodeList(Board)
+    schematics = XmlNodeList(Schematic)
+    
+class DeviceSection(XmlObject):
+    devices = XmlValueList()
+
+class UseCase(XmlObject):
+    usecase_type = XmlAttribute(attrname="type")
+    toolchain_section = XmlNode(ToolChainSection, tagname="toolchain")
+    hardware_section = XmlNode(HardwareSection, tagname="hardware")
+    device_section = XmlNode(DeviceSection, tagname="devices")
+    description = XmlValue()
+    
 class Release(XmlObject):
     version_str = XmlAttribute(attrname="version")
     parenthash = XmlAttribute()
     githash = XmlAttribute()
-    
+    location = XmlValue()
+    usecases = XmlNodeList(UseCase)
+
     def post_import(self):
         if self.parenthash and not self.githash:
             self.githash = self.parent.get_child_hash(self.parenthash)
@@ -163,8 +194,10 @@ class Release(XmlObject):
     def __str__(self):
         return "<release:" + str(self.version) + ">"
 
-
+class ReleaseNote(XmlObject):
     
+    version = XmlValue()
+        
 class Repo(XmlObject):
 
     dependencies = XmlNodeList(Dependency, tagname="dependency")
@@ -176,7 +209,13 @@ class Repo(XmlObject):
     doc = XmlValue()
     exports = XmlValueList(tagname="binary_only")
     git_export = XmlValue(default=True)
-    xpkg_version = XmlValue(default="1.0")
+    xpkg_version = XmlValue(default=xpkg_version)
+    release_notes = XmlNodeList(ReleaseNote)
+    scope = XmlValue()
+    vendor = XmlValue()
+    maintainer = XmlValue()
+    keywords = XmlValueList()
+    usecases = XmlNodeList(UseCase)
 
     path = None
 
@@ -355,7 +394,8 @@ class Repo(XmlObject):
         if self.location == None:
             self.location = self.uri()
 
-
+    def pre_export(self):
+        self.xpkg_version = xpkg_version
 
 
     def latest_version(self):

@@ -231,6 +231,9 @@ class XmlObject(object):
                         vals.append(val)
                     root.removeChild(x)
 
+            if hasattr(root,'wholeText'):
+                self.wholeText = root.wholeText
+
             if tag.plural:
                 setattr(self, tag.name, vals)
             elif vals != []:

@@ -157,9 +157,10 @@ Creating releases
 -----------------
 
 Creating a release is a matter of:
-
+ 
   #. Check that all the dependency information and meta information is
      as you want it for the release.
+  #. Add release notes
   #. Run ``xpkg create_release`` 
 
 The ``create_release`` command will prompt you for a version number
@@ -168,6 +169,30 @@ the .xpkg file with the release information and make a commit to the
 repository which represents the release. It will then ask if you want
 to make a zip of the release. The zip will contain the repository and
 all its dependencies so is self contained for anyone who wishes to use it.
+
+Adding release notes
+~~~~~~~~~~~~~~~~~~~~
+
+To add a release note you need to manually edit the ``.xpkg``
+file. Release notes are handled with ``<release_note>`` element under the
+``<xpkg>`` element. 
+
+The release note has a ``version`` attribute which specifies which
+release note the version applies to. As a general rule, release notes
+should be attached to full releases (not alpha or betas). An example
+release note tag is::
+
+  <release_note  version="1.1.1">
+     * Added function X. This is a really cool
+       feature.
+     * Fixed function Y
+  </release_note>
+
+Note that the contents of the element is a bullet list of
+features/bugfixes. 
+
+``release_note`` elements should go directly under the ``<xpkg>``
+element, **not** under the ``<release>`` element.
 
 Tagging
 -------
