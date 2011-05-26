@@ -1,3 +1,5 @@
+.. class:: announce instapaper_body rst wikistyle readme.rst
+
 XPKG - Repository and Packaging management tool
 ===============================================
 
@@ -9,6 +11,3 @@ XPKG - Repository and Packaging management tool
   * - **c**
     - b
 
-.. raw:: html
-
-   <b>test</b>
