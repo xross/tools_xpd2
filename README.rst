@@ -8,3 +8,7 @@ XPKG - Repository and Packaging management tool
     - b
   * - **c**
     - b
+
+.. raw:: html
+
+   <b>test</b>
