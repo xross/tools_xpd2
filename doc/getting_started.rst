@@ -18,3 +18,16 @@ and then run the ``setup.py`` script::
 
 This should put the script ``xpkg`` into your executable path. You
 will probably need superuser/administrator priveledges to do this.
+
+Creating an ``xpkg.xml`` file
+-----------------------------
+
+To get going in a new repository, just change into the repository
+directory and run::
+
+  xpkg init
+
+You can now add the ``xpkg.xml`` file to your git repo::
+
+  git add xpkg.xml
+  git commit -m "Added xpkg.xml"  

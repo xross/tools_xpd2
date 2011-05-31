@@ -196,14 +196,10 @@ class XmlObject(object):
             for x in root.childNodes:
                 if hasattr(x,"tagName") and x.tagName == tag.tagname:
                     if tag.plural and hasattr(tag,"typ") and tag.typ == str:
-                        current_vals = getattr(self, tag.name)
-                        if not current_vals:
-                            current_vals = []
                         
                         val = x.childNodes[0].wholeText
                         val = val.strip()
-
-                        vals = current_vals + [val]                    
+                        vals.append(val)
                     elif hasattr(tag,"typ") and issubclass(tag.typ, XmlObject):
                         val = tag.typ(parent=self)
                         val._fromdom(dom, x)
@@ -231,9 +227,6 @@ class XmlObject(object):
                         vals.append(val)
                     root.removeChild(x)
 
-            if hasattr(root,'wholeText'):
-                self.wholeText = root.wholeText
-
             if tag.plural:
                 setattr(self, tag.name, vals)
             elif vals != []:
@@ -241,6 +234,11 @@ class XmlObject(object):
             else:
                 setattr(self, tag.name, None)
 
+        if len(root.childNodes) > 0 and \
+                hasattr(root.childNodes[0],'wholeText'):
+            self.wholeText = root.childNodes[0].wholeText.rstrip()
+        else:
+            self.wholeText = ''
 
         self._extra_xml = root.cloneNode(True)
         self.post_import()

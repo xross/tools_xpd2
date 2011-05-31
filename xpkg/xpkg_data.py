@@ -35,17 +35,24 @@ class Version(object):
             self.parse_string(version_str)
 
     def parse_string(self, version_string):
-        m = re.match(r'([^.]*).([^.]*).([^.*])(alpha|beta|rc|)(\d*)', version_string)
+        m = re.match(r'([^\.]*)\.([^\.]*)\.([^\.*])(alpha|beta|rc|)(\d*)', version_string)
+
+        if not m:
+            m = re.match(r'([^v])v(\d)(\d?)(alpha|beta|rc|)(\d*)', version_string)
         if m:
             self.major = int(m.groups(0)[0]) 
             self.minor = int(m.groups(0)[1]) 
-            self.point = int(m.groups(0)[2]) 
+            point = m.groups(0)[2]
+            if point == '':
+                point = '0'
+            self.point = int(point) 
             self.rtype = m.groups(0)[3]
             self.rnumber = m.groups(0)[4]
             if (self.rnumber == ""):
                 self.rnumber = 0
             else:
                 self.rnumber = int(self.rnumber)
+
         else:
             sys.stderr.write("ERROR: invalid version %s\n" % version_string)
             exit(1)
@@ -80,7 +87,10 @@ class Version(object):
             else:            
                 return cmp(self.rtype, other.rtype)
         else:
-            return cmp(self.rnumber, other.rnumber)
+            if self.rtype in ['','release']:
+                return 0
+            else:
+                return cmp(self.rnumber, other.rnumber)
             
     def __str__(self):
         rtype = self.rtype
@@ -95,6 +105,11 @@ class Version(object):
                 self.minor == other.minor and
                 self.point == other.point and
                 self.rtype == other.rtype)
+
+    def match_modulo_rtype(self, other):
+        return (self.major == other.major and
+                self.minor == other.minor and
+                self.point == other.point)
 
     def set_rnumber(self, releases):
         rels = [r for r in releases if self.match_modulo_rnumber(r.version)]
@@ -154,10 +169,11 @@ class DeviceSection(XmlObject):
     devices = XmlValueList()
 
 class UseCase(XmlObject):
+    name = XmlValue()
     usecase_type = XmlAttribute(attrname="type")
-    toolchain_section = XmlNode(ToolChainSection, tagname="toolchain")
-    hardware_section = XmlNode(HardwareSection, tagname="hardware")
-    device_section = XmlNode(DeviceSection, tagname="devices")
+    toolchain = XmlNode(ToolChainSection, tagname="toolchain")
+    hardware = XmlNode(HardwareSection, tagname="hardware")
+    devices = XmlNode(DeviceSection, tagname="devices")
     description = XmlValue()
     
 class Release(XmlObject):
@@ -196,7 +212,27 @@ class Release(XmlObject):
 
 class ReleaseNote(XmlObject):
     
-    version = XmlValue()
+    version_str = XmlAttribute(attrname="version")
+
+    def post_import(self):
+        if self.version_str:
+            self.version = Version(version_str=self.version_str)
+        else:
+            self.version = None
+
+    def __cmp__(self, other):
+        return cmp(self.version, other.version)
+
+class ChangeLog(XmlObject):
+    
+    version_str = XmlAttribute(attrname="version")
+
+    def post_import(self):
+        if self.version_str:
+            self.version = Version(version_str=self.version_str)
+        else:
+            self.version = None
+
         
 class Repo(XmlObject):
 
@@ -216,7 +252,8 @@ class Repo(XmlObject):
     maintainer = XmlValue()
     keywords = XmlValueList()
     usecases = XmlNodeList(UseCase)
-
+    changelog = XmlNodeList(ChangeLog)
+    
     path = None
 
 
@@ -248,7 +285,7 @@ class Repo(XmlObject):
 
         if parenthash:
              relhash = self.get_child_hash(parenthash)
-             process = subprocess.Popen(["git show %s:.xpkg"%relhash], 
+             process = subprocess.Popen(["git show %s:xpkg.xml"%relhash], 
                                        shell=True,
                                        cwd=path,
                                        stdout=subprocess.PIPE,
@@ -261,7 +298,7 @@ class Repo(XmlObject):
 
 
         if master:
-             process = subprocess.Popen(["git show master:.xpkg"], 
+             process = subprocess.Popen(["git show master:xpkg.xml"], 
                                        shell=True,
                                        cwd=path,
                                        stdout=subprocess.PIPE,
@@ -272,7 +309,7 @@ class Repo(XmlObject):
                       read_file = False            
                       self.parseString(process.stdout.read())
 
-        self.xpkg_file = os.path.join(git_dir,'.xpkg')
+        self.xpkg_file = os.path.join(git_dir,'xpkg.xml')
 
         if read_file:
             try:
@@ -332,45 +369,52 @@ class Repo(XmlObject):
         f.write(self.toxml("xpkg"))
         f.close()
             
-    def save_and_commit_release(self, release):        
-        self.save()
+    def record_release(self, release):
         if self.git:
-            subprocess.call(["git add .xpkg;git commit -m 'Release: %s'"%str(release.version)],
-                            shell=True,
-                            cwd=self.path,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE)
-        
             ref = self.current_gitref()
             if ref != "master":
                 self.checkout("master",silent=True)
                 master_repo = Repo(self.path)
                 master_repo.releases.append(release)   
                 master_repo.save()
-                subprocess.call(["git add .xpkg;git commit -m 'Record release: %s'"%str(release.version)],
+                subprocess.call(["git add xpkg.xml;git commit -m 'Record release: %s'"%str(release.version)],
                                 shell=True,
                                 cwd=self.path,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)                
                 self.checkout(ref,silent=True)
+            
 
+    def save_and_commit_release(self, release):        
+        self.save()
+        if self.git:
+            subprocess.call(["git add xpkg.xml;git commit -m 'Release: %s'"%str(release.version)],
+                            shell=True,
+                            cwd=self.path,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+
+        self.record_release(release)
+
+    def latest_release(self, release_filter = None):
+        if release_filter:
+            rels = [r for r in self.releases if release_filter(r)]
+        else:
+            rels = self.releases
+        rels.sort()
+        if rels != []:
+            return rels[-1]
+        return None                
 
     def latest_full_release(self):
-        rels = [r for r in self.releases if r.version.is_full()]
-        rels.sort()
-        if rels != []:
-            return rels[-1]
-        return None
+        return self.latest_release(release_filter=
+                                   lambda r: r.version.is_full())
 
     def latest_pre_release(self):
-        rels = [r for r in self.releases if not r.version.is_full()]
-        rels.sort()
-        if rels != []:
-            return rels[-1]
-        return None
+        return self.latest_release(release_filter=
+                                   lambda r: not r.version.is_full())
 
                 
-
     def current_release(self):
         if not self.path:
             return None
@@ -443,6 +487,13 @@ class Repo(XmlObject):
         return exec_and_match("git rev-list --parents --all",
                               r'(.*) %s'%parenthash,
                               cwd=self.path)
+
+    def get_release_notes(self, version):
+        for rnote in self.release_notes:
+            if rnote.version == version:
+                return rnote
+        else:
+            return None
 
     def __str__(self):
         (_,name) = os.path.split(self.path)

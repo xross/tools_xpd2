@@ -14,6 +14,12 @@ The following section describes the possible commands.
 Commands
 --------
 
+.. option:: init 
+
+   Initialize the ``xpkg.xml`` file in the repository.
+
+   This command will initialize the meta-data file in the repository. 
+
 .. option:: checkout version
 
    Checkout a version of the repository.
@@ -38,6 +44,21 @@ Commands
    either a major, minor or point increment to the latest full
    release. 
 
+.. option:: upgrade_rc version
+
+   Upgrade a release candidate into a release.
+
+   The command will record a release version to be the same as the
+   latest release candidate for that version. 
+
+.. option:: list
+
+   List the release versions of this repository.
+
+.. option:: make_zip version
+
+   Make a zip file of the specified version.
+
 .. option:: tag version
 
    Tag the repository with a version.
@@ -45,7 +66,7 @@ Commands
    This option tags the repository with a particualr version. It also
    marks the version as external in the meta-information.
    
-.. option:: add_dep path_to_repo
+.. option:: add_dep repo_name
 
    Add a dependency.
 
@@ -65,6 +86,20 @@ Commands
    against all the ones that are needed due to the USED_MODULES 
    variables in the various application Makefiles within the repository.
 
+.. option:: check_info
+
+   Check repository meta-information. 
+
+   This command checks the repository meta-information for validity
+   and if any information is missing will prompt the user to enter it.
+   
+.. option:: gen_readme
+
+   Generate a readme.
+
+   This command will generate a readme and output it to standard
+   output. This can be used for the README.rst file in the repository.
+
 .. option:: list
 
    List releases.
@@ -81,10 +116,5 @@ Commands
 
    Iterate the given git command over the repo and all its dependencies.
 
-.. option:: remove version
-
-   Remove a version
-
-   This removes a version from the repository meta-information.
 
 

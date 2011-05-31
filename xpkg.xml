@@ -1,0 +1,9 @@
+<?xml version="1.0" ?>
+<xpkg>
+    <description>Repository information and release management tool.</description>
+    <location>git@github.com:xmos/tool_xpkg.git</location>
+    <maintainer>davelxmos</maintainer>
+    <name>xpkg</name>
+    <vendor>XMOS</vendor>
+    <xpkg_version>1.0</xpkg_version>
+</xpkg>

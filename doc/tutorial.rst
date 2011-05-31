@@ -61,7 +61,7 @@ to the repository).
 .. note::
 
    All the information that the tool uses is stored in a file called
-   ``.xpkg`` which is at the top-level of the repository.
+   ``xpkg.xml`` which is at the top-level of the repository.
 
 
 In this example, we can see that all three repositories are at
@@ -71,6 +71,7 @@ working at the develpment head of the repositories.
 
 The ``list`` command can show you what releases have been created in
 the past for this repository::
+
    $ xpkg list
    2.1.0alpha0
    2.0.0
@@ -156,26 +157,40 @@ asks you to update it with anything that is missing.
 Creating releases
 -----------------
 
-Creating a release is a matter of:
+Creating releases involves the following steps:
+
+  #. Create alphas and betas for testing (optional, during development
+   phase)
+  #. Create release candidates until one is ready for full release
+  #. Upgrade a release candidate to a release
+
+Creating an alpha, beta or release candidate is a matter of:
  
   #. Check that all the dependency information and meta information is
      as you want it for the release.
-  #. Add release notes
+  #. Add release notes and changelog entries to ``xpkg.xml``
   #. Run ``xpkg create_release`` 
 
 The ``create_release`` command will prompt you for a version number
 and type (e.g. alpha, beta etc). It will check dependencies, update
-the .xpkg file with the release information and make a commit to the
+the xpkg.xml file with the release information and make a commit to the
 repository which represents the release. It will then ask if you want
 to make a zip of the release. The zip will contain the repository and
 all its dependencies so is self contained for anyone who wishes to use it.
 
-Adding release notes
-~~~~~~~~~~~~~~~~~~~~
+To upgrade a release candidate you need to run::
 
-To add a release note you need to manually edit the ``.xpkg``
-file. Release notes are handled with ``<release_note>`` element under the
-``<xpkg>`` element. 
+    xpkg upgrade_rc [version]
+
+Adding release note and changelog entries
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To add a release note you need to manually edit the ``xpkg.xml``
+file. Release notes are handled with a ``<release_note>`` element under the
+``<xpkg>`` element. These notes handle known issues and notes about a
+release. Changelog entries are handled with ``<changelog>`` elements
+under the ``<xpkg>`` tag. These entries detail the difference between
+a release and the previous release.
 
 The release note has a ``version`` attribute which specifies which
 release note the version applies to. As a general rule, release notes
@@ -183,16 +198,23 @@ should be attached to full releases (not alpha or betas). An example
 release note tag is::
 
   <release_note  version="1.1.1">
+     * Function X doesn't work on Sundays
+     * Function Y is only compatible with Package Z
+  </release_note>
+
+Changelog entries are similar::
+
+  <changelog version="1.1.1">
      * Added function X. This is a really cool
        feature.
      * Fixed function Y
-  </release_note>
+  </changelog>
 
 Note that the contents of the element is a bullet list of
 features/bugfixes. 
 
-``release_note`` elements should go directly under the ``<xpkg>``
-element, **not** under the ``<release>`` element.
+``release_note`` and ``changelog`` elements should go directly
+under the ``<xpkg>`` element, **not** under the ``<release>`` element.
 
 Tagging
 -------

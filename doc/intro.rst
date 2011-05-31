@@ -1,13 +1,12 @@
 Introduction
 ============
 
-
-
 ``xpkg`` is a python script that performs package management for XMOS
 and XCore source code repositories. The tool:
 
    * Tracks dependencies of the repository
-   * Manages releases (and their dependency)
+   * Manages meta-information about a repository
+   * Manages releases (and their dependencies)
 
 Using this tool is highly recommended for release management of your
 repository since it is maintained by XMOS and is designed to be compatible with
