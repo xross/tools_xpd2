@@ -1,12 +1,12 @@
 Command Reference
 =================
 
-The xpkg utility is a command line utility that allows the user to
+The xpd utility is a command line utility that allows the user to
 manipulate dependencies and releases it is called in the following manner.
 
 :: 
 
-  xpkg command [options]
+  xpd command [options]
 
 
 The following section describes the possible commands.
@@ -16,7 +16,7 @@ Commands
 
 .. option:: init 
 
-   Initialize the ``xpkg.xml`` file in the repository.
+   Initialize the ``xpd.xml`` file in the repository.
 
    This command will initialize the meta-data file in the repository. 
 

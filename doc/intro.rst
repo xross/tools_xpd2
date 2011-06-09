@@ -1,7 +1,7 @@
 Introduction
 ============
 
-``xpkg`` is a python script that performs package management for XMOS
+``xpd`` is a python script that performs package management for XMOS
 and XCore source code repositories. The tool:
 
    * Tracks dependencies of the repository

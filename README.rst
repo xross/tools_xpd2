@@ -1,6 +1,6 @@
 .. class:: announce instapaper_body rst wikistyle readme.rst
 
-xpkg
+xpd
 ....
 
 Repository information and release management tool.

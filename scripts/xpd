@@ -4,7 +4,7 @@ import os, subprocess, sys, re
 import difflib
 import zipfile
 from copy import copy
-from xpkg.xpkg_data import Repo, Release, Version, Dependency
+from xpd.xpd_data import Repo, Release, Version, Dependency
 
 def confirm(msg, default=False):
     x = raw_input(msg)        
@@ -15,7 +15,7 @@ def confirm(msg, default=False):
     return default
 
 
-def xpkg_dep_iter(repo, command, output_repo_names=True):
+def xpd_dep_iter(repo, command, output_repo_names=True):
     deps = repo.dependencies
     os.system(command)
     for dep in deps:
@@ -26,7 +26,7 @@ def xpkg_dep_iter(repo, command, output_repo_names=True):
         os.system(command)
         os.chdir(cwd)
 
-def xpkg_show_dep(repo, options, args):
+def xpd_show_dep(repo, options, args):
 
     if repo.dependencies == []:
         print "No dependencies"
@@ -53,7 +53,7 @@ def xpkg_show_dep(repo, options, args):
 
 
 
-def xpkg_remove_dep(repo, options, args):
+def xpd_remove_dep(repo, options, args):
     if len(args) < 1:
         return False
     to_remove = args[0]
@@ -117,7 +117,7 @@ def find_current_dependencies(repo):
 
     return repos
 
-def xpkg_add_dep(repo, options, args):
+def xpd_add_dep(repo, options, args):
     if len(args) < 1:
         sys.stderr.write("ERROR: required repo name")
         exit(1)
@@ -141,7 +141,7 @@ def xpkg_add_dep(repo, options, args):
     return True
 
 
-def xpkg_check_dep(repo, options, args, return_current_ok=False,
+def xpd_check_dep(repo, options, args, return_current_ok=False,
                    allow_updates=True):
     deps = [d.repo_name for d in repo.dependencies]
 
@@ -199,14 +199,14 @@ def xpkg_check_dep(repo, options, args, return_current_ok=False,
         return update
 
 
-def xpkg_list(repo, options, args):
+def xpd_list(repo, options, args):
     rels = repo.releases
     rels.sort()
     rels.reverse()
     for rel in rels:
         print rel.version
             
-def xpkg_upgrade_rc(repo, options, args):
+def xpd_upgrade_rc(repo, options, args):
     if len(args) < 1:
         sys.stderr.write("Requires version number.\n")
         exit(1)
@@ -242,11 +242,11 @@ def xpkg_upgrade_rc(repo, options, args):
     ref = repo.current_gitref()
     
     if ref == "master":
-        print "xpkg data updated. Please commit to complete upgrade of rc."
+        print "xpd data updated. Please commit to complete upgrade of rc."
             
     return True
 
-def xpkg_create_release(repo, options, args):
+def xpd_create_release(repo, options, args):
     if hasattr(options,'release_type') and options.release_type:
         rtype = options.release_type
     else:
@@ -309,14 +309,14 @@ def xpkg_create_release(repo, options, args):
         print "Cannot create release: uncommitted modifications"
         exit(1)
 
-    current_ok = xpkg_check_dep(repo, options, args, return_current_ok=True)
+    current_ok = xpd_check_dep(repo, options, args, return_current_ok=True)
 
     if not current_ok:
         print "Cannot create release: dependencies not up to date"
         exit(1)
 
 
-    xpkg_check_info(repo, options, args)
+    xpd_check_info(repo, options, args)
 
     release = Release()
     release.version = version
@@ -346,7 +346,7 @@ def xpkg_create_release(repo, options, args):
     release.githash = repo.get_child_hash(release.parenthash)
     
     if confirm("Do you want to make a zipfile (Y/n)? ",default=True):
-        xpkg_make_zip(repo,options,[])
+        xpd_make_zip(repo,options,[])
 
     return True
 
@@ -358,7 +358,7 @@ def do_exports(repo):
         subprocess.call(["xmake","export"],cwd = os.path.join(repo.path,export))
     return repo.exports    
     
-def xpkg_make_zip(repo, options, args):
+def xpd_make_zip(repo, options, args):
 
     # Do some checks
 
@@ -386,7 +386,7 @@ def xpkg_make_zip(repo, options, args):
         print "Cannot make zip: uncommitted modifications"
         exit(1)
 
-    current_ok = xpkg_check_dep(repo, options, args, return_current_ok=True,
+    current_ok = xpd_check_dep(repo, options, args, return_current_ok=True,
                                 allow_updates=False)
 
     if not current_ok:
@@ -491,7 +491,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
             if re.match(pattern, f):
                 ok = False
 
-        if ok and f != "xpkg.xml":
+        if ok and f != "xpd.xml":
             if oldstyle:
                 arcname = os.path.join(oldstyle_root, f)
             else:
@@ -533,7 +533,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
                 arcname=os.path.join(arcname, f)
                 zipfile.write(fullpath,arcname=arcname)
      
-        zipfile.writestr(os.path.join(repo.name,"xpkg.xml"), repo.toxml("xpkg"))
+        zipfile.writestr(os.path.join(repo.name,"xpd.xml"), repo.toxml("xpd"))
                                    
     if include_binaries:
         for root, dirs, files in os.walk(os.path.join(repo.path)):
@@ -551,7 +551,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
 
         
 
-def xpkg_show(repo, options, args):
+def xpd_show(repo, options, args):
 
     rel = repo.current_release()
     if rel:
@@ -570,7 +570,7 @@ def xpkg_show(repo, options, args):
         print "   Export git info: %s" % repo.git_export
 
     print "\nDEPENDENCIES:\n"
-    xpkg_show_dep(repo, options, args)
+    xpd_show_dep(repo, options, args)
 
     if repo.exports != []:
         print "\nEXPORTS:\n"
@@ -589,7 +589,7 @@ def rst_make_title(title, ch):
     underline = ''.join([ch for x in title])
     return [title,underline,'']
 
-def xpkg_gen_readme(repo, options, args):
+def xpd_gen_readme(repo, options, args):
 
     sep = '.. seperator'
     latest = repo.latest_release(release_filter=lambda r: r.version.rtype=='rc')
@@ -687,7 +687,7 @@ def xpkg_gen_readme(repo, options, args):
     print '\n'.join(changelog)
 
 
-def xpkg_checkout(repo, options, args):
+def xpd_checkout(repo, options, args):
     if len(args) < 1:
         return False
 
@@ -703,7 +703,7 @@ def xpkg_checkout(repo, options, args):
     try:
         version = Version(version_str=args[0])
     except:
-        xpkg_dep_iter(repo, "git checkout %s" % args[0])
+        xpd_dep_iter(repo, "git checkout %s" % args[0])
         return False
 
     rel = repo.get_release(version)
@@ -715,7 +715,7 @@ def xpkg_checkout(repo, options, args):
         dep.repo.checkout(dep.githash)
 
 
-def xpkg_check_info(repo, options, args):
+def xpd_check_info(repo, options, args):
     update = False
 
     if repo.description==None or repo.description=="":
@@ -758,7 +758,7 @@ def xpkg_check_info(repo, options, args):
         
     return update
 
-def xpkg_tag(repo, options, args):
+def xpd_tag(repo, options, args):
     if len(args) < 1:
         sys.stderr.write("error: requires version number\n")        
         exit(1)
@@ -778,18 +778,18 @@ def xpkg_tag(repo, options, args):
 
     print "Tagged"
 
-def xpkg_init(repo, options, args):
+def xpd_init(repo, options, args):
     if confirm("Repo name is %s. Change (Y/n)?"%repo.name,default=True):
         print "Enter name: "
         repo.name = raw_input()
     
-    xpkg_check_info(repo, options, args)
-    xpkg_check_dep(repo, options, args)
+    xpd_check_info(repo, options, args)
+    xpd_check_dep(repo, options, args)
     return True
            
 
 
-commands = [("init","Initialize the xpkg meta-information file"),
+commands = [("init","Initialize the xpd meta-information file"),
             ("check_dep","Check dependencies of the current repository"),
             ("add_dep","Add dependency"),
             ("remove_dep","Remove dependency"),
@@ -829,7 +829,7 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 1 and sys.argv[1] == 'git':
         repo = Repo(".")
-        xpkg_dep_iter(repo, ' '.join(sys.argv[1:]))
+        xpd_dep_iter(repo, ' '.join(sys.argv[1:]))
         exit(0)
 
     (options, args) = optparser.parse_args()
@@ -851,7 +851,7 @@ if __name__ == "__main__":
     args = args[1:]
 
     if command in [c[0] for c in commands]:
-        command_fn = eval("xpkg_%s" % command)
+        command_fn = eval("xpd_%s" % command)
         if command_fn(repo, options, args):
             repo.save()
     else:

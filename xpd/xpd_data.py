@@ -3,7 +3,7 @@ import difflib
 from xmlobject import XmlObject, XmlValue, XmlNode, XmlNodeList, XmlAttribute, XmlValueList
 from copy import copy
 
-xpkg_version = "1.0"
+xpd_version = "1.0"
     
 
 def exec_and_match(command, regexp, cwd=None):
@@ -245,7 +245,7 @@ class Repo(XmlObject):
     doc = XmlValue()
     exports = XmlValueList(tagname="binary_only")
     git_export = XmlValue(default=True)
-    xpkg_version = XmlValue(default=xpkg_version)
+    xpd_version = XmlValue(default=xpd_version)
     release_notes = XmlNodeList(ReleaseNote)
     scope = XmlValue()
     vendor = XmlValue()
@@ -285,7 +285,7 @@ class Repo(XmlObject):
 
         if parenthash:
              relhash = self.get_child_hash(parenthash)
-             process = subprocess.Popen(["git show %s:xpkg.xml"%relhash], 
+             process = subprocess.Popen(["git show %s:xpd.xml"%relhash], 
                                        shell=True,
                                        cwd=path,
                                        stdout=subprocess.PIPE,
@@ -298,7 +298,7 @@ class Repo(XmlObject):
 
 
         if master:
-             process = subprocess.Popen(["git show master:xpkg.xml"], 
+             process = subprocess.Popen(["git show master:xpd.xml"], 
                                        shell=True,
                                        cwd=path,
                                        stdout=subprocess.PIPE,
@@ -309,13 +309,13 @@ class Repo(XmlObject):
                       read_file = False            
                       self.parseString(process.stdout.read())
 
-        self.xpkg_file = os.path.join(git_dir,'xpkg.xml')
+        self.xpd_file = os.path.join(git_dir,'xpd.xml')
 
         if read_file:
             try:
-                self.parse(self.xpkg_file)
+                self.parse(self.xpd_file)
             except IOError:
-                self.parseString("<xpkg></xpkg>")
+                self.parseString("<xpd></xpd>")
             
         if not master and not parenthash:
             master_repo = Repo(self.path,master=True)
@@ -365,8 +365,8 @@ class Repo(XmlObject):
 
             
     def save(self):
-        f = open(self.xpkg_file,"w")
-        f.write(self.toxml("xpkg"))
+        f = open(self.xpd_file,"w")
+        f.write(self.toxml("xpd"))
         f.close()
             
     def record_release(self, release):
@@ -377,7 +377,7 @@ class Repo(XmlObject):
                 master_repo = Repo(self.path)
                 master_repo.releases.append(release)   
                 master_repo.save()
-                subprocess.call(["git add xpkg.xml;git commit -m 'Record release: %s'"%str(release.version)],
+                subprocess.call(["git add xpd.xml;git commit -m 'Record release: %s'"%str(release.version)],
                                 shell=True,
                                 cwd=self.path,
                                 stdout=subprocess.PIPE,
@@ -388,7 +388,7 @@ class Repo(XmlObject):
     def save_and_commit_release(self, release):        
         self.save()
         if self.git:
-            subprocess.call(["git add xpkg.xml;git commit -m 'Release: %s'"%str(release.version)],
+            subprocess.call(["git add xpd.xml;git commit -m 'Release: %s'"%str(release.version)],
                             shell=True,
                             cwd=self.path,
                             stdout=subprocess.PIPE,
@@ -439,7 +439,7 @@ class Repo(XmlObject):
             self.location = self.uri()
 
     def pre_export(self):
-        self.xpkg_version = xpkg_version
+        self.xpd_version = xpd_version
 
 
     def latest_version(self):

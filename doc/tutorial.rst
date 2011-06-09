@@ -26,7 +26,7 @@ of a repository including its meta-information and dependencies::
 
 
    $ cd sc_xtcp
-   $ xpkg show
+   $ xpd show
    INFO:
     
                  Name: sc_xtcp
@@ -61,7 +61,7 @@ to the repository).
 .. note::
 
    All the information that the tool uses is stored in a file called
-   ``xpkg.xml`` which is at the top-level of the repository.
+   ``xpd.xml`` which is at the top-level of the repository.
 
 
 In this example, we can see that all three repositories are at
@@ -72,7 +72,7 @@ working at the develpment head of the repositories.
 The ``list`` command can show you what releases have been created in
 the past for this repository::
 
-   $ xpkg list
+   $ xpd list
    2.1.0alpha0
    2.0.0
    2.0.0rc0
@@ -84,12 +84,12 @@ The ``checkout`` command can move to a specific release. It works like
 the git checkout command but also checks out the relevant
 dependencies::
 
-   $ xpkg checkout 2.0.0
+   $ xpd checkout 2.0.0
 
 Once we have checked out this version, it is possible to look at the
 information for this version:: 
 
-   $ xpkg show
+   $ xpd show
    INFO:
     
                  Name: sc_xtcp
@@ -113,9 +113,9 @@ information for this version::
 
 
 Here we can see that the actual versions of our local repositories
-have changed. We can get back to the master branch using xpkg checkout again::
+have changed. We can get back to the master branch using xpd checkout again::
 
-   $ xpkg checkout master
+   $ xpd checkout master
 
 If checkout gets an argument which is not a version number it tries to
 change all repositories to the specified ref using git.
@@ -124,15 +124,15 @@ Running git commands
 --------------------
 
 It is possible to iterate git commands over all dependent repositories
-using the ``xpkg git`` command. So, the following will call ``git
+using the ``xpd git`` command. So, the following will call ``git
 status`` on the main repository and all its dependents::
 
-   $ xpkg git status
+   $ xpd git status
 
 Updating dependencies
 ---------------------
 
-As we have seen, ``xpkg`` keeps track of the repositories your
+As we have seen, ``xpd`` keeps track of the repositories your
 repository depends upon. To maintain this list you can use the
 ``show_dep``, ``check_dep``, ``add_dep`` and ``remove_dep`` commands. 
 
@@ -140,7 +140,7 @@ The main command to use is the ``check_dep`` command. This checks the
 current dependencies and offers to update meta-information if new or
 changed dependencies are found e.g.::
   
- $ xpkg check_dep
+ $ xpd check_dep
  Add xcommon to dependencies (Y/n)?y
  Added
  Add sc_ethernet to dependencies (Y/n)?y
@@ -168,28 +168,28 @@ Creating an alpha, beta or release candidate is a matter of:
  
   #. Check that all the dependency information and meta information is
      as you want it for the release.
-  #. Add release notes and changelog entries to ``xpkg.xml``
-  #. Run ``xpkg create_release`` 
+  #. Add release notes and changelog entries to ``xpd.xml``
+  #. Run ``xpd create_release`` 
 
 The ``create_release`` command will prompt you for a version number
 and type (e.g. alpha, beta etc). It will check dependencies, update
-the xpkg.xml file with the release information and make a commit to the
+the xpd.xml file with the release information and make a commit to the
 repository which represents the release. It will then ask if you want
 to make a zip of the release. The zip will contain the repository and
 all its dependencies so is self contained for anyone who wishes to use it.
 
 To upgrade a release candidate you need to run::
 
-    xpkg upgrade_rc [version]
+    xpd upgrade_rc [version]
 
 Adding release note and changelog entries
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To add a release note you need to manually edit the ``xpkg.xml``
+To add a release note you need to manually edit the ``xpd.xml``
 file. Release notes are handled with a ``<release_note>`` element under the
-``<xpkg>`` element. These notes handle known issues and notes about a
+``<xpd>`` element. These notes handle known issues and notes about a
 release. Changelog entries are handled with ``<changelog>`` elements
-under the ``<xpkg>`` tag. These entries detail the difference between
+under the ``<xpd>`` tag. These entries detail the difference between
 a release and the previous release.
 
 The release note has a ``version`` attribute which specifies which
@@ -214,7 +214,7 @@ Note that the contents of the element is a bullet list of
 features/bugfixes. 
 
 ``release_note`` and ``changelog`` elements should go directly
-under the ``<xpkg>`` element, **not** under the ``<release>`` element.
+under the ``<xpd>`` element, **not** under the ``<release>`` element.
 
 Tagging
 -------
@@ -223,8 +223,8 @@ By default, a release is not tagged in the git repository. The idea is
 that only releases that may be of external interest (public betas,
 generally available releases) are tagged.
 
-To tag a particular release you can use ``xpkg`` e.g.::
+To tag a particular release you can use ``xpd`` e.g.::
 
-   xpkg tag 2.0.0
+   xpd tag 2.0.0
 
 This will tag the git repository at the correct githash with the tag ``v2.0.0``.

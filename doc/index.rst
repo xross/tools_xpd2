@@ -1,4 +1,4 @@
-The ``xpkg`` packaging tool
+The ``xpd`` packaging tool
 ===========================
 
 .. toctree::

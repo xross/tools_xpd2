@@ -1,33 +1,33 @@
 Getting Started
 ===============
 
-Before installing xpkg you need to have python installed on your system.
+Before installing xpd you need to have python installed on your system.
 
-The xpkg github repository can be found here:
+The xpd github repository can be found here:
 
-  http://github.com/xcore/tool_xpkg
+  http://github.com/xcore/tool_xpd
 
 To install, first clone the repository::
 
-  git clone http://github.com/xcore/tool_xpkg
+  git clone http://github.com/xcore/tool_xpd
 
 and then run the ``setup.py`` script::
 
-  cd tool_xpkg
+  cd tool_xpd
   python setup.py install
 
-This should put the script ``xpkg`` into your executable path. You
+This should put the script ``xpd`` into your executable path. You
 will probably need superuser/administrator priveledges to do this.
 
-Creating an ``xpkg.xml`` file
+Creating an ``xpd.xml`` file
 -----------------------------
 
 To get going in a new repository, just change into the repository
 directory and run::
 
-  xpkg init
+  xpd init
 
-You can now add the ``xpkg.xml`` file to your git repo::
+You can now add the ``xpd.xml`` file to your git repo::
 
-  git add xpkg.xml
-  git commit -m "Added xpkg.xml"  
+  git add xpd.xml
+  git commit -m "Added xpd.xml"  
