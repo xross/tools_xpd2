@@ -408,7 +408,7 @@ def xpd_make_zip(repo, options, args):
     name = repo.name + "_" + vstr
 
     print "Building repo"
-    ret = subprocess.call(["xmake all"], cwd=repo.path, shell=True)
+    ret = subprocess.call(["xmake","all"], cwd=repo.path, shell=True)
     if ret != 0:
         print "Error building"
         exit(1)
@@ -773,7 +773,7 @@ def xpd_tag(repo, options, args):
         sys.stderr.write("error: cannot determine release hash\n")        
         exit(1)
     
-    subprocess.call(["git tag v%s %s"%(str(v), relhash)],cwd=Repo.path,
+    subprocess.call(["git","tag","v%s"%str(v),relhash],cwd=Repo.path,
                     shell=True)
 
     print "Tagged"
