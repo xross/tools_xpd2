@@ -208,8 +208,9 @@ class XmlObject(object):
                         if not x.hasChildNodes:
                             sys.stderr.write("Parse error - expected %s to have content\n"%tag.tagname)
                             exit(1)
-                        if not hasattr(x.childNodes[0],"wholeText"):
+                        if len(x.childNodes)<1 or not hasattr(x.childNodes[0],"wholeText"):
                             sys.stderr.write("Parse error - expected %s to have text content\n"%tag.tagname)
+                            print 1/0
                             exit(1)
                             
                         val = x.childNodes[0].wholeText

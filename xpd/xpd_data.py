@@ -238,7 +238,7 @@ class Repo(XmlObject):
 
     dependencies = XmlNodeList(Dependency, tagname="dependency")
     releases = XmlNodeList(Release)
-    name = XmlValue()
+    longname = XmlValue(tagname="name")
     description = XmlValue()
     icon = XmlValue()
     location = XmlValue()
@@ -260,6 +260,7 @@ class Repo(XmlObject):
     def __init__(self,path,parenthash=None,master=False,**kwargs):
         path = os.path.abspath(path)
         self.path = path
+        self.name = os.path.split(self.path)[-1]
         self.git = True
         self._repo_cache = {self.path:self}
         super(Repo, self).__init__(**kwargs)
@@ -433,8 +434,9 @@ class Repo(XmlObject):
         return None
 
     def post_import(self):
-        if self.name == None:
-            self.name = os.path.split(self.path)[-1]
+        
+        if self.longname == None:
+            self.longname = self.name
         if self.location == None:
             self.location = self.uri()
 
