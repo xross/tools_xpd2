@@ -20,8 +20,8 @@ def pp_xml(dom, elem, indent=''):
         if found_subnode:
            s += '\n' + child_str + indent
         else:
-           s += child_str                
-       
+           s += child_str
+
         s += '</' + str(elem.tagName) + '>\n'
     elif hasattr(elem,"wholeText"):
         s = str(elem.wholeText).strip()
@@ -29,7 +29,7 @@ def pp_xml(dom, elem, indent=''):
         s = indent + '<!--' + str(elem.nodeValue) + '-->\n'
 
     return s
-    
+
 
 def num (s):
     try:
@@ -62,7 +62,7 @@ class XmlNodeList(object):
         self.tagname = tagname
 
 class XmlTag(object):
-    
+
     def __init__(self, name, tagname=None, typ=str, plural=False):
         self.name = name
         if tagname:
@@ -73,7 +73,7 @@ class XmlTag(object):
         self.plural = plural
 
 class XmlAttr(object):
-    
+
     def __init__(self, name, attrname=None):
         self.name = name
         if attrname:
@@ -90,9 +90,9 @@ class XmlObject(object):
         self.attrs = []
         self.parent = parent
         self._extra_xml = None
-        for attr in dir(self):            
+        for attr in dir(self):
             val = getattr(self,attr)
-            if isinstance(val, XmlValue):    
+            if isinstance(val, XmlValue):
                 if val.tagname == None:
                     val.tagname = attr
                 self.tags.append(XmlTag(attr, tagname=val.tagname))
@@ -125,7 +125,7 @@ class XmlObject(object):
                     val.attrname = attr
                 self.attrs.append(XmlAttr(attr,attrname=val.attrname))
                 setattr(self, attr, val.default)
-                                                                   
+
 
     def pre_export(self):
         pass
@@ -163,16 +163,16 @@ class XmlObject(object):
             val = getattr(self, attr.name)
             if val:
                 elem.setAttribute(attr.attrname, val)
-                
-            
+
+
 
     def _add_extra_xml(self, dom, elem):
         if self._extra_xml:
             for c in self._extra_xml.childNodes:
                 elem.appendChild(c.cloneNode(True))
-                
-            
-        
+
+
+
     def toxml(self, root, pretty=True):
         self.pre_export()
         dom = xml.dom.minidom.parseString("<%s/>"%root)
@@ -191,12 +191,12 @@ class XmlObject(object):
         for attr in self.attrs:
             setattr(self, attr.name,root.getAttribute(attr.attrname))
 
-        for tag in self.tags:                       
+        for tag in self.tags:
             vals = []
             for x in root.childNodes:
                 if hasattr(x,"tagName") and x.tagName == tag.tagname:
                     if tag.plural and hasattr(tag,"typ") and tag.typ == str:
-                        
+
                         val = x.childNodes[0].wholeText
                         val = val.strip()
                         vals.append(val)
@@ -205,14 +205,14 @@ class XmlObject(object):
                         val._fromdom(dom, x)
                         vals.append(val)
                     else:
-                        if not x.hasChildNodes:
+                        if not x.hasChildNodes():
                             sys.stderr.write("Parse error - expected %s to have content\n"%tag.tagname)
                             exit(1)
                         if len(x.childNodes)<1 or not hasattr(x.childNodes[0],"wholeText"):
                             sys.stderr.write("Parse error - expected %s to have text content\n"%tag.tagname)
                             print 1/0
                             exit(1)
-                            
+
                         val = x.childNodes[0].wholeText
                         val = val.strip()
                         # Convert to a number if possible
@@ -256,7 +256,7 @@ class XmlObject(object):
 
 class TestXmlObject1(XmlObject):
     val1 = XmlValue(default=7)
-    
+
 class TestXmlObject2(XmlObject):
     val2 = XmlValue(default=5)
     object1 = XmlNode(TestXmlObject1)
