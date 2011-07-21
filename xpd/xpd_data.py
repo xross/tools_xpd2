@@ -7,7 +7,7 @@ xpd_version = "1.0"
     
 
 def exec_and_match(command, regexp, cwd=None):
-    process = subprocess.Popen([command], cwd=cwd, shell=True, 
+    process = subprocess.Popen(command, cwd=cwd, shell=True, 
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
     lines = process.stdout.readlines()
@@ -419,7 +419,7 @@ class Repo(XmlObject):
     def current_release(self):
         if not self.path:
             return None
-        parent_hash = exec_and_match("git rev-parse HEAD~1",r'(.*)',cwd=self.path)
+        parent_hash = exec_and_match(["git","rev-parse","HEAD~1"],r'(.*)',cwd=self.path)
         
         rels = []
         for release in self.releases:
@@ -463,12 +463,12 @@ class Repo(XmlObject):
         return True
 
     def uri(self):
-        return exec_and_match("git remote show -n origin",
+        return exec_and_match(["git","remote","show","-n","origin"],
                               r'.*Fetch URL: (.*)',
                               cwd=self.path)
         
     def current_gitref(self):
-        symref = exec_and_match("git symbolic-ref HEAD",r'refs/heads/(.*)',
+        symref = exec_and_match(["git","symbolic-ref","HEAD"],r'refs/heads/(.*)',
                                 cwd=self.path)
         if symref == None:
             return self.current_githash()
@@ -477,16 +477,16 @@ class Repo(XmlObject):
         
 
     def current_githash(self):
-        return exec_and_match("git rev-parse HEAD",r'(.*)',cwd=self.path)
+        return exec_and_match(["git","rev-parse","HEAD"],r'(.*)',cwd=self.path)
  
     def current_gitbranch(self):
-        return exec_and_match("git branch",r'\* (.*)',cwd=self.path)
+        return exec_and_match(["git","branch"],r'\* (.*)',cwd=self.path)
 
     def all_repos(self):
         return [d.repo for d in self.dependencies] + [self]
 
     def get_child_hash(self, parenthash):
-        return exec_and_match("git rev-list --parents --all",
+        return exec_and_match(["git","rev-list","--parents","--all"],
                               r'(.*) %s'%parenthash,
                               cwd=self.path)
 

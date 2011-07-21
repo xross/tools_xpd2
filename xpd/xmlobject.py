@@ -206,25 +206,23 @@ class XmlObject(object):
                         vals.append(val)
                     else:
                         if not x.hasChildNodes():
-                            sys.stderr.write("Parse error - expected %s to have content\n"%tag.tagname)
-                            exit(1)
-                        if len(x.childNodes)<1 or not hasattr(x.childNodes[0],"wholeText"):
+                            sys.stderr.write("Warning - expected %s to have content\n"%tag.tagname)
+                        elif len(x.childNodes)<1 or not hasattr(x.childNodes[0],"wholeText"):
                             sys.stderr.write("Parse error - expected %s to have text content\n"%tag.tagname)
-                            exit(1)
+			else:
+                            val = x.childNodes[0].wholeText
+                            val = val.strip()
+                            # Convert to a number if possible
+                            try:
+                                val = num(x)
+                            except:
+                                pass
+                            if val in ["False","false","F","0"]:
+                                val = False
+                            if val in ["True","true","T","1"]:
+                                val = True
 
-                        val = x.childNodes[0].wholeText
-                        val = val.strip()
-                        # Convert to a number if possible
-                        try:
-                            val = num(x)
-                        except:
-                            pass
-                        if val in ["False","false","F","0"]:
-                            val = False
-                        if val in ["True","true","T","1"]:
-                            val = True
-
-                        vals.append(val)
+                            vals.append(val)
                     root.removeChild(x)
 
             if tag.plural:
