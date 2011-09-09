@@ -258,7 +258,7 @@ def xpd_create_release(repo, options, args):
     if hasattr(options,'release_type') and options.release_type:
         rtype = options.release_type
     else:
-        x = raw_input("Enter release type (a=alpha,b=beta,r=rc): ")
+        x = raw_input("Enter release type (a=alpha,b=beta,r=rc,release=full release): ")
         if x in ['a','alpha']:
             rtype='alpha'
         elif x in ['b','beta']:
