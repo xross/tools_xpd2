@@ -265,7 +265,7 @@ class Repo(XmlObject):
         self._repo_cache = {self.path:self}
         super(Repo, self).__init__(**kwargs)
 
-        process = subprocess.Popen(["git rev-parse --show-cdup"], shell=True,
+        process = subprocess.Popen(["git","rev-parse","--show-cdup"], shell=True,
                                    cwd=path,
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
@@ -286,7 +286,7 @@ class Repo(XmlObject):
 
         if parenthash:
              relhash = self.get_child_hash(parenthash)
-             process = subprocess.Popen(["git show %s:xpd.xml"%relhash], 
+             process = subprocess.Popen(["git","show","%s:xpd.xml"%relhash], 
                                        shell=True,
                                        cwd=path,
                                        stdout=subprocess.PIPE,
@@ -299,7 +299,7 @@ class Repo(XmlObject):
 
 
         if master:
-             process = subprocess.Popen(["git show master:xpd.xml"], 
+             process = subprocess.Popen(["git","show","master:xpd.xml"], 
                                        shell=True,
                                        cwd=path,
                                        stdout=subprocess.PIPE,
@@ -353,13 +353,13 @@ class Repo(XmlObject):
 
     def checkout(self, githash, silent=False):
         if silent:
-            subprocess.call(["git checkout %s"%githash],
+            subprocess.call(["git","checkout",githash],
                             shell=True,
                             cwd=self.path,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)            
         else:
-            subprocess.call(["git checkout %s"%githash],
+            subprocess.call(["git","checkout",githash],
                             shell=True,
                             cwd=self.path)
 
@@ -378,7 +378,12 @@ class Repo(XmlObject):
                 master_repo = Repo(self.path)
                 master_repo.releases.append(release)   
                 master_repo.save()
-                subprocess.call(["git add xpd.xml;git commit -m 'Record release: %s'"%str(release.version)],
+                subprocess.call(["git","add","xpd.xml"],
+                                shell=True,
+                                cwd=self.path,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)                
+                subprocess.call(["git","commit","-m","'Record release: %s'"%str(release.version)],
                                 shell=True,
                                 cwd=self.path,
                                 stdout=subprocess.PIPE,
@@ -389,7 +394,12 @@ class Repo(XmlObject):
     def save_and_commit_release(self, release):        
         self.save()
         if self.git:
-            subprocess.call(["git add xpd.xml;git commit -m 'Release: %s'"%str(release.version)],
+            subprocess.call(["git","add","xpd.xml"],
+                            shell=True,
+                            cwd=self.path,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+            subprocess.call(["git","commit","-m","'Release: %s'"%str(release.version)],
                             shell=True,
                             cwd=self.path,
                             stdout=subprocess.PIPE,
@@ -453,8 +463,12 @@ class Repo(XmlObject):
         return rels[-1].version
 
     def has_local_modifications(self):      
-        command = 'git update-index -q --refresh;git diff-index --name-only HEAD --'
-        process = subprocess.Popen([command], cwd=self.path, shell=True, 
+        process = subprocess.Popen(["git","update-index","-q","--refresh"], cwd=self.path, shell=True, 
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE)
+        lines = process.stdout.readlines()
+
+        process = subprocess.Popen(["git","diff-index","--name-only","HEAD","--"], cwd=self.path, shell=True, 
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
         lines = process.stdout.readlines()
