@@ -7,7 +7,7 @@ xpd_version = "1.0"
     
 
 def exec_and_match(command, regexp, cwd=None):
-    process = subprocess.Popen(command, cwd=cwd, shell=True, 
+    process = subprocess.Popen(command, cwd=cwd,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
     lines = process.stdout.readlines()
@@ -21,6 +21,7 @@ class Version(object):
     
     def __init__(self, major=0, minor=0, point=0, 
                  rtype="release",rnumber=0,
+                 branch=None, branch_rnumber=0,
                  version_str = None):
 
         if version_str == None:
@@ -31,11 +32,13 @@ class Version(object):
             self.point = point
             self.rtype = rtype
             self.rnumber = rnumber
+            self.branch = branch
+            self.branch_rnumber = branch_rnumber
         else:
             self.parse_string(version_str)
 
     def parse_string(self, version_string):
-        m = re.match(r'([^\.]*)\.([^\.]*)\.([^\.*])(alpha|beta|rc|)(\d*)', version_string)
+        m = re.match(r'([^\.]*)\.([^\.]*)\.([^\.*])(alpha|beta|rc|)(\d*)_?(\w*)(\d*)', version_string)
 
         if not m:
             m = re.match(r'([^v])v(\d)(\d?)(alpha|beta|rc|)(\d*)', version_string)
@@ -52,6 +55,18 @@ class Version(object):
                 self.rnumber = 0
             else:
                 self.rnumber = int(self.rnumber)
+            self.branch = m.groups(0)[5]
+            if (self.branch == ""):
+                self.branch = None
+            else:
+                self.branch = int(self.rnumber)
+
+            self.branch_rnumber = m.groups(0)[6]
+            if (self.branch_rnumber == ""):
+                self.branch_rnumber = 0
+            else:
+                self.branch_rnumber = int(self.rnumber)
+
 
         else:
             sys.stderr.write("ERROR: invalid version %s\n" % version_string)
@@ -68,7 +83,7 @@ class Version(object):
 
 
     def is_full(self):
-        return (self.rtype == 'release' or self.rtype=='')
+        return (not self.branch and (self.rtype == 'release' or self.rtype==''))
 
     def __cmp__(self, other):
         if other == None:
@@ -93,12 +108,18 @@ class Version(object):
                 return cmp(self.rnumber, other.rnumber)
             
     def __str__(self):
+        vstr = ""
         rtype = self.rtype
         if rtype=="release" or rtype=="":
-            return "%d.%d.%d" % (self.major, self.minor, self.point)
+            vstr = "%d.%d.%d" % (self.major, self.minor, self.point)
         else:
-            return "%d.%d.%d%s%d" % (self.major, self.minor, self.point,
+            vstr = "%d.%d.%d%s%d" % (self.major, self.minor, self.point,
                                      self.rtype, self.rnumber)
+
+        if self.branch:
+            vstr += "_%s%d" % (self.branch, self.branch_rnumber)
+
+        return vstr
 
     def match_modulo_rnumber(self, other):
         return (self.major == other.major and
@@ -413,7 +434,8 @@ class Repo(XmlObject):
 
     def latest_pre_release(self):
         return self.latest_release(release_filter=
-                                   lambda r: not r.version.is_full())
+                                   lambda r: not r.version.is_full() \
+                                             and not r.version.branch)
 
                 
     def current_release(self):
@@ -474,7 +496,11 @@ class Repo(XmlObject):
             return self.current_githash()
         else:
             return symref
-        
+
+    def is_detached_head(self):
+        symref = exec_and_match(["git","symbolic-ref","HEAD"],r'refs/heads/(.*)',
+                                cwd=self.path)
+        return (symref == None)
 
     def current_githash(self):
         return exec_and_match(["git","rev-parse","HEAD"],r'(.*)',cwd=self.path)
