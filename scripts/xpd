@@ -535,7 +535,9 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
     p.communicate()
 
     subprocess.call(["git","remote","set-url","origin",repo.uri()],cwd=repo_copy_path)
-    subprocess.call(["git","checkout",repo.current_githash()])
+
+    p=subprocess.Popen(["git","checkout",repo.current_githash()], cwd=repo_copy_path,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    p.communicate()
 
     if force:
         lines = find_files(repo_copy_path)

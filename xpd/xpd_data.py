@@ -286,7 +286,7 @@ class Repo(XmlObject):
         self._repo_cache = {self.path:self}
         super(Repo, self).__init__(**kwargs)
 
-        process = subprocess.Popen(["git","rev-parse","--show-cdup"], shell=True,
+        process = subprocess.Popen(["git","rev-parse","--show-cdup"],
                                    cwd=path,
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
@@ -307,8 +307,7 @@ class Repo(XmlObject):
 
         if parenthash:
              relhash = self.get_child_hash(parenthash)
-             process = subprocess.Popen(["git","show","%s:xpd.xml"%relhash], 
-                                       shell=True,
+             process = subprocess.Popen(["git","show","%s:xpd.xml"%relhash],
                                        cwd=path,
                                        stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE)
@@ -320,8 +319,7 @@ class Repo(XmlObject):
 
 
         if master:
-             process = subprocess.Popen(["git","show","master:xpd.xml"], 
-                                       shell=True,
+             process = subprocess.Popen(["git","show","master:xpd.xml"],
                                        cwd=path,
                                        stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE)
@@ -375,13 +373,11 @@ class Repo(XmlObject):
     def checkout(self, githash, silent=False):
         if silent:
             subprocess.call(["git","checkout",githash],
-                            shell=True,
                             cwd=self.path,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)            
         else:
             subprocess.call(["git","checkout",githash],
-                            shell=True,
                             cwd=self.path)
 
 
@@ -400,12 +396,10 @@ class Repo(XmlObject):
                 master_repo.releases.append(release)   
                 master_repo.save()
                 subprocess.call(["git","add","xpd.xml"],
-                                shell=True,
                                 cwd=self.path,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)                
                 subprocess.call(["git","commit","-m","'Record release: %s'"%str(release.version)],
-                                shell=True,
                                 cwd=self.path,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)                
@@ -416,12 +410,10 @@ class Repo(XmlObject):
         self.save()
         if self.git:
             subprocess.call(["git","add","xpd.xml"],
-                            shell=True,
                             cwd=self.path,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
             subprocess.call(["git","commit","-m","'Release: %s'"%str(release.version)],
-                            shell=True,
                             cwd=self.path,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
@@ -485,12 +477,12 @@ class Repo(XmlObject):
         return rels[-1].version
 
     def has_local_modifications(self):      
-        process = subprocess.Popen(["git","update-index","-q","--refresh"], cwd=self.path, shell=True, 
+        process = subprocess.Popen(["git","update-index","-q","--refresh"], cwd=self.path,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
         lines = process.stdout.readlines()
 
-        process = subprocess.Popen(["git","diff-index","--name-only","HEAD","--"], cwd=self.path, shell=True, 
+        process = subprocess.Popen(["git","diff-index","--name-only","HEAD","--"], cwd=self.path,
                                stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE)
         lines = process.stdout.readlines()
