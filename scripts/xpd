@@ -624,11 +624,11 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
         zipfile.writestr(os.path.join(repo.name,"xpd.xml"), repo.toxml("xpd"))
 
     if include_binaries:
-        for root, dirs, files in os.walk(os.path.join(repo_copy_path)):
+        for root, dirs, files in os.walk(os.path.join(repo.path)):
             for f in files:
                 if re.match('.*\.xe$',f):
                     fullpath = os.path.join(root, f)
-                    arcname=os.path.relpath(root, repo_copy_path)
+                    arcname=os.path.relpath(root, repo.path)
                     if oldstyle:
                         arcname = os.path.join(oldstyle_root, arcname)
                     else:
