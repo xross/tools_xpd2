@@ -574,6 +574,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
             ok = False
 
         for pattern in excludes:
+            pattern = pattern.replace(".","\.")
             pattern = pattern.replace("*",".*")
             if re.match(pattern, f):
                 ok = False
