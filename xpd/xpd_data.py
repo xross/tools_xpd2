@@ -254,7 +254,8 @@ class ChangeLog(XmlObject):
         else:
             self.version = None
 
-        
+
+
 class Repo(XmlObject):
 
     dependencies = XmlNodeList(Dependency, tagname="dependency")
@@ -265,7 +266,7 @@ class Repo(XmlObject):
     location = XmlValue()
     doc = XmlValue()
     exports = XmlValueList(tagname="binary_only")
-    git_export = XmlValue(default=True)
+    git_export = XmlValue(default=False)
     xpd_version = XmlValue(default=xpd_version)
     release_notes = XmlNodeList(ReleaseNote)
     scope = XmlValue()

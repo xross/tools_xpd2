@@ -601,7 +601,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
                     pass
 
     for export in exports:
-        export_path = os.path.join(repo_copy_path,export)
+        export_path = os.path.join(repo.path,export)
         export_path = os.path.join(export_path, "export")
         for root, dirs, files in os.walk(export_path):
             for f in files:
@@ -614,7 +614,9 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
 
                 zipfile.write(fullpath,arcname=arcname)
 
-    if not oldstyle and repo.git_export != False:
+    if not oldstyle and repo.git_export == True:
+        print "exporting git"
+        print repo
         for root, dirs, files in os.walk(os.path.join(repo_copy_path,".git")):
             for f in files:
                 fullpath = os.path.join(root, f)
