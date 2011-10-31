@@ -9,6 +9,7 @@ import zipfile
 import tempfile
 from copy import copy
 from xpd.xpd_data import Repo, Release, Version, Dependency
+import xpd.check_project
 
 def samefile(fileA, fileB):
     try:
@@ -375,6 +376,13 @@ def xpd_create_release(repo, options, args):
 
 
     xpd_check_info(repo, options, args)
+
+    ok = xpd_check_infr(repo, options, args, return_ok = True)
+
+    if not ok:
+        print "Updates required to eclipse files/Makefiles."
+        print "Update files (or commit automatic changes) and try again."
+        exit(1)
 
     release = Release()
     release.version = version
@@ -878,7 +886,15 @@ def xpd_init(repo, options, args):
     xpd_check_dep(repo, options, args)
     return True
 
-
+def xpd_check_infr(repo, options, args, return_ok=False):
+    ok = True
+    ok = ok and xpd.check_project.check_project(repo)
+    ok = ok and xpd.check_project.check_cproject(repo)
+    ok = ok and xpd.check_project.check_makefiles(repo)
+    if return_ok:
+        return ok
+    else:
+        return False
 
 commands = [("init","Initialize the xpd meta-information file"),
             ("check_dep","Check dependencies of the current repository"),
@@ -892,7 +908,8 @@ commands = [("init","Initialize the xpd meta-information file"),
             ("make_zip","Make zipfile of release"),
             ("check_info","Check related information"),
             ("tag","Tag the repo with a version"),
-            ("gen_readme","Generate README file for the repo")]
+            ("gen_readme","Generate README file for the repo"),
+            ("check_infr","Check infrastructure (Makefiles, eclipse projects)")]
 
 if __name__ == "__main__":
     usage = "usage: %prog command [options]"
