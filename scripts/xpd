@@ -888,9 +888,12 @@ def xpd_init(repo, options, args):
 
 def xpd_check_infr(repo, options, args, return_ok=False):
     ok = True
-    ok = ok and xpd.check_project.check_project(repo)
-    ok = ok and xpd.check_project.check_cproject(repo)
-    ok = ok and xpd.check_project.check_makefiles(repo)
+    project_ok = xpd.check_project.check_project(repo)
+    ok = ok and project_ok
+    cproject_ok = xpd.check_project.check_cproject(repo)
+    ok = ok and cproject_ok
+    makefiles_ok = xpd.check_project.check_makefiles(repo)
+    ok = ok and makefiles_ok
     if return_ok:
         return ok
     else:
