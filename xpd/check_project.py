@@ -65,7 +65,7 @@ def check_project(repo):
             try:
                 f = open(os.path.join(repo.path,'..','xcommon',
                                       'templates',
-                                      'project','.project'),'r')
+                                      'project','dotproject'),'r')
             except:
                 sys.stderr.write("Can't open .project template. Make sure you have the latest version of xcommon in your sandbox/workspace.")
                 exit(1)
