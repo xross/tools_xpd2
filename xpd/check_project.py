@@ -5,6 +5,7 @@ import re
 import subprocess
 import random
 import shutil
+from xpd.xpd_subprocess import call, Popen
 
 rand = random.Random()
 
@@ -172,7 +173,7 @@ def check_cproject(repo):
         sys.stdout.write('.')
         sys.stdout.flush()
         try:
-            process = subprocess.Popen(["xmake","list_includes"],
+            process = Popen(["xmake","list_includes"],
                                        cwd=os.path.dirname(mkfile),
                                        stdout=subprocess.PIPE)
         except:
@@ -242,11 +243,13 @@ def check_cproject(repo):
         x = raw_input()
         if not x in ['n','N','No','NO','no']:
             if 'Default' in configs:
-                base_config = ''
+                 base_config = ''
             elif 'Release' in configs:
-                base_config = '_Release'
+                 base_config = '_Release'
+            elif len(configs) > 0:
+                 base_config = '_' + (list(configs)[0])
             else:
-                base_config = '_' + (list(configs)[0])
+                 base_config = ''
 
             includes = ['<listOptionValue builtIn="false" value=\'%s\' />\n'%x for x in all_includes]
             includes = ''.join(includes)
@@ -390,8 +393,10 @@ def update_makefile(mkfile_path, all_configs):
         base_config = ''
     elif 'Release' in configs:
         base_config = '_Release'
+    elif len(configs) > 0:
+         base_config = '_' + (list(configs)[0])
     else:
-        base_config = '_' + (list(configs)[0])
+         base_config = ''
 
     for config in all_configs - configs:
         for flag_type in flag_types:

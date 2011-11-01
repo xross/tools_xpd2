@@ -10,6 +10,8 @@ import tempfile
 from copy import copy
 from xpd.xpd_data import Repo, Release, Version, Dependency
 import xpd.check_project
+from xpd.xpd_subprocess import call, Popen
+
 
 def samefile(fileA, fileB):
     try:
@@ -382,7 +384,7 @@ def xpd_create_release(repo, options, args):
     if not ok:
         print "Updates required to eclipse files/Makefiles."
         print "Update files (or commit automatic changes) and try again."
-        exit(1)
+        return True
 
     release = Release()
     release.version = version
@@ -421,7 +423,7 @@ def xpd_create_release(repo, options, args):
 def do_exports(repo):
     for export in repo.exports:
         print "Exporting %s" % export
-        subprocess.call(["xmake","export"],cwd = os.path.join(repo.path,export))
+        call(["xmake","export"],cwd = os.path.join(repo.path,export))
     return repo.exports
 
 def xpd_make_zip(repo, options, args):
@@ -474,7 +476,7 @@ def xpd_make_zip(repo, options, args):
     name = repo.name + "_" + vstr
 
     print "Building repo"
-#    ret = subprocess.call(["xmake","all"], cwd=repo.path, shell=True)
+    ret = call(["xmake","all"], cwd=repo.path, shell=True)
     ret = 0
     if ret != 0:
         print "Error building"
@@ -538,13 +540,13 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
     repo_copy_path = tempfile.mkdtemp()
 
 
-    p = subprocess.Popen(["git","clone",repo.path, repo_copy_path],
+    p = Popen(["git","clone",repo.path, repo_copy_path],
                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     p.communicate()
 
-    subprocess.call(["git","remote","set-url","origin",repo.uri()],cwd=repo_copy_path)
+    call(["git","remote","set-url","origin",repo.uri()],cwd=repo_copy_path)
 
-    p=subprocess.Popen(["git","checkout",repo.current_githash()], cwd=repo_copy_path,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    p=Popen(["git","checkout",repo.current_githash()], cwd=repo_copy_path,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     p.communicate()
 
     if force:
@@ -556,7 +558,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
         except:
             excludes = []
     else:
-        process = subprocess.Popen(["git","ls-files"],
+        process = Popen(["git","ls-files"],
                                    cwd=repo_copy_path,
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
@@ -873,7 +875,7 @@ def xpd_tag(repo, options, args):
         sys.stderr.write("error: cannot determine release hash\n")
         exit(1)
 
-    subprocess.call(["git","tag","v%s"%str(v),relhash],cwd=Repo.path)
+    call(["git","tag","v%s"%str(v),relhash],cwd=Repo.path)
 
     print "Tagged"
 
