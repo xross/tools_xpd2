@@ -317,7 +317,8 @@ class Repo(XmlObject):
              err_lines = process.stderr.readlines()
              if err_lines == []:
                       read_file = False            
-                      self.parseString(process.stdout.read())
+                      self.parseString(process.stdout.read(),
+                                       src="%s:%s:xpd.xml"%(self.path,relhash))
 
 
         if master:
@@ -328,8 +329,9 @@ class Repo(XmlObject):
             
              err_lines = process.stderr.readlines()
              if err_lines == []:
-                      read_file = False            
-                      self.parseString(process.stdout.read())
+                      read_file = False
+                      self.parseString(process.stdout.read(),
+                                       src = "%s:master:xpd.xml"%self.path)
 
         self.xpd_file = os.path.join(git_dir,'xpd.xml')
 
