@@ -493,7 +493,7 @@ def xpd_make_zip(repo, options, args):
 
     f = zipfile.ZipFile(fname,"w")
 
-    zip_repo(repo, f, exports, old_style,oldstyle_includes,oldstyle_root,include_binaries=True, force=options.force)
+    zip_repo(repo, f, exports, old_style,oldstyle_includes,oldstyle_root,include_binaries=repo.include_binaries, force=options.force)
     for dep in repo.dependencies:
         zip_repo(dep.repo, f, exports, old_style,oldstyle_includes,oldstyle_root, force=options.force)
 
@@ -634,7 +634,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
                 arcname=os.path.join(arcname, f)
                 zipfile.write(fullpath,arcname=arcname)
 
-        zipfile.writestr(os.path.join(repo.name,"xpd.xml"), repo.toxml("xpd"))
+    zipfile.writestr(os.path.join(repo.name,"xpd.xml"), repo.toxml("xpd"))
 
     if include_binaries:
         for root, dirs, files in os.walk(os.path.join(repo.path)):

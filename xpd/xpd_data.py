@@ -268,6 +268,7 @@ class Repo(XmlObject):
     doc = XmlValue()
     exports = XmlValueList(tagname="binary_only")
     git_export = XmlValue(default=False)
+    include_binaries = XmlValue(default=False)
     xpd_version = XmlValue(default=xpd_version)
     release_notes = XmlNodeList(ReleaseNote)
     scope = XmlValue()
