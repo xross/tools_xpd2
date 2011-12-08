@@ -174,18 +174,19 @@ class XmlObject(object):
 
 
 
-    def toxml(self, root, pretty=True):
+    def todom(self, root):
         self.pre_export()
         dom = xml.dom.minidom.parseString("<%s/>"%root)
         rootelem = dom.getElementsByTagName(root)[0]
         self._add_attributes(dom, rootelem)
         self._add_children(dom, rootelem)
         self._add_extra_xml(dom, rootelem)
+        return dom
+
+    def toxml(self, root):
+        dom = self.todom(root)
+        rootelem = dom.getElementsByTagName(root)[0]
         return '<?xml version=\"1.0\" ?>\n' + pp_xml(dom, rootelem).strip()
-#        if pretty:
-#            return dom.toprettyxml()
-#        else:
-#            return dom.toxml()
 
 
     def _fromdom(self, dom, root):

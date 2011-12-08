@@ -11,7 +11,7 @@ from copy import copy
 from xpd.xpd_data import Repo, Release, Version, Dependency
 import xpd.check_project
 from xpd.xpd_subprocess import call, Popen
-
+import xpd.xmlobject
 
 def samefile(fileA, fileB):
     try:
@@ -634,7 +634,28 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
                 arcname=os.path.join(arcname, f)
                 zipfile.write(fullpath,arcname=arcname)
 
-    zipfile.writestr(os.path.join(repo.name,"xpd.xml"), repo.toxml("xpd"))
+
+
+    xpd_dom = repo.todom("xpd")
+
+    if not repo.git_export:
+        # Explicitly add version
+        rootelem = xpd_dom.getElementsByTagName("xpd")[0]
+        elem = xpd_dom.createElement("version")
+        rel = repo.current_release()
+        if rel:
+            rel = str(rel.version)
+        else:
+            rel = str(repo.current_githash())
+        text = xpd_dom.createTextNode(rel)
+        elem.appendChild(text)
+        rootelem.appendChild(elem)
+
+
+    rootelem = xpd_dom.getElementsByTagName("xpd")[0]
+    xpd_str = '<?xml version=\"1.0\" ?>\n' + xpd.xmlobject.pp_xml(xpd_dom, rootelem).strip()
+
+    zipfile.writestr(os.path.join(repo.name,"xpd.xml"), xpd_str)
 
     if include_binaries:
         for root, dirs, files in os.walk(os.path.join(repo.path)):
