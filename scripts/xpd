@@ -12,6 +12,7 @@ from xpd.xpd_data import Repo, Release, Version, Dependency
 import xpd.check_project
 from xpd.xpd_subprocess import call, Popen
 import xpd.xmlobject
+from xpd import templates
 
 def samefile(fileA, fileB):
     try:
@@ -258,8 +259,9 @@ def xpd_upgrade_rc(repo, options, args):
 
     if ref == "master":
         print "xpd data updated. Please commit to complete upgrade of rc."
+        return True
 
-    return True
+    return False
 
 def branch_candidates(repo):
     candidates = []
@@ -476,7 +478,7 @@ def xpd_make_zip(repo, options, args):
     name = repo.name + "_" + vstr
 
     print "Building repo"
-    ret = call(["xmake","all"], cwd=repo.path, shell=True)
+    ret = call(["xmake","CONFIG=All","all"], cwd=repo.path, shell=True)
     ret = 0
     if ret != 0:
         print "Error building"
@@ -721,7 +723,7 @@ def xpd_gen_readme(repo, options, args):
         full_version.rtype=''
     header = ['.. class:: announce instapaper_body rst wikistyle readme.rst','']
 
-    header.extend(rst_make_title(repo.name,'.'))
+    header.extend(rst_make_title(repo.longname,'.'))
 
     if repo.description:
         header.extend(remove_indent(repo.description.split('\n')) + [''])
@@ -838,40 +840,44 @@ def xpd_checkout(repo, options, args):
         dep.repo.checkout(dep.githash)
 
 
-def xpd_check_info(repo, options, args):
+def xpd_check_info(repo, options, args,check_icon=True):
     update = False
-
     if repo.description==None or repo.description=="":
+        print "The repo's description is one or two paragraphs description the contents of the repository."
         if confirm("No description found. Add one (Y/n)?",default=True):
             print "Enter paragraph description:\n"
             repo.description = raw_input()
             update = True
 
-    if repo.icon==None:
+    if check_icon and repo.icon==None:
+        print "The repo's icon is a path relative to the repository pointing to a 16x16 png icon representing the repository."
         if confirm("No icon found. Add one (Y/n)?",default=True):
             print "Enter path to icon: "
             repo.icon = raw_input()
             update = True
 
-    if repo.doc==None:
+    if False and repo.doc==None:
         if confirm("No documentation uri found. Add one (Y/n)?",default=True):
             print "Enter documentation uri: "
             repo.doc = raw_input()
             update = True
 
     if repo.vendor==None:
+        print "If this repository is maintained by a organization or company that will package, release and support the code then the vendor field should be set with the organization's name."
         if confirm("No vendor found. Add one (Y/n)?",default=True):
             print "Enter vendor name: "
             repo.vendor = raw_input()
             update = True
 
     if repo.maintainer==None:
+        print "The repository's maintainer is a person who is reponsible for the repository. All repos should have a maintainer."
         if confirm("No maintainer found. Add one (Y/n)?",default=True):
             print "Enter maintainer github username: "
             repo.maintainer = raw_input()
             update = True
 
     if repo.scope==None:
+        print "The repository's scope says whether the repository is a prototype or example code or a maintained product."
         if confirm("No project type/scope found. Add one (Y/n)?",default=True):
             print "Enter scope (prototype, example, product or reference design): "
             repo.scope = raw_input()
@@ -900,13 +906,134 @@ def xpd_tag(repo, options, args):
 
     print "Tagged"
 
-def xpd_init(repo, options, args):
-    if confirm("Repo name is %s. Change (Y/n)?"%repo.longname,default=True):
-        print "Enter name: "
-        repo.longname = raw_input()
+def xpd_create_app(repo, options, args):
+    if len(args) < 1:
+        appname = repo.name
+        m = re.match(r'(sc_|proj_|sw_)(.*)', appname)
+        if m:
+            appname = m.groups(0)[1]
+        appname = 'app_' + appname + '_example'
+        sys.stdout.write('Enter application name (%s): '%appname)
+        x = raw_input()
+        if x != '':
+            appname = x
 
-    xpd_check_info(repo, options, args)
+    else:
+        appname = args[0]
+        if appname[:4] != 'app_':
+            appname = 'app_' + appname
+
+    print "Creating %s." % appname
+    os.mkdir(os.path.join(repo.path,appname))
+    os.mkdir(os.path.join(repo.path,appname,'src'))
+    os.mkdir(os.path.join(repo.path,appname,'docs'))
+    os.mkdir(os.path.join(repo.path,appname,'docs','src'))
+    f = open(os.path.join(repo.path,appname,'Makefile'),'w')
+    f.write(templates.app_makefile)
+    f.close()
+    return False
+
+def xpd_create_module(repo, options, args):
+    if len(args) < 1:
+        modulename = repo.name
+        m = re.match(r'(sc_|proj_|sw_)(.*)', modulename)
+        if m:
+            modulename = m.groups(0)[1]
+        modulename = 'module_' + modulename
+        sys.stdout.write('Enter module name (%s): '%modulename)
+        x = raw_input()
+        if x != '':
+            modulename = x
+    else:
+        modulename = args[0]
+        if modulename[:4] != 'module_':
+            modulename = 'module_' + modulename
+
+    print "Creating %s." % modulename
+    os.mkdir(os.path.join(repo.path,modulename))
+    os.mkdir(os.path.join(repo.path,modulename,'src'))
+    f = open(os.path.join(repo.path,modulename,'module_build_info'),'w')
+    f.write(templates.module_build_info)
+    f.close()
+    return False
+
+
+def xpd_init(repo, options, args):
+    xpd_check_info(repo, options, args,check_icon=False)
+
+    apps = [x for x in os.listdir(repo.path) if x[0:4] == 'app_']
+
+    if apps == []:
+        print """
+Usually a repository contains at least one application that people can build
+to an executable. Even if the repository is primarily a component repository
+containing code modules for other projects it is usual to include a sample or
+test application within the repo.
+"""
+
+        if confirm("Would you like to create an application within this project (Y/n)?",default=True):
+            xpd_create_app(repo, options, [])
+
+    modules = [x for x in os.listdir(repo.path) if x[0:7] == 'module_']
+
+    if modules == []:
+        print """
+A repository can contains modules that contain sets of source files than can be re-used across applications.
+"""
+
+        if confirm("Would you like to create an module within this project (Y/n)?",default=True):
+            xpd_create_module(repo, options, [])
+
+    if not os.path.exists(os.path.join(repo.path,'Makefile')):
+        f = open(os.path.join(repo.path,'Makefile'),'w')
+        f.write(templates.toplevel_makefile)
+        f.close()
+
+    if not os.path.exists(os.path.join(repo.path,'docs')):
+        os.mkdir(os.path.join(repo.path,'docs'))
+        os.mkdir(os.path.join(repo.path,'docs','src'))
+
+    if not os.path.exists(os.path.join(repo.path,'LICENSE.txt')):
+        if confirm("Would you like to license the code in this repository under the XCore Open Source License (Y/n)?",default=True):
+            holder = ''
+            while holder == '':
+                sys.stdout.write('Enter copyright holder: ')
+                holder = raw_input()
+            f = open(os.path.join(repo.path,'LICENSE.txt'),'w')
+            f.write(templates.xcore_license % {'holder':holder})
+            f.close()
+
+    if not os.path.exists(os.path.join(repo.path,'.project')):
+        project_lines = templates.dotproject.split('\n')
+        f = open(os.path.join(repo.path,'.project'),'w')
+        for line in project_lines:
+            line = line.replace('%PROJECT%',repo.name)
+            f.write(line+'\n')
+        f.close()
+
+    if not os.path.exists(os.path.join(repo.path,'.cproject')):
+        configs = ['Debug','Release']
+        xpd.check_project.create_cproject(repo, configs)
+
+    if not os.path.exists(os.path.join(repo.path,'README.rst')):
+        maintainer = repo.maintainer
+        if not maintainer or maintainer=='':
+            maintainer = '<github username of maintainer>'
+        longname = repo.longname
+        if not longname or longname=='':
+            longname = '<title>'
+        desc = repo.description
+        if not desc or desc=='':
+            desc = 'A brief description of the repo'
+        f = open(os.path.join(repo.path,'README.rst'),'w')
+        context = {'maintainer':maintainer,
+                   'longname':longname,
+                   'description':desc}
+        f.write(templates.readme % context)
+        f.close()
+
     xpd_check_dep(repo, options, args)
+
     return True
 
 def xpd_check_infr(repo, options, args, return_ok=False):
@@ -934,8 +1061,9 @@ commands = [("init","Initialize the xpd meta-information file"),
             ("make_zip","Make zipfile of release"),
             ("check_info","Check related information"),
             ("tag","Tag the repo with a version"),
-            ("gen_readme","Generate README file for the repo"),
-            ("check_infr","Check infrastructure (Makefiles, eclipse projects)")]
+            ("check_infr","Check infrastructure (Makefiles, eclipse projects)"),
+            ("create_app","Create application within project"),
+            ("create_module","Create module within project")]
 
 if __name__ == "__main__":
     usage = "usage: %prog command [options]"

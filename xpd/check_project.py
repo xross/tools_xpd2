@@ -6,6 +6,7 @@ import subprocess
 import random
 import shutil
 from xpd.xpd_subprocess import call, Popen
+from xpd import templates
 
 rand = random.Random()
 
@@ -63,15 +64,7 @@ def check_project(repo):
         sys.stdout.write("Do you want xpd to create a new one (Y/n)?")
         x = raw_input()
         if not x in ['n','N','No','NO','no']:
-            try:
-                f = open(os.path.join(repo.path,'..','xcommon',
-                                      'templates',
-                                      'project','dotproject'),'r')
-            except:
-                sys.stderr.write("Can't open .project template. Make sure you have the latest version of xcommon in your sandbox/workspace.")
-                exit(1)
-            project_lines = f.readlines()
-            f.close()
+            project_lines = templates.dotproject.split('\n')
             f = open(os.path.join(repo.path,'.project'),'w')
             for line in project_lines:
                 line = line.replace('%PROJECT%',repo.name)
@@ -159,6 +152,50 @@ def get_all_configs(repo):
         configs.add('Release')
     return configs
 
+def create_cproject(repo, configs, all_includes=[]):
+   cproject_path = os.path.join(repo.path,'.cproject')
+   if 'Default' in configs:
+        base_config = ''
+   elif 'Release' in configs:
+        base_config = '_Release'
+   elif len(configs) > 0:
+        base_config = '_' + (list(configs)[0])
+   else:
+        base_config = ''
+
+   includes = ['<listOptionValue builtIn="false" value=\'%s\' />\n'%x for x in all_includes]
+   includes = ''.join(includes)
+
+   config_str = ''
+   for config in configs:
+       config_id = str(rand.randint(1,100000000))
+       lines = templates.cproject_configuration.split('\n')
+       if config == 'Default':
+           config_args = ''
+       else:
+           config_args = 'CONFIG=%s'%config
+
+       for i in range(len(lines)):
+           lines[i] = lines[i].replace('%PROJECT%',repo.name)
+           lines[i] = lines[i].replace('%CONFIG%',config)
+           lines[i] = lines[i].replace('%CONFIG_ARGS%',config_args)
+           lines[i] = lines[i].replace('%INCLUDES%',includes)
+           lines[i] = re.sub(r'id\s*=\s*[\'"]([\w.]*)\.\d*[\'"]',new_id,lines[i])
+           lines[i] = lines[i].replace('%CONFIG_ID%',config_id)
+
+       config_str += '\n'.join(lines)
+
+   lines = templates.cproject.split('\n')
+   for i in range(len(lines)):
+       lines[i] = lines[i].replace('%PROJECT%',repo.name)
+       lines[i] = re.sub(r'id\s*=\s*[\'"]([\w.]*)\.\d*[\'"]',new_id,lines[i])
+       lines[i] = lines[i].replace('%CONFIGURATIONS%',config_str)
+
+   f = open(os.path.join(repo.path,'.cproject'),'w')
+   f.write('\n'.join(lines))
+   f.close()
+
+
 def check_cproject(repo):
     print "Checking .cproject file"
     configs = get_all_configs(repo)
@@ -198,9 +235,6 @@ def check_cproject(repo):
                     '&quot;${XMOS_TOOL_PATH}/target/include&quot;']
 
     print "Checking .cproject file"
-
-
-
     cproject_ok = True
     cproject_path = os.path.join(repo.path,'.cproject')
     if not os.path.exists(cproject_path):
@@ -242,56 +276,8 @@ def check_cproject(repo):
         sys.stdout.write("Do you want xpd to create a new one (Y/n)?")
         x = raw_input()
         if not x in ['n','N','No','NO','no']:
-            if 'Default' in configs:
-                 base_config = ''
-            elif 'Release' in configs:
-                 base_config = '_Release'
-            elif len(configs) > 0:
-                 base_config = '_' + (list(configs)[0])
-            else:
-                 base_config = ''
-
-            includes = ['<listOptionValue builtIn="false" value=\'%s\' />\n'%x for x in all_includes]
-            includes = ''.join(includes)
-
-            config_str = ''
-            for config in configs:
-                config_id = str(rand.randint(1,100000000))
-                f = open(os.path.join(repo.path,'..','xcommon',
-                                      'templates',
-                                      'dotcproject','.cproject_configuration'),'r')
-                lines = f.readlines()
-                f.close()
-                if config == 'Default':
-                    config_args = ''
-                else:
-                    config_args = 'CONFIG=%s'%config
-
-                for i in range(len(lines)):
-                    lines[i] = lines[i].replace('%PROJECT%',repo.name)
-                    lines[i] = lines[i].replace('%CONFIG%',config)
-                    lines[i] = lines[i].replace('%CONFIG_ARGS%',config_args)
-                    lines[i] = lines[i].replace('%INCLUDES%',includes)
-                    lines[i] = re.sub(r'id\s*=\s*[\'"]([\w.]*)\.\d*[\'"]',new_id,lines[i])
-                    lines[i] = lines[i].replace('%CONFIG_ID%',config_id)
-
-                config_str += ''.join(lines)
-
-            f = open(os.path.join(repo.path,'..','xcommon',
-                                  'templates',
-                                  'dotcproject','.cproject'),'r')
-            lines = f.readlines()
-            f.close()
-            for i in range(len(lines)):
-                lines[i] = lines[i].replace('%PROJECT%',repo.name)
-                lines[i] = re.sub(r'id\s*=\s*[\'"]([\w.]*)\.\d*[\'"]',new_id,lines[i])
-                lines[i] = lines[i].replace('%CONFIGURATIONS%',config_str)
-
-            f = open(os.path.join(repo.path,'.cproject'),'w')
-            f.write(''.join(lines))
-            f.close()
-            print "New .cproject created."
-
+             create_cproject(repo, configs, all_includes)
+             print "New .cproject created."
 
     return cproject_ok
 
@@ -439,10 +425,9 @@ def check_toplevel_makefile(repo):
         sys.stdout.write("Do you want xpd to create a new one (Y/n)?")
         x = raw_input()
         if not x in ['n','N','No','NO','no']:
-             shutil.copyfile(os.path.join(repo.path,'..','xcommon',
-                                          'templates',
-                                          'project','Makefile'),
-                             os.path.join(repo.path,'Makefile'))
+             f = open(os.path.join(repo.path,'Makefile'),'w')
+             f.write(templates.toplevel_makefile)
+             f.close()
              print "New toplevel Makefile created"
 
     return updates_required
