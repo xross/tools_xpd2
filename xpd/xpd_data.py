@@ -265,7 +265,7 @@ class Repo(XmlObject):
     description = XmlValue()
     icon = XmlValue()
     location = XmlValue()
-    doc = XmlValue()
+    docnum = XmlValue()
     exports = XmlValueList(tagname="binary_only")
     git_export = XmlValue(default=False)
     include_binaries = XmlValue(default=False)
@@ -533,6 +533,12 @@ class Repo(XmlObject):
                 return rnote
         else:
             return None
+
+    def is_xmos_repo(self):
+        if self.vendor and re.match(r'.*XMOS.*',self.vendor.upper()):
+            return True
+        else:
+            return False
 
     def __str__(self):
         (_,name) = os.path.split(self.path)

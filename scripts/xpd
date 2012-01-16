@@ -606,6 +606,13 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
                 fh.close()
                 new_makefile = ''.join(lines)
                 zipfile.writestr(arcname, new_makefile)
+            elif f == 'README.rst':
+                lines = xpd_update_readme(repo,[],[],
+                                          write_back=False,
+                                          xmos_package = repo.is_xmos_repo(),
+                                          use_current_version=True)
+                new_readme = ''.join(lines)
+                zipfile.writestr(arcname, new_readme)
             else:
                 try:
                     zipfile.write(os.path.join(repo_copy_path, f), arcname=arcname)
@@ -713,6 +720,140 @@ def add_indent(n, xs):
 def rst_make_title(title, ch):
     underline = ''.join([ch for x in title])
     return [title,underline,'']
+
+
+
+
+def xpd_update_readme(repo, options, args,
+                      xmos_package=False, write_back=True,
+                      use_current_version=False):
+
+    f = open(os.path.join(repo.path,'README.rst'))
+    lines = f.readlines()
+    f.close()
+
+    remove_items = ['Latest release','Stable release','Maintainer','Description','Status','Required packages']
+
+    remove_sections = ['Required Modules','Required Repositories','Required software (dependencies)']
+    if xmos_package:
+        remove_sections += ['Support','Documentation']
+
+
+    delete_until_next_section = False
+    found_sections = 0
+    first_section_index = None
+    for i in range(len(lines)):
+        line = lines[i]
+        m = re.match(r':(.*): (.*)',line)
+        if m:
+            key = m.groups(0)[0]
+            if key.upper() in [x.upper() for x in remove_items]:
+                line = '-DELETED-\n'
+
+        if xmos_package:
+            if re.match(r'.*[D|d]ocumentation can be found.*',line):
+                line = '-DELETED-\n'
+
+        if i < len(lines)-1:
+            m = re.match(r'[-=^.][-=^.]+',lines[i+1])
+        else:
+            m = None
+
+        if m:
+            found_sections += 1
+            delete_until_next_section = False
+            if line.strip().upper() in [x.upper() for x in remove_sections]:
+                delete_until_next_section = True
+
+        if not first_section_index and found_sections == 1:
+            first_section_index = i
+
+        if delete_until_next_section:
+            line = '-DELETED-\n'
+
+        lines[i] = line
+
+    heading, lines = lines[:first_section_index+1],lines[first_section_index+1:]
+    lines = [x for x in lines if x != '-DELETED-\n']
+
+    new_header = "\n"
+
+    vstr = None
+    rel = repo.current_release()
+    if rel:
+        vstr = str(rel.version)
+    else:
+        vstr = repo.current_githash()
+
+    if vstr and use_current_version:
+        new_header += ":Version: %s\n" % vstr
+    elif repo.latest_release():
+        new_header += ":Latest release: %s\n" % repo.latest_release().version
+
+    if xmos_package and repo.vendor:
+        new_header += ":Vendor: %s\n" % repo.vendor
+    if not xmos_package and repo.maintainer:
+        new_header += ":Maintainer: %s\n" % repo.maintainer
+
+    if repo.description:
+        desc = repo.description.split('\n')
+        new_header += ':Description: %s\n' % desc[0]
+        for x in desc[1:]:
+            new_header += '  %s' % x
+
+    lines = heading + [x + '\n' for x in new_header.split('\n')] + lines
+
+    lines += ['\n','Required software (dependencies)\n','================================\n','\n']
+
+    if repo.dependencies == []:
+        lines += ['  * None\n']
+    else:
+        for dep in repo.dependencies:
+            if dep.repo.name == 'xcommon':
+                lines += ['  * xcommon (if using develpoment tools earlier than 11.11.0)\n']
+            else:
+                if xmos_package or not dep.uri:
+                    lines += ['  * %s\n'%dep.repo.name]
+                else:
+                    lines += ['  * %s (%s)\n'%(dep.repo.name,dep.uri)]
+    lines += ['\n']
+
+
+    if xmos_package:
+        if repo.docnum:
+            lines += ['Documentation\n','=============\n','\n',
+                      '  You can find the latest documentation for this software at:\n'
+                      '\n',
+                      '      http://www.xmos.com/docnum/X%s\n'%repo.docnum,'\n']
+
+        support = """Support
+=======
+
+  This package is support by XMOS Ltd. Issues can be raised against the software
+  at:
+
+      http://www.xmos.com/support
+"""
+
+        lines += [x+'\n' for x in support.split('\n')]
+
+    for i in range(len(lines)-1):
+        if lines[i] == '\n' and lines[i+1] == '\n':
+            lines[i] = '-DELETED-\n'
+
+    lines = [x for x in lines if x != '-DELETED-\n']
+
+    #for line in lines:
+    #        sys.stdout.write(line)
+
+    if not write_back:
+        return lines
+    else:
+        f=open(os.path.join(repo.path,"README.rst"),"w")
+        for line in lines:
+            f.write(line)
+        f.close()
+    return False
 
 def xpd_gen_readme(repo, options, args):
 
@@ -883,6 +1024,13 @@ def xpd_check_info(repo, options, args,check_icon=True):
             repo.scope = raw_input()
             update = True
 
+    if repo.docnum==None:
+        print "If this is an XMOS package, there may be an associated four digit document number for the repository."
+        if confirm("No document number found. Add one (Y/n)?",default=True):
+            print "Enter document number: "
+            repo.docnum = raw_input()
+            update = True
+
 
 
     return update
@@ -1044,6 +1192,8 @@ def xpd_check_infr(repo, options, args, return_ok=False):
     ok = ok and cproject_ok
     makefiles_ok = xpd.check_project.check_makefiles(repo)
     ok = ok and makefiles_ok
+    doc_ok = xpd.check_project.check_docdir(repo)
+    ok = ok and doc_ok
     if return_ok:
         return ok
     else:
@@ -1063,6 +1213,7 @@ commands = [("init","Initialize the xpd meta-information file"),
             ("tag","Tag the repo with a version"),
             ("check_infr","Check infrastructure (Makefiles, eclipse projects)"),
             ("create_app","Create application within project"),
+            ("update_readme","Update README.rst with latest metainformation"),
             ("create_module","Create module within project")]
 
 if __name__ == "__main__":
