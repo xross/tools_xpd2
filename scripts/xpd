@@ -696,7 +696,7 @@ def xpd_show(repo, options, args):
     print "           Version: %s" % version
     print "              Icon: %s" % repo.icon
     print "          Location: %s" % repo.location
-    print "     Documentation: %s" % repo.doc
+    #print "     Documentation: %s" % repo.doc
     print "       Description: %s" % repo.description
     if repo.git_export != None:
         print "   Export git info: %s" % repo.git_export
