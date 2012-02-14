@@ -13,6 +13,11 @@ import xpd.check_project
 from xpd.xpd_subprocess import call, Popen
 import xpd.xmlobject
 from xpd import templates
+from xpd import cognidox
+from xpd.docholder import DocumentHolder, DHSection, DHDocumentLink
+xdoc = None
+xmossphinx = None
+xmos_xref = None
 
 def samefile(fileA, fileB):
     try:
@@ -477,12 +482,18 @@ def xpd_make_zip(repo, options, args):
 
     name = repo.name + "_" + vstr
 
+    if options.upload:
+        xpd_check_partinfo(repo, options, args)
+
     print "Building repo"
-    ret = call(["xmake","CONFIG=All","all"], cwd=repo.path, shell=True)
-    ret = 0
+    ret = call(["xmake","CONFIG=All","NO_IGNORE_ERRORS=1","all"], cwd=repo.path, shell=True)
+#    ret = 0
     if ret != 0:
         print "Error building"
         exit(1)
+
+    print "Building docs"
+    xpd_build_docs(repo, options)
 
     exports = []
     exports += do_exports(repo)
@@ -499,6 +510,10 @@ def xpd_make_zip(repo, options, args):
     for dep in repo.dependencies:
         zip_repo(dep.repo, f, exports, old_style,oldstyle_includes,oldstyle_root, force=options.force)
 
+    for docdir in repo.docdirs:
+        insert_doc(repo, docdir, f)
+
+
     info_string = "<zipinfo>\n"
     info_string += "   <main>%s</main>\n"%repo.name
     if not alternate_name:
@@ -509,6 +524,18 @@ def xpd_make_zip(repo, options, args):
         f.writestr('.zipinfo',info_string)
 
     f.close()
+
+    if options.upload:
+        print "Uploading zip file"
+        cognidox.doCognidoxCheckIn(repo.subpartnumber,
+                                   fname,
+                                   version = vstr)
+        print "Creating document holder"
+        xpd_make_docholder(repo, options, args, to_file = ".docholder.xml")
+        print "Uploading document holder"
+        cognidox.doCognidoxCheckIn(repo.partnumber,
+                                   ".docholder.xml",
+                                   version = vstr)
 
     return False
 
@@ -566,6 +593,8 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
                                    stderr=subprocess.PIPE)
         lines = process.stdout.readlines()
         excludes = []
+
+    excludes.append('doc/*')
 
     for f in lines:
         f = f.rstrip()
@@ -682,6 +711,32 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
     rmrf_dir(repo_copy_path)
 
 
+def insert_doc(repo, path, zipfile):
+    import_xdoc()
+    config = xdoc.get_config(path)
+    pdfname = config['SPHINX_MASTER_DOC']+'.pdf'
+
+    pdfpath = os.path.join(path,pdfname)
+    base = os.path.basename(path)
+    if base == 'doc':
+        base = ''
+    if base == '':
+        arcpdfname = repo.name + '.pdf'
+    else:
+        arcpdfname = base + '.pdf'
+    zipdocpath = os.path.join(repo.name, 'doc',base)
+    zipfile.write(pdfpath,arcname=os.path.join(zipdocpath,arcpdfname))
+    if repo.vendor.upper()=='XMOS':
+        htmlpath=os.path.join(path,'_build','xdehtml')
+    else:
+        htmlpath=os.path.join(path,'_build','html')
+    fs = find_files(htmlpath)
+    for f in fs:
+        if not re.match('sphinx.output|\.doctree.*',f):
+            src = os.path.join(htmlpath, f)
+            dst = os.path.join(zipdocpath, 'html', f)
+            zipfile.write(src,arcname=dst)
+
 
 def xpd_show(repo, options, args):
 
@@ -696,10 +751,14 @@ def xpd_show(repo, options, args):
     print "           Version: %s" % version
     print "              Icon: %s" % repo.icon
     print "          Location: %s" % repo.location
-    #print "     Documentation: %s" % repo.doc
     print "       Description: %s" % repo.description
     if repo.git_export != None:
         print "   Export git info: %s" % repo.git_export
+
+    if repo.docdirs != []:
+        print "     Documentation: %s" % repo.docdirs[0]
+        for doc in repo.docdirs[1:]:
+            print "                    %s" % doc
 
     print "\nDEPENDENCIES:\n"
     xpd_show_dep(repo, options, args)
@@ -820,11 +879,12 @@ def xpd_update_readme(repo, options, args,
 
 
     if xmos_package:
-        if repo.docnum:
-            lines += ['Documentation\n','=============\n','\n',
-                      '  You can find the latest documentation for this software at:\n'
-                      '\n',
-                      '      http://www.xmos.com/docnum/X%s\n'%repo.docnum,'\n']
+
+        # if repo.docnum:
+        #     lines += ['Documentation\n','=============\n','\n',
+        #               '  You can find the latest documentation for this software at:\n'
+        #               '\n',
+        #               '      http://www.xmos.com/docnum/X%s\n'%repo.docnum,'\n']
 
         support = """Support
 =======
@@ -997,10 +1057,11 @@ def xpd_check_info(repo, options, args,check_icon=True):
             repo.icon = raw_input()
             update = True
 
-    if False and repo.doc==None:
-        if confirm("No documentation uri found. Add one (Y/n)?",default=True):
-            print "Enter documentation uri: "
-            repo.doc = raw_input()
+    if False and repo.docdirs==[]:
+        if confirm("No documentation path found. Add one (Y/n)?",default=True):
+            print "Enter documentation path: "
+            docdir = raw_input()
+            repo.docdirs.append(docdir)
             update = True
 
     if repo.vendor==None:
@@ -1024,11 +1085,10 @@ def xpd_check_info(repo, options, args,check_icon=True):
             repo.scope = raw_input()
             update = True
 
-    if repo.docnum==None:
-        print "If this is an XMOS package, there may be an associated four digit document number for the repository."
-        if confirm("No document number found. Add one (Y/n)?",default=True):
-            print "Enter document number: "
-            repo.docnum = raw_input()
+    if repo.partnumber==None:
+        print "If this is an XMOS package, there may be an associated four digit part number for the repository."
+        if confirm("No part number found. Add one (Y/n)?",default=True):
+            xpd_check_partinfo(repo, options, args)
             update = True
 
 
@@ -1192,12 +1252,116 @@ def xpd_check_infr(repo, options, args, return_ok=False):
     ok = ok and cproject_ok
     makefiles_ok = xpd.check_project.check_makefiles(repo)
     ok = ok and makefiles_ok
-    doc_ok = xpd.check_project.check_docdir(repo)
-    ok = ok and doc_ok
     if return_ok:
         return ok
     else:
         return False
+
+def xpd_check_partinfo(repo, options, args):
+    update = False
+    if not repo.partnumber:
+        repo.partnumber = \
+            cognidox.query_and_create_document('/Projects/Apps',
+                                               default_title=repo.longname,
+                                               doctype='DH')
+        update = True
+    if not repo.subpartnumber:
+        print "Need to create document for actual zipfile of software"
+        repo.subpartnumber = \
+            cognidox.query_and_create_document('/Projects/Apps',
+                                               default_title=repo.name+".zip",
+                                               doctype='SM')
+        update = True
+    print "Main part number = %s" % repo.partnumber
+    print "Zipfile part number = %s" % repo.subpartnumber
+    return update
+
+def xpd_make_docholder(repo, options, args, to_file = None):
+    import_xdoc()
+    dh = DocumentHolder()
+    dh.introduction= """
+h3. Description
+
+%s
+
+h3. Metadata
+
+*Tools*: %s
+*Boards*: %s
+""" % (repo.description, '', '')
+    zip_section = DHSection()
+    zip_link = DHDocumentLink()
+    zip_section.title = "Software Zip"
+    zip_section.description = "The zip containing the software"
+    zip_link.partnum = repo.subpartnumber
+    zip_link.issue = "%s" % cognidox.get_latest_issue(repo.subpartnumber)
+    zip_section.documents.append(zip_link)
+    dh.sections.append(zip_section)
+
+    doc_section = DHSection()
+    doc_section.title = "Related Documents"
+    xref = xmos_xref.XRefInfo('xpd')
+    include_doc_section = False
+    for docdir in repo.docdirs:
+        docinfo = xref.get_or_create_docinfo_from_dir(docdir)
+        if docinfo.partnum:
+            include_doc_section = True
+            doc_link = DHDocumentLink()
+            doc_link.partnum = docinfo.partnum
+            doc_link.issue = "%s" % cognidox.get_latest_issue(docinfo.partnum)
+            doc_section.documents.append(doc_link)
+
+    if include_doc_section:
+        dh.sections.append(doc_section)
+
+    if to_file:
+        f = open(to_file,"w")
+        f.write(dh.toxml("DocumentHolder"))
+        f.close()
+        return
+
+    print dh.toxml("DocumentHolder")
+    return False
+
+def import_xdoc():
+    global xdoc, xmossphinx, xmos_xref
+    sys.path.append(os.path.join(repo.path,'..','xdoc'))
+    sys.path.append(os.path.join(repo.path,'..','infr_docs'))
+    sys.path.append(os.path.join(repo.path,'..','infr_docs','xmossphinx'))
+    sys.path.append(os.path.join(repo.path,'..','infr_docs','xmossphinx','builders'))
+#    try:
+    xdoc = __import__("xdoc")
+    xmossphinx = __import__("xmossphinx")
+    xmos_xref = __import__("xmos_xref")
+#    except ImportError:
+    #    sys.stderr.write("Cannot find xdoc")
+     #   exit(1)
+
+def xpd_build_docs(repo, options=None, args=None):
+    import_xdoc()
+    xref = xmos_xref.XRefInfo('xpd')
+    for docdir in repo.docdirs:
+        curdir = os.path.abspath(os.curdir)
+        os.chdir(docdir)
+        if repo.vendor.upper()=='XMOS':
+            if options and options.upload:
+                xdoc.main('draft')
+            else:
+                xdoc.main('xdehtml')
+                xdoc.main('xmospdf')
+        else:
+            xdoc.main('html')
+            xdoc.main('pdf')
+        os.chdir(curdir)
+        if repo.partnumber:
+            print "Adding link from document to software package"
+            docinfo = xref.get_or_create_docinfo_from_dir(docdir)
+            if not repo.partnumber in docinfo.swlinks:
+                docinfo.swlinks.append(repo.partnumber)
+
+    xref.update()
+
+    return False
 
 commands = [("init","Initialize the xpd meta-information file"),
             ("check_dep","Check dependencies of the current repository"),
@@ -1214,7 +1378,10 @@ commands = [("init","Initialize the xpd meta-information file"),
             ("check_infr","Check infrastructure (Makefiles, eclipse projects)"),
             ("create_app","Create application within project"),
             ("update_readme","Update README.rst with latest metainformation"),
-            ("create_module","Create module within project")]
+            ("create_module","Create module within project"),
+            ("check_partinfo","Check part information (DEBUG)"),
+            ("make_docholder","Make docholder (DEBUG)"),
+            ("build_docs","Make docs (DEBUG)")]
 
 if __name__ == "__main__":
     usage = "usage: %prog command [options]"
@@ -1240,6 +1407,9 @@ if __name__ == "__main__":
 
     optparser.add_option("--force",dest="force",action="store_true",default=False,
                          help="Ignore safety check")
+
+    optparser.add_option("--upload",dest="upload",action="store_true",default=False,
+                         help="Upload package to document managament system")
 
 
 

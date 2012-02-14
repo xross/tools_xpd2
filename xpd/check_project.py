@@ -450,13 +450,4 @@ def check_makefiles(repo):
     return  (not updates_required)
 
 def check_docdir(repo):
-     if os.path.exists(os.path.join(repo.path,'doc')):
-          sys.stderr.write("""
-WARNING: You have a doc/ dir.
-For compatibility with the packaging system, document sources should be
-in docs/src/
-Do you want to continue (y/N)?""")
-     x = raw_input()
-     if x not in ['y','Y','Yes','yes','YES']:
-          return False
-     return True
+     pass

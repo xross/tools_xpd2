@@ -39,9 +39,10 @@ def num (s):
         return float(s)
 
 class XmlValue(object):
-    def __init__(self, tagname=None, default=None):
+    def __init__(self, tagname=None, default=None, attrs={}):
         self.default=default
         self.tagname = tagname
+        self.attrs = attrs
 
 class XmlValueList(object):
     def __init__(self, tagname=None):
@@ -58,13 +59,15 @@ class XmlNode(object):
         self.tagname=tagname
 
 class XmlNodeList(object):
-    def __init__(self, typ, tagname=None):
+    def __init__(self, typ, tagname=None,wrapper=None):
         self.typ = typ
         self.tagname = tagname
+        self.wrapper = wrapper
 
 class XmlTag(object):
 
-    def __init__(self, name, tagname=None, typ=str, plural=False):
+    def __init__(self, name, tagname=None, typ=str, plural=False,attrs={},
+                 wrapper=None):
         self.name = name
         if tagname:
             self.tagname = tagname
@@ -72,6 +75,9 @@ class XmlTag(object):
             self.tagname = name
         self.typ = typ
         self.plural = plural
+        self.attrs = attrs
+        self.wrapper = wrapper
+
 
 class XmlAttr(object):
 
@@ -96,7 +102,9 @@ class XmlObject(object):
             if isinstance(val, XmlValue):
                 if val.tagname == None:
                     val.tagname = attr
-                self.tags.append(XmlTag(attr, tagname=val.tagname))
+                self.tags.append(XmlTag(attr,
+                                        tagname=val.tagname,
+                                        attrs=val.attrs))
                 setattr(self, attr, val.default)
             elif isinstance(val, XmlNode):
                 if val.tagname == None:
@@ -110,7 +118,8 @@ class XmlObject(object):
                     else:
                         val.tagname = attr
                 self.tags.append(XmlTag(attr,tagname=val.tagname,
-                                        typ=val.typ,plural=True))
+                                        typ=val.typ,plural=True,
+                                        wrapper=val.wrapper))
                 setattr(self, attr, [])
             elif isinstance(val, XmlValueList):
                 if val.tagname == None:
@@ -135,19 +144,28 @@ class XmlObject(object):
         pass
 
 
-    def _add_child(self, dom, rootelem, name, val):
+    def _add_child(self, dom, rootelem, name, val, attrs = {},wrapper=None):
         if isinstance(val, XmlObject):
             elem = dom.createElement(name)
+            for key, value in attrs.items():
+                elem.setAttribute(key, value)
             val.pre_export()
             val._add_attributes(dom, elem)
             val._add_children(dom, elem)
             val._add_extra_xml(dom, elem)
             rootelem.appendChild(elem)
         elif hasattr(val, '__iter__'):
-                for x in val:
-                    self._add_child(dom, rootelem, name, x)
+            if wrapper:
+                elem = dom.createElement(wrapper)
+                rootelem.appendChild(elem)
+            else:
+                elem = rootelem
+            for x in val:
+                self._add_child(dom, elem, name, x)
         elif val != None:
             elem = dom.createElement(name)
+            for key, value in attrs.items():
+                elem.setAttribute(key, value)
             text = dom.createTextNode(str(val))
             elem.appendChild(text)
             rootelem.appendChild(elem)
@@ -156,7 +174,8 @@ class XmlObject(object):
     def _add_children(self, dom, rootelem):
         for tag in self.tags:
             val = getattr(self, tag.name)
-            self._add_child(dom, rootelem, tag.tagname, val)
+            self._add_child(dom, rootelem, tag.tagname, val, tag.attrs,
+                            tag.wrapper)
         return
 
     def _add_attributes(self, dom, elem):

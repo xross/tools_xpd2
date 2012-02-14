@@ -256,7 +256,6 @@ class ChangeLog(XmlObject):
             self.version = None
 
 
-
 class Repo(XmlObject):
 
     dependencies = XmlNodeList(Dependency, tagname="dependency")
@@ -265,7 +264,7 @@ class Repo(XmlObject):
     description = XmlValue()
     icon = XmlValue()
     location = XmlValue()
-    docnum = XmlValue()
+    docdirs = XmlValueList()
     exports = XmlValueList(tagname="binary_only")
     git_export = XmlValue(default=False)
     include_binaries = XmlValue(default=False)
@@ -277,7 +276,12 @@ class Repo(XmlObject):
     keywords = XmlValueList()
     usecases = XmlNodeList(UseCase)
     changelog = XmlNodeList(ChangeLog)
-    
+    partnumber = XmlValue()
+    subpartnumber = XmlValue()
+    domain = XmlValue()
+    subdomain = XmlValue()
+
+
     path = None
 
 
