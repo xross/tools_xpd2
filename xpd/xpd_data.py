@@ -3,6 +3,8 @@ import difflib
 from xmlobject import XmlObject, XmlValue, XmlNode, XmlNodeList, XmlAttribute, XmlValueList
 from copy import copy
 from xpd.xpd_subprocess import call, Popen
+import shutil
+import tempfile
 
 xpd_version = "1.0"
     
@@ -280,7 +282,10 @@ class Repo(XmlObject):
     subpartnumber = XmlValue()
     domain = XmlValue()
     subdomain = XmlValue()
-
+    include_dirs = XmlValueList()
+    exclude_dirs = XmlValueList()
+    tools = XmlValueList(tagname="tools")
+    boards = XmlValueList()
 
     path = None
 
@@ -290,6 +295,7 @@ class Repo(XmlObject):
         self.path = path
         self.name = os.path.split(self.path)[-1]
         self.git = True
+        self.sb = None
         self._repo_cache = {self.path:self}
         super(Repo, self).__init__(**kwargs)
 
@@ -547,3 +553,45 @@ class Repo(XmlObject):
     def __str__(self):
         (_,name) = os.path.split(self.path)
         return name
+
+
+    def _prune_dirs(self):
+        all_dirs = [x for x in os.listdir(self.path) if
+                                   os.path.isdir(os.path.join(self.path,x))]
+        includes = copy(all_dirs)
+        if self.include_dirs != []:
+            includes = [x for x in includes if x in self.include_dirs]
+        includes = [x for x in includes if not x in self.exclude_dirs]
+        excludes = [x for x in all_dirs if not x in includes]
+        for d in excludes:
+            shutil.rmtree(os.path.join(self.path,d))
+
+    def _move_to_temp_sandbox(self, path):
+        p = Popen(["git","clone",self.path],
+                  cwd=path,
+                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        p.communicate()
+        p=Popen(["git","checkout",self.current_githash()],
+                cwd=path,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT)
+        p.communicate()
+        self._path = self.path
+        self.path = os.path.join(path,self.name)
+        self._prune_dirs()
+
+    def move_to_temp_sandbox(self):
+        self.sb = tempfile.mkdtemp()
+        self._move_to_temp_sandbox(self.sb)
+        for dep in self.dependencies:
+            dep.repo._move_to_temp_sandbox(self.sb)
+
+    def _restore_path(self):
+        self.path = self._path
+
+    def delete_temp_sandbox(self):
+        self._restore_path()
+        for dep in self.dependencies:
+            dep.repo._restore_path()
+        shutil.rmtree(self.sb)
+
