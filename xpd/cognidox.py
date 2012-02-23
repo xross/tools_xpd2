@@ -12,7 +12,7 @@ import re
 #url = "http://cognidox/cgi-perl/part-details?partnum=XM-000571-PC"
 url = 'http://cognidox.xmos.local/cgi-perl/soap/soapservice'
 form_url = 'http://cognidox.xmos.local/cgi-perl/do-action'
-
+docs_url = 'http://cognidox/vdocs'
 if 'COGNIDOX_USER' in os.environ:
     saved_user = 'XMOS\\'+os.environ['COGNIDOX_USER']
 else:
@@ -37,6 +37,7 @@ def initCognidox(user=None,password=None):
     passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
     passman.add_password(None, url, user, password)
     passman.add_password(None, form_url, user, password)
+    passman.add_password(None, docs_url, user, password)
     # create the NTLM authentication handler
     auth_NTLM = HTTPNtlmAuthHandler.HTTPNtlmAuthHandler(passman)
 
@@ -259,7 +260,7 @@ def query_and_create_document(default_path,
                     title = default_title
                 else:
                     title = raw_input()
-                if doctype == '':
+                if title == '':
                     title = default_title
                 if title == '':
                     sys.stderr.write("Need title to proceed.\n")
@@ -312,15 +313,21 @@ def query_and_create_document(default_path,
 
     return partnum
 
-def get_latest_issue(partnum, exclude_drafts=False):
-    info = get_docinfo(partnum)
-    if not info or not 'Versions' in info:
-        return None
-    dom = xml.dom.minidom.parseString(info['Versions'].replace('cg:',''))
-    elems = dom.getElementsByTagName('revision')
+
+def get_revision(elem):
+    return elem.getElementsByTagName('revision')[0].childNodes[0].wholeText
+
+def get_version_tag(elem):
+    return str(elem.getElementsByTagName('VersionTag')[0].childNodes[0].wholeText)
+
+def get_subinfo(elem, tag):
+    return str(elem.getElementsByTagName(tag)[0].childNodes[0].wholeText)
+
+def _get_latest_from_elems(elems, exclude_drafts = False):
     max_version = None
+    max_elem = None
     for elem in elems:
-        m = re.match('(\d*)(.*)',elem.childNodes[0].wholeText)
+        m = re.match('(\d*)(.*)',get_revision(elem))
         if m:
             version = m.groups(0)[0], m.groups(0)[1]
             if exclude_drafts and version[1] != '':
@@ -328,5 +335,30 @@ def get_latest_issue(partnum, exclude_drafts=False):
             if not max_version or version[0] > max_version[0] or \
                 (version[0]==max_version[0] and version[1] > max_version[1]):
                 max_version = version
-    return max_version[0] + max_version[1]
+                max_elem = elem
+    return max_version[0] + max_version[1], max_elem
 
+def get_latest_issue(partnum, exclude_drafts=False):
+    info = get_docinfo(partnum)
+    if not info or not 'Versions' in info:
+        return None
+    dom = xml.dom.minidom.parseString(info['Versions'].replace('cg:',''))
+    elems = dom.getElementsByTagName('VersionItem')
+    max_version,_ = _get_latest_from_elems(elems, exclude_drafts)
+    return max_version
+
+
+def fetch_version(partnum, version):
+    def match_version(v1,v2):
+        return (v1==v2) or (len(v2)>len(v1) and v1==v2[:len(v1)] and \
+                            re.match('rc.*|beta.*|alpha.*',v2[len(v1):]))
+
+    info = get_docinfo(partnum)
+    if not info or not 'Versions' in info:
+        return None
+    dom = xml.dom.minidom.parseString(info['Versions'].replace('cg:',''))
+    elems = dom.getElementsByTagName('VersionItem')
+    elems = [elem for elem in elems if match_version(version,get_version_tag(elem))]
+    version, elem = _get_latest_from_elems(elems)
+    print "Fetching %s" % (docs_url+'/'+get_subinfo(elem,'file'))
+    return urllib2.urlopen(docs_url+'/'+get_subinfo(elem,'file'))

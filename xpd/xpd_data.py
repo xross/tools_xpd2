@@ -472,6 +472,14 @@ class Repo(XmlObject):
 
         return None
 
+    def current_version_or_githash(self):
+        rel = self.current_release()
+        if rel:
+            vstr = str(rel.version)
+        else:
+            vstr = repo.current_githash()
+        return vstr
+
     def post_import(self):
         
         if self.longname == None:
