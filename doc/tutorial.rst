@@ -124,8 +124,7 @@ Running git commands
 --------------------
 
 It is possible to iterate git commands over all dependent repositories
-using the ``xpd git`` command. So, the following will call ``git
-status`` on the main repository and all its dependents::
+using the ``xpd git`` command. So, the following will call ``git status`` on the main repository and all its dependents::
 
    $ xpd git status
 
@@ -160,7 +159,7 @@ Creating releases
 Creating releases involves the following steps:
 
   #. Create alphas and betas for testing (optional, during development
-   phase)
+     phase)
   #. Create release candidates until one is ready for full release
   #. Upgrade a release candidate to a release
 
@@ -182,39 +181,6 @@ To upgrade a release candidate you need to run::
 
     xpd upgrade_rc [version]
 
-Adding release note and changelog entries
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-To add a release note you need to manually edit the ``xpd.xml``
-file. Release notes are handled with a ``<release_note>`` element under the
-``<xpd>`` element. These notes handle known issues and notes about a
-release. Changelog entries are handled with ``<changelog>`` elements
-under the ``<xpd>`` tag. These entries detail the difference between
-a release and the previous release.
-
-The release note has a ``version`` attribute which specifies which
-release note the version applies to. As a general rule, release notes
-should be attached to full releases (not alpha or betas). An example
-release note tag is::
-
-  <release_note  version="1.1.1">
-     * Function X doesn't work on Sundays
-     * Function Y is only compatible with Package Z
-  </release_note>
-
-Changelog entries are similar::
-
-  <changelog version="1.1.1">
-     * Added function X. This is a really cool
-       feature.
-     * Fixed function Y
-  </changelog>
-
-Note that the contents of the element is a bullet list of
-features/bugfixes. 
-
-``release_note`` and ``changelog`` elements should go directly
-under the ``<xpd>`` element, **not** under the ``<release>`` element.
 
 Tagging
 -------

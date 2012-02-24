@@ -71,9 +71,31 @@ one of:
                         a vendor to be used with a set of use
                         cases/modifications.
 
+The ``<docdir>`` tag
+....................
+
+Several ``docdir`` tags can be added which can contain a
+path to a documentation directory relative to the toplevel of the
+repository. The documents in these directories will be built when a
+package is built.
+
+The ``<include_dir>`` and ``<exclude_dir>`` tags
+................................................
+
+The xml can contain several ``include_dir`` or several ``exclude_dir`` tags
+which specify a list of directories to include (to the exclusion of
+all others) or a list of directories to exclude when packaging.
+
+
+The ``<partnumber>`` and ``<subpartnumber>`` tags
+.................................................
+
+These tags relate to partnumbers of a repository in a vendor's
+document management system. For xmos repositories this is handled by
+the ``--upload`` flag to xpd.
 
 Creating and releasing a custom branch of a release
------------------------------------------------------
+---------------------------------------------------
 
 Sometimes you may need to create a branch of an existing release
 e.g. some custom modifications for a specific project. Say you wish to

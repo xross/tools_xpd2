@@ -116,5 +116,7 @@ Commands
 
    Iterate the given git command over the repo and all its dependencies.
 
+.. option:: --upload
 
-
+   If specified with the ``make_zip`` of ``create_release`` command
+   then ``xpd`` will upload the release to cognidox.

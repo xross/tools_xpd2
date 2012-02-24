@@ -1453,7 +1453,7 @@ def xpd_build_docs(repo, options=None, args=None):
         os.chdir(curdir)
         if repo.is_xmos_repo() and repo.partnumber:
             print "Adding link from document to software package"
-            docinfo = xref.get_or_create_docinfo_from_dir(docdir)
+            docinfo = xref.get_or_create_docinfo_from_dir(docdir, topdir = repo.name)
             swlink = None
             for l in docinfo.swlinks:
                 if l.partnum == repo.partnumber:
