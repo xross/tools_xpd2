@@ -214,7 +214,18 @@ class XmlObject(object):
 
         for tag in self.tags:
             vals = []
-            for x in root.childNodes:
+            childNodes = root.childNodes
+            _root = root
+            if tag.wrapper:
+                childNodes = []
+                _root = None
+                for x in root.childNodes:
+                    if hasattr(x,"tagName") and x.tagName == tag.wrapper:
+                        childNodes = x.childNodes
+                        _root = x
+                        break
+
+            for x in childNodes:
                 if hasattr(x,"tagName") and x.tagName == tag.tagname:
                     if tag.plural and hasattr(tag,"typ") and tag.typ == str:
 
@@ -244,7 +255,11 @@ class XmlObject(object):
                                 val = True
 
                             vals.append(val)
-                    root.removeChild(x)
+                    _root.removeChild(x)
+
+            if tag.wrapper and _root:
+                root.removeChild(_root)
+
 
             if tag.plural:
                 setattr(self, tag.name, vals)

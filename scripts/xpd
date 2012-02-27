@@ -16,6 +16,7 @@ import xpd.xmlobject
 from xpd import templates
 from xpd import cognidox
 from xpd.docholder import DocumentHolder, DHSection, DHDocumentLink
+
 xdoc = None
 xmossphinx = None
 xmos_xref = None
@@ -531,7 +532,7 @@ def xpd_make_zip(repo, options, args):
         zip_repo(dep.repo, f, exports, old_style,oldstyle_includes,oldstyle_root, force=options.force)
 
     for docdir in repo.docdirs:
-        insert_doc(repo, docdir, f)
+        insert_doc(repo.name, docdir, f, is_xmos_repo = repo.is_xmos_repo())
 
     insert_topdoc(repo,f)
 
@@ -544,17 +545,8 @@ def xpd_make_zip(repo, options, args):
             if cogfile:
                 tmpfile = tempfile.TemporaryFile()
                 tmpfile.write(cogfile.read())
+                insert_dep_docs_to_zip(f, tmpfile, dep.repo.name)
                 cogfile.close()
-                print "Extracting docs from %s zipfile" % dep.repo.name
-                dep_zip = zipfile.ZipFile(tmpfile,mode='r')
-                for name in dep_zip.namelist():
-                    m = re.match('%s/doc/.*'%dep.repo.name,name)
-                    if m or name == '%s/README.html'%dep.repo.name:
-                        zfile = dep_zip.open(name)
-                        s = zfile.read()
-                        zfile.close()
-                        f.writestr(name,s)
-                dep_zip.close()
                 tmpfile.close()
             else:
                 print "WARNING: Cannot find relevant version of %s is cognidox. DEPENDENCIES SHOULD BE OFF RELEASED VERSIONS OF COMPONENTS"
@@ -694,6 +686,14 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
                 zipfile.write(fullpath,arcname=arcname)
 
 
+    if repo.partnumber and repo.current_release():
+        publishinfo = \
+"""<publishinfo>
+    <partnum>%s</partnum>
+    <version>%s</version>
+</publishinfo>
+""" % (repo.partnumber,str(repo.current_release().version))
+        zipfile.writestr(os.path.join(repo.name,".publishinfo"), publishinfo)
 
     xpd_dom = repo.todom("xpd")
 
@@ -730,6 +730,18 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
                     zipfile.write(fullpath,arcname=arcname)
 
 
+def insert_dep_docs_to_zip(main_zipfile, sub_zipfile, repo_name):
+    print "Extracting docs from %s zipfile" % dep.repo_name
+    dep_zip = zipfile.ZipFile(sub_zipfile,mode='r')
+    for name in dep_zip.namelist():
+        m = re.match('%s/doc/.*'%repo_name,name)
+        if m or name == '%s/README.html'%repo_name:
+            zfile = dep_zip.open(name)
+            s = zfile.read()
+            zfile.close()
+            main_zipfile.writestr(name,s)
+    dep_zip.close()
+
 def insert_topdoc(repo,zipfile):
     if repo.is_xmos_repo():
         htmlpath='xdehtml'
@@ -753,7 +765,8 @@ def insert_topdoc(repo,zipfile):
                                  readme)
 
 
-def insert_doc(repo, path, zipfile,base = None,insert_pdf = True):
+def insert_doc(repo_name, path, zipfile,base = None,insert_pdf = True,
+               is_xmos_repo=True):
     import_xdoc()
     config = xdoc.get_config(path)
     pdfname = config['SPHINX_MASTER_DOC']+'.pdf'
@@ -762,16 +775,16 @@ def insert_doc(repo, path, zipfile,base = None,insert_pdf = True):
     if not base:
         base = os.path.basename(path)
         if base == 'doc':
-            base = repo.name
+            base = repo_name
 
     if base == '':
-        arcpdfname = repo.name + '.pdf'
+        arcpdfname = repo_name + '.pdf'
     else:
         arcpdfname = base + '.pdf'
-    zipdocpath = os.path.join(repo.name, 'doc',base)
+    zipdocpath = os.path.join(repo_name, 'doc',base)
     if insert_pdf:
         zipfile.write(pdfpath,arcname=os.path.join(zipdocpath,arcpdfname))
-    if repo.is_xmos_repo():
+    if is_xmos_repo:
         htmlpath=os.path.join(path,'_build','xdehtml')
     else:
         htmlpath=os.path.join(path,'_build','html')
@@ -1098,6 +1111,9 @@ def xpd_checkout(repo, options, args):
 
     rel = repo.get_release(version)
     githash = repo.get_child_hash(rel.parenthash)
+    if not githash:
+        print >>sys.stderr, "ERROR: cannot find githash for version %s, maybe the git history has been modified" % str(version)
+        exit(1)
     vrepo = repo.get_versioned_repo(version)
 
     vrepo.checkout(githash)
@@ -1150,7 +1166,7 @@ def xpd_check_info(repo, options, args,check_icon=True):
             update = True
 
     if repo.partnumber==None:
-        print "If this is an XMOS package, there may be an associated four digit part number for the repository."
+        print "If this is an XMOS package, there may be an associated part number for the repository."
         if confirm("No part number found. Add one (Y/n)?",default=True):
             xpd_check_partinfo(repo, options, args)
             update = True
@@ -1461,9 +1477,18 @@ def xpd_build_docs(repo, options=None, args=None):
             if not swlink:
                 swlink = xmos_xref.SwLink()
                 swlink.partnum = repo.partnumber
+                swlink.subpartnum = repo.subpartnumber
                 docinfo.swlinks.append(swlink)
 
+            base = os.path.basename(docdir)
+            if base == 'doc':
+                base = repo.name
+
+            swlink.path = '%s/doc/%s' % (repo.name,base)
             swlink.version = repo.current_version_or_githash()
+            swlink.title = repo.longname
+            swlink.repo_name = repo.name
+            swlink.primary = "True"
 
     xpd_build_topdoc(repo)
     if repo.is_xmos_repo():

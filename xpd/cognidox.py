@@ -141,7 +141,11 @@ Content-Type: application/octet-stream; name="%(path)s"
     lines = body.split("\n")
     body = "\r\n".join(lines)
     req = urllib2.Request(url, body, headers)
-    response = urllib2.urlopen(req)
+    try:
+        response = urllib2.urlopen(req)
+    except TypeError:
+        print >>sys.stderr, "Error connecting to cognidox"
+        exit(1)
     resp_xml = response.read()
     dom = xml.dom.minidom.parseString(resp_xml)
     try:
@@ -338,14 +342,43 @@ def _get_latest_from_elems(elems, exclude_drafts = False):
                 max_elem = elem
     return max_version[0] + max_version[1], max_elem
 
-def get_latest_issue(partnum, exclude_drafts=False):
+def _get_latest_issue(partnum, exclude_drafts=False):
     info = get_docinfo(partnum)
     if not info or not 'Versions' in info:
         return None
     dom = xml.dom.minidom.parseString(info['Versions'].replace('cg:',''))
     elems = dom.getElementsByTagName('VersionItem')
-    max_version,_ = _get_latest_from_elems(elems, exclude_drafts)
+    max_version,elem = _get_latest_from_elems(elems, exclude_drafts)
+    return max_version,elem
+
+def get_latest_issue(partnum, exclude_drafts=False):
+    max_version,elem = _get_latest_issue(partnum, exclude_drafts)
     return max_version
+
+def fetch_revision(partnum, revision):
+    info = get_docinfo(partnum)
+    if not info or not 'Versions' in info:
+        return None
+    dom = xml.dom.minidom.parseString(info['Versions'].replace('cg:',''))
+    elems = dom.getElementsByTagName('VersionItem')
+    elem = None
+    for e in elems:
+        if get_revision(e) == revision:
+            elem = e
+
+    if not elem:
+        return None
+    else:
+        return urllib2.urlopen(docs_url+'/'+get_subinfo(elem,'file'))
+
+
+def fetch_latest(partnum,exclude_drafts=False):
+    _,elem = _get_latest_issue(partnum, exclude_drafts)
+    print "Fetching %s" % (docs_url+'/'+get_subinfo(elem,'file'))
+
+    info = {'revision':get_revision(elem),
+            'version_tag':get_version_tag(elem)}
+    return urllib2.urlopen(docs_url+'/'+get_subinfo(elem,'file')),info
 
 
 def fetch_version(partnum, version):
