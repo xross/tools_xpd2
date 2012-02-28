@@ -863,6 +863,10 @@ def xpd_update_readme(repo, options, args,
     section_indices = {}
     for i in range(len(lines)):
         line = lines[i]
+
+        if xmos_package:
+            line = line.replace('XCORE.com','XMOS')
+
         m = re.match(r':(.*): (.*)',line)
         if m:
             key = m.groups(0)[0]
