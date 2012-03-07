@@ -191,7 +191,7 @@ def create_xproject_str(repo,is_documentation=False, is_hidden = False):
    xproject_str += '<xproject>'
    xproject_str += '<repository>%s</repository>'%repo.name
    if repo.partnumber:
-        xproject_str += '<partnum>%s</partnum>'%repo.partnumber
+        xproject_str += '<partnum>%s</partnum>'%repo.subpartnumber
 
    rel = repo.current_release()
    if rel:
@@ -556,6 +556,7 @@ def check_makefiles(repo):
     configs = get_all_configs(makefiles)
     for mkfile in makefiles:
         print "Checking %s" % os.path.relpath(mkfile, repo.path)
+        dirname = os.path.dirname(os.path.relpath(mkfile, repo.path))
         updates_required |= check_makefile(mkfile, repo, configs)
     if updates_required:
         print "Makefiles need updating. Do updates (Y/n)?"

@@ -402,7 +402,7 @@ def xpd_create_release(repo, options, args):
     ok = xpd.check_project.check_makefiles(repo)
 
     if not ok:
-        print "Updates required to eclipse Makefiles."
+        print "Updates required to Makefiles."
         print "Update files (or commit automatic changes) and try again."
         return True
 
