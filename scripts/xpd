@@ -282,7 +282,7 @@ def branch_candidates(repo):
 
 def xpd_build_sw(repo, options):
     print "Building repo"
-    if 'XPD_NO_BUILD' in os.environ and os.environ['XPD_NO_BUILD'] == '1':
+    if options.nobuild:
         return
     ret = call(["xmake","CONFIG=All","NO_IGNORE_ERRORS=1","all"], cwd=repo.path, shell=True)
     if ret != 0 and not options.force:
@@ -399,10 +399,10 @@ def xpd_create_release(repo, options, args):
 
     xpd_check_info(repo, options, args)
 
-    ok = xpd_check_infr(repo, options, args, return_ok = True)
+    ok = xpd.check_project.check_makefiles(repo)
 
     if not ok:
-        print "Updates required to eclipse files/Makefiles."
+        print "Updates required to eclipse Makefiles."
         print "Update files (or commit automatic changes) and try again."
         return True
 
@@ -512,7 +512,14 @@ def xpd_make_zip(repo, options, args):
     print "Creating temporary sandbox"
     repo.move_to_temp_sandbox()
 
-    xpd_build_sw(repo, options)
+    if repo.include_binaries:
+        xpd_build_sw(repo, options)
+
+    xpd.check_project.check_project(repo, force_creation=True)
+    xpd.check_project.check_cproject(repo, force_creation=True)
+    for dep in repo.dependencies:
+        xpd.check_project.check_project(dep.repo, force_creation=True)
+        xpd.check_project.check_cproject(dep.repo, force_creation=True)
 
     print "Building docs"
     xpd_build_docs(repo, options)
@@ -531,25 +538,44 @@ def xpd_make_zip(repo, options, args):
     for dep in repo.dependencies:
         zip_repo(dep.repo, f, exports, old_style,oldstyle_includes,oldstyle_root, force=options.force)
 
-    for docdir in repo.docdirs:
-        insert_doc(repo.name, docdir, f, is_xmos_repo = repo.is_xmos_repo())
 
-    insert_topdoc(repo,f)
+    if not options.nodocs:
+        for docdir in repo.docdirs:
+            insert_doc(repo.name, os.path.join(repo.path,docdir), f, is_xmos_repo = repo.is_xmos_repo(),
+                   repo=repo)
 
-    for dep in repo.dependencies:
-        if dep.repo.subpartnumber and dep.repo.is_xmos_repo():
-            version = dep.repo.current_version_or_githash()
-            print "Trying to find version %s of %s in cognidox" % (version, dep.repo.name)
-            cogfile = cognidox.fetch_version(dep.repo.subpartnumber, version)
+        insert_topdoc(repo,f)
 
-            if cogfile:
-                tmpfile = tempfile.TemporaryFile()
-                tmpfile.write(cogfile.read())
-                insert_dep_docs_to_zip(f, tmpfile, dep.repo.name)
-                cogfile.close()
-                tmpfile.close()
-            else:
-                print "WARNING: Cannot find relevant version of %s is cognidox. DEPENDENCIES SHOULD BE OFF RELEASED VERSIONS OF COMPONENTS"
+
+        for dep in repo.dependencies:
+            if dep.repo.subpartnumber and dep.repo.is_xmos_repo():
+                version = dep.repo.current_version_or_githash()
+                print "Trying to find version %s of %s in cognidox" % (version, dep.repo.name)
+                cogfile = cognidox.fetch_version(dep.repo.subpartnumber, version)
+
+                if cogfile:
+                    tmpfile = tempfile.TemporaryFile()
+                    tmpfile.write(cogfile.read())
+                    insert_dep_docs_to_zip(f, tmpfile, dep.repo.name)
+                    for docdir in dep.repo.docdirs:
+                        docdir = os.path.join(dep.repo.path,docdir)
+                        docinfo = xref.get_or_create_docinfo_from_dir(docdir,
+                                                                      topdir = dep.repo.name)
+                        swlink = docinfo.get_swlink(repo.partnumber)
+                        base = os.path.basename(docdir)
+                        if base == 'doc':
+                            base = dep.repo.name
+                        swlink.path = '%s/doc/%s' % (dep.repo.name,base)
+                        swlink.version = repo.current_version_or_githash()
+                        swlink.subversion = dep.repo.current_version_or_githash()
+                        swlink.title = repo.longname
+                        swlink.repo_name = dep.repo.name
+                        swlink.primary = "False"
+
+                    cogfile.close()
+                    tmpfile.close()
+                else:
+                    print "WARNING: Cannot find relevant version of %s is cognidox. DEPENDENCIES SHOULD BE OFF RELEASED VERSIONS OF COMPONENTS"
 
 
     info_string = "<zipinfo>\n"
@@ -576,7 +602,7 @@ def xpd_make_zip(repo, options, args):
                                    version = vstr)
 
 
-    return True
+    return False
 
 def find_files(path):
     fs = []
@@ -589,25 +615,18 @@ def find_files(path):
 
 def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldstyle_root="",include_binaries=False, force = False):
 
-    if force:
-        lines = find_files(repo.path)
-        try:
-            f = open(os.path.join(repo.path,".gitignore"))
-            excludes = [x.strip() for x in f.readlines()]
-            f.close()
-        except:
-            excludes = []
-    else:
-        process = Popen(["git","ls-files"],
-                                   cwd=repo.path,
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
-        lines = process.stdout.readlines()
-        excludes = []
+
+    lines = find_files(repo.path)
+    excludes = []
+
 
     excludes.append('doc/*')
     excludes.append('toplevel_doc/*')
     excludes.append('README.rst')
+    if xpd.check_project.flat_projects:
+        excludes.append('.cproject')
+        excludes.append('.project')
+
 
     for f in lines:
         f = f.rstrip()
@@ -620,6 +639,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
         else:
             ok = True
 
+
         for i in exports:
                 if os.path.commonprefix([f,i])==i:
                     ok = False
@@ -627,9 +647,11 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
         if re.match(".*\.git",f):
             ok = False
 
+
         for pattern in excludes:
             pattern = pattern.replace(".","\.")
             pattern = pattern.replace("*",".*")
+            pattern = pattern + "$"
             if re.match(pattern, f):
                 ok = False
 
@@ -648,6 +670,13 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
                 fh.close()
                 new_makefile = ''.join(lines)
                 zipfile.writestr(arcname, new_makefile)
+            elif re.match('.*Makefile$',f):
+                if os.path.exists(os.path.join(repo.path,f)):
+                    fh = open(os.path.join(repo.path,f))
+                    makefile_str = fh.read()
+                    fh.close()
+                    makefile_str = xpd.check_project.patch_makefile(makefile_str)
+                    zipfile.writestr(arcname,makefile_str)
             elif f == 'README.rst':
                 lines = xpd_update_readme(repo,[],[],
                                           write_back=False,
@@ -757,6 +786,11 @@ def insert_topdoc(repo,zipfile):
             dst = os.path.join(zipdocpath, 'html', f)
             zipfile.write(src,arcname=dst)
             if f == 'index.html':
+                index2 = ''.join(open(src).readlines())
+                index2 = index2.replace('"_static','"html/_static')
+                index2 = index2.replace('"../','"./')
+                zipfile.writestr(os.path.join(repo.name,'doc','index.html'),
+                                 index2)
 
                 readme = ''.join(open(src).readlines())
                 readme = readme.replace('"_static','"doc/html/_static')
@@ -765,8 +799,9 @@ def insert_topdoc(repo,zipfile):
                                  readme)
 
 
+
 def insert_doc(repo_name, path, zipfile,base = None,insert_pdf = True,
-               is_xmos_repo=True):
+               is_xmos_repo=True, repo=None):
     import_xdoc()
     config = xdoc.get_config(path)
     pdfname = config['SPHINX_MASTER_DOC']+'.pdf'
@@ -789,7 +824,14 @@ def insert_doc(repo_name, path, zipfile,base = None,insert_pdf = True,
     else:
         htmlpath=os.path.join(path,'_build','html')
 
+    if repo and xpd.check_project.flat_projects:
+        (dotproject, xproject) = xpd.check_project.create_doc_project(repo)
+        zipfile.writestr(os.path.join(repo_name,'doc','.project'),dotproject)
+        zipfile.writestr(os.path.join(repo_name,'doc','.xproject'),xproject)
+
+
     fs = find_files(htmlpath)
+
     for f in fs:
         if not re.match('sphinx.output|\.doctree.*',f):
             src = os.path.join(htmlpath, f)
@@ -1452,7 +1494,7 @@ def xpd_build_topdoc(repo):
         xdoc.main('html',path=topdoc_path)
 
 def xpd_build_docs(repo, options=None, args=None):
-    if 'XPD_NO_BUILD_DOCS' in os.environ and os.environ['XPD_NO_BUILD_DOCS'] == '1':
+    if options.nodocs:
         return
     import_xdoc()
     if repo.is_xmos_repo():
@@ -1474,15 +1516,7 @@ def xpd_build_docs(repo, options=None, args=None):
         if repo.is_xmos_repo() and repo.partnumber:
             print "Adding link from document to software package"
             docinfo = xref.get_or_create_docinfo_from_dir(docdir, topdir = repo.name)
-            swlink = None
-            for l in docinfo.swlinks:
-                if l.partnum == repo.partnumber:
-                    swlink = l
-            if not swlink:
-                swlink = xmos_xref.SwLink()
-                swlink.partnum = repo.partnumber
-                swlink.subpartnum = repo.subpartnumber
-                docinfo.swlinks.append(swlink)
+            swlink = docinfo.get_swlink(repo.partnumber)
 
             base = os.path.basename(docdir)
             if base == 'doc':
@@ -1553,6 +1587,12 @@ if __name__ == "__main__":
 
     optparser.add_option("--upload",dest="upload",action="store_true",default=False,
                          help="Upload package to document managament system")
+
+    optparser.add_option("--nobuild",dest="nobuild",action="store_true",default=False,
+                         help="Do not build when creating a release/package")
+
+    optparser.add_option("--nodocs",dest="nodocs",action="store_true",default=False,
+                         help="Do not build docs when creating a release/package")
 
 
 

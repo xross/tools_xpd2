@@ -395,3 +395,8 @@ def fetch_version(partnum, version):
     version, elem = _get_latest_from_elems(elems)
     print "Fetching %s" % (docs_url+'/'+get_subinfo(elem,'file'))
     return urllib2.urlopen(docs_url+'/'+get_subinfo(elem,'file'))
+
+
+if __name__ == "__main__":
+    initCognidox()
+    print get_docinfo('XM-001603-DH')

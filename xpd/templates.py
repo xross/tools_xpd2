@@ -36,8 +36,16 @@ XCC_FLAGS_Release = -g -O3 -Wcodes -Xmapper -Wcodes
 # The VERBOSE variable, if set to 1, enables verbose output from the make system.
 VERBOSE = 0
 
+#=============================================================================
+# The following part of the Makefile includes the common build infrastructure
+# for compiling XMOS applications. You should not need to edit below here.
+
 XMOS_MAKE_PATH ?= ../..
--include $(XMOS_MAKE_PATH)/xcommon/module_xcommon/build/Makefile.common
+ifneq ($(wildcard $(XMOS_MAKE_PATH)/xcommon/module_xcommon/build/Makefile.common),)
+include $(XMOS_MAKE_PATH)/xcommon/module_xcommon/build/Makefile.common
+else
+include ../module_xcommon/build/Makefile.common
+endif
 """
 
 module_build_info = '''
@@ -54,8 +62,7 @@ module_build_info = '''
 '''
 
 
-cproject = '''
-<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+cproject = '''<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <?fileVersion 4.0.0?>
 <cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
     <storageModule moduleId="org.eclipse.cdt.core.settings">
@@ -418,4 +425,36 @@ Support
 =======
 
 <Description of support model>
+'''
+
+
+module_makefile = 'all:\n\t@echo "** Module only - only builds as part of application **"\n\n\nclean:\n\t@echo "** Module only - only builds as part of application **"\n\n\n'
+
+
+documentation_dotproject = """<?xml version="1.0" encoding="UTF-8"?>
+<projectDescription>
+	<name>%PROJECT%</name>
+	<comment></comment>
+	<projects>
+	</projects>
+	<buildSpec>
+	</buildSpec>
+	<natures>
+	</natures>
+</projectDescription>
+"""
+
+makefile_include_str = '''
+#=============================================================================
+# The following part of the Makefile includes the common build infrastructure
+# for compiling XMOS applications. You should not need to edit below here.
+
+XMOS_MAKE_PATH ?= ../..
+ifneq ($(wildcard $(XMOS_MAKE_PATH)/xcommon/module_xcommon/build/Makefile.common),)
+include $(XMOS_MAKE_PATH)/xcommon/module_xcommon/build/Makefile.common
+else
+include ../module_xcommon/build/Makefile.common
+endif
+
+
 '''
