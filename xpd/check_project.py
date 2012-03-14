@@ -91,20 +91,21 @@ def _check_project(repo,path=None, force_creation=False):
     return project_ok
 
 
-def find_all_subprojects(path):
+def find_all_subprojects(repo):
+     path = repo.path
      subs = set([])
      for x in os.listdir(path):
           if x == 'doc':
                continue
           mkfile = os.path.join(path,x,'Makefile')
           modinfo = os.path.join(path,x,'module_build_info')
-          if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon':
+          if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or (x in repo.extra_eclipse_projects):
                subs.add(x)
      return subs
 
 def check_project(repo, force_creation=False):
      if flat_projects:
-          for sub in find_all_subprojects(repo.path):
+          for sub in find_all_subprojects(repo):
                _check_project(repo, path=os.path.join(repo.path,sub), force_creation=force_creation)
      else:
           _check_project(repo, force_creation=force_creation)
@@ -244,7 +245,7 @@ def create_cproject(repo, path=None, name=None, configs=None, all_includes=[],
 
    includes = ['<listOptionValue builtIn="false" value=\'%s\' />\n'%x for x in all_includes]
    includes = ''.join(includes)
-
+   is_extra_project = (os.path.basename(path) in repo.extra_eclipse_projects)
    config_str = ''
    for config in configs:
        config_id = str(rand.randint(1,100000000))
@@ -254,7 +255,8 @@ def create_cproject(repo, path=None, name=None, configs=None, all_includes=[],
        else:
            config_args = 'CONFIG=%s'%config
 
-       if is_module:
+
+       if is_module or is_extra_project:
             config_args += ' -f .makefile'
 
        for i in range(len(lines)):
@@ -282,9 +284,21 @@ def create_cproject(repo, path=None, name=None, configs=None, all_includes=[],
         f.write(templates.module_makefile)
         f.close()
 
+   if is_extra_project:
+        f = open(os.path.join(path,'.makefile'),'w')
+        f.write(templates.extra_project_makefile)
+        f.close()
+
+
    create_xproject(repo, path)
 
 
+def remove_repo_from_include(include):
+     m = re.match('[^/]*/(.*)',include)
+     if m:
+          return m.groups(0)[0]
+     else:
+          return include
 
 def _check_cproject(repo,makefiles,path=None, force_creation=False):
     if not path:
@@ -326,11 +340,15 @@ def _check_cproject(repo,makefiles,path=None, force_creation=False):
          pass
 
 
+    if flat_projects:
+         all_includes = [remove_repo_from_include(x) for x in all_includes]
+
     all_includes = ['&quot;${workspace_loc:/%s}&quot;'%i \
                          for i in all_includes if i != '']
 
-    sys_includes = ['&quot;${XMOS_DOC_PATH}/../target/include&quot;',
-                    '&quot;${XMOS_TOOL_PATH}/target/include&quot;']
+#    sys_includes = ['&quot;${XMOS_DOC_PATH}/../target/include&quot;']
+#                    '&quot;${XMOS_TOOL_PATH}/target/include&quot;']
+    sys_includes = []
 
     print "Checking .cproject file"
     cproject_ok = True
@@ -385,7 +403,7 @@ def _check_cproject(repo,makefiles,path=None, force_creation=False):
 
 def check_cproject(repo,force_creation=False):
      if flat_projects:
-          for sub in find_all_subprojects(repo.path):
+          for sub in find_all_subprojects(repo):
                mkfile = os.path.join(repo.path,sub,'Makefile')
                makefiles = set([])
                if os.path.exists(mkfile):
@@ -553,9 +571,13 @@ def check_toplevel_makefile(repo):
 def check_makefiles(repo):
     updates_required = check_toplevel_makefile(repo)
     makefiles = find_all_app_makefiles(repo.path)
-    configs = get_all_configs(makefiles)
+    all_configs = get_all_configs(makefiles)
     for mkfile in makefiles:
         print "Checking %s" % os.path.relpath(mkfile, repo.path)
+        if flat_projects:
+             configs = get_all_configs(set([mkfile]))
+        else:
+             configs = all_configs
         dirname = os.path.dirname(os.path.relpath(mkfile, repo.path))
         updates_required |= check_makefile(mkfile, repo, configs)
     if updates_required:
@@ -563,6 +585,10 @@ def check_makefiles(repo):
         x = raw_input()
         if x not in ['N','n','No','NO','no']:
             for mkfile in makefiles:
+                if flat_projects:
+                       configs = get_all_configs(set([mkfile]))
+                else:
+                      configs = all_configs
                 update_makefile(mkfile, configs)
                 print "Updated %s" % os.path.relpath(mkfile, repo.path)
 
@@ -573,6 +599,9 @@ def check_docdir(repo):
 
 def patch_makefile(makefile_str):
      lines = makefile_str.split('\n')
+     for line in lines:
+          if re.match('.*Makefile.toplevel',line):
+               return makefile_str
      new_lines = []
      found_common_include = False
      for line in lines:

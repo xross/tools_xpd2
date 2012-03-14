@@ -322,10 +322,19 @@ def get_revision(elem):
     return elem.getElementsByTagName('revision')[0].childNodes[0].wholeText
 
 def get_version_tag(elem):
-    return str(elem.getElementsByTagName('VersionTag')[0].childNodes[0].wholeText)
+    try:
+        return str(elem.getElementsByTagName('VersionTag')[0].childNodes[0].wholeText)
+    except:
+        return ""
 
 def get_subinfo(elem, tag):
     return str(elem.getElementsByTagName(tag)[0].childNodes[0].wholeText)
+
+def _to_int(x):
+    if x=='':
+        return 0
+    else:
+        return int(x)
 
 def _get_latest_from_elems(elems, exclude_drafts = False):
     max_version = None
@@ -333,14 +342,14 @@ def _get_latest_from_elems(elems, exclude_drafts = False):
     for elem in elems:
         m = re.match('(\d*)(.*)',get_revision(elem))
         if m:
-            version = m.groups(0)[0], m.groups(0)[1]
+            version = _to_int(m.groups(0)[0]), m.groups(0)[1]
             if exclude_drafts and version[1] != '':
                 continue
             if not max_version or version[0] > max_version[0] or \
                 (version[0]==max_version[0] and version[1] > max_version[1]):
                 max_version = version
                 max_elem = elem
-    return max_version[0] + max_version[1], max_elem
+    return str(max_version[0]) + max_version[1], max_elem
 
 def _get_latest_issue(partnum, exclude_drafts=False):
     info = get_docinfo(partnum)

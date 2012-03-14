@@ -12,7 +12,7 @@ class DHSection(XmlObject):
 
 class DocumentHolder(XmlObject):
     introduction = XmlValue(attrs={'format':'textile'})
-    sections = XmlNodeList(DHSection)
+    sections = XmlNodeList(DHSection,wrapper='sections')
 
     def get_section(self, name):
         for section in self.sections:

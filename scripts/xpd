@@ -434,16 +434,20 @@ def xpd_create_release(repo, options, args):
 
     print "Created release %s" % str(release.version)
 
+    if confirm("Do you want to update the README.rst file (Y/n)?",
+               default=True):
+        xpd_update_readme(repo,options,[])
+        call(["git","add","README.rst"],
+             cwd=repo.path,
+             stdout=subprocess.PIPE,
+             stderr=subprocess.PIPE)
+
     repo.save_and_commit_release(release)
 
     release.githash = repo.get_child_hash(release.parenthash)
 
     if confirm("Do you want to make a zipfile (Y/n)? ",default=True):
         xpd_make_zip(repo,options,[])
-
-    if confirm("Do you want to update the README.rst file (Y/n)?",
-               default=True):
-        xpd_update_readme(repo,options,[])
 
     repo.delete_temp_sandbox()
 
@@ -506,8 +510,9 @@ def xpd_make_zip(repo, options, args):
 
     name = repo.name + "_" + vstr
 
+    update = False
     if options.upload:
-        xpd_check_partinfo(repo, options, args)
+        update = xpd_check_partinfo(repo, options, args)
 
     print "Creating temporary sandbox"
     repo.move_to_temp_sandbox()
@@ -546,6 +551,7 @@ def xpd_make_zip(repo, options, args):
 
         insert_topdoc(repo,f)
 
+        xref = xmos_xref.XRefInfo('xpd')
 
         for dep in repo.dependencies:
             if dep.repo.subpartnumber and dep.repo.is_xmos_repo():
@@ -571,6 +577,7 @@ def xpd_make_zip(repo, options, args):
                         swlink.title = repo.longname
                         swlink.repo_name = dep.repo.name
                         swlink.primary = "False"
+                        swlink.subpartnumber = dep.repo.subpartnumber
 
                     cogfile.close()
                     tmpfile.close()
@@ -588,21 +595,26 @@ def xpd_make_zip(repo, options, args):
         f.writestr('.zipinfo',info_string)
 
     f.close()
+    print "Created %s" % fname
 
     if options.upload:
         print "Uploading zip file"
         cognidox.doCognidoxCheckIn(repo.subpartnumber,
                                    fname,
-                                   version = vstr)
+                                   version = vstr,
+                                   draft=False)
         print "Creating document holder"
         xpd_make_docholder(repo, options, args, to_file = ".docholder.xml")
         print "Uploading document holder"
         cognidox.doCognidoxCheckIn(repo.partnumber,
                                    ".docholder.xml",
-                                   version = vstr)
+                                   version = vstr,
+                                   draft=True)
 
 
-    return False
+
+
+    return update
 
 def find_files(path):
     fs = []
@@ -623,6 +635,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
     excludes.append('doc/*')
     excludes.append('toplevel_doc/*')
     excludes.append('README.rst')
+    excludes.append('.zipinfo')
     if xpd.check_project.flat_projects:
         excludes.append('.cproject')
         excludes.append('.project')
@@ -760,7 +773,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
 
 
 def insert_dep_docs_to_zip(main_zipfile, sub_zipfile, repo_name):
-    print "Extracting docs from %s zipfile" % dep.repo_name
+    print "Extracting docs from %s zipfile" % repo_name
     dep_zip = zipfile.ZipFile(sub_zipfile,mode='r')
     for name in dep_zip.namelist():
         m = re.match('%s/doc/.*'%repo_name,name)
@@ -781,22 +794,22 @@ def insert_topdoc(repo,zipfile):
     zipdocpath = os.path.join(repo.name, 'doc')
     fs = find_files(htmlpath)
     for f in fs:
-        if not re.match('sphinx.output|\.doctree.*',f):
+        if not re.match('sphinx.output|\.doctree.*|objects.inv|.buildinfo',f):
             src = os.path.join(htmlpath, f)
-            dst = os.path.join(zipdocpath, 'html', f)
-            zipfile.write(src,arcname=dst)
+            dst = os.path.join(zipdocpath, f)
+            dst = dst.replace('_static','.static')
             if f == 'index.html':
-                index2 = ''.join(open(src).readlines())
-                index2 = index2.replace('"_static','"html/_static')
-                index2 = index2.replace('"../','"./')
-                zipfile.writestr(os.path.join(repo.name,'doc','index.html'),
-                                 index2)
+                index_str = open(src).read()
+                index_str = index_str.replace('_static','.static')
+                zipfile.writestr(dst,index_str)
 
                 readme = ''.join(open(src).readlines())
-                readme = readme.replace('"_static','"doc/html/_static')
-                readme = readme.replace('"../','"doc/')
+                readme = readme.replace('"_static','"doc/.static')
+                readme = readme.replace('"././','"doc/')
                 zipfile.writestr(os.path.join(repo.name,'README.html'),
                                  readme)
+            else:
+                zipfile.write(src,arcname=dst)
 
 
 
@@ -818,7 +831,7 @@ def insert_doc(repo_name, path, zipfile,base = None,insert_pdf = True,
         arcpdfname = base + '.pdf'
     zipdocpath = os.path.join(repo_name, 'doc',base)
     if insert_pdf:
-        zipfile.write(pdfpath,arcname=os.path.join(zipdocpath,arcpdfname))
+        zipfile.write(pdfpath,arcname=os.path.join(repo_name,'doc',arcpdfname))
     if is_xmos_repo:
         htmlpath=os.path.join(path,'_build','xdehtml')
     else:
@@ -833,10 +846,15 @@ def insert_doc(repo_name, path, zipfile,base = None,insert_pdf = True,
     fs = find_files(htmlpath)
 
     for f in fs:
-        if not re.match('sphinx.output|\.doctree.*',f):
+        if not re.match('sphinx.output|\.doctree.*|.buildinfo|objects.inv',f):
             src = os.path.join(htmlpath, f)
-            dst = os.path.join(zipdocpath, 'html', f)
-            zipfile.write(src,arcname=dst)
+            dst = os.path.join(zipdocpath, f)
+            x = open(src)
+            src_str = x.read()
+            x.close()
+            src_str = src_str.replace('_static','.static')
+            dst = dst.replace('_static','.static')
+            zipfile.writestr(dst, src_str)
 
 
 def xpd_show(repo, options, args):
@@ -995,8 +1013,8 @@ def xpd_update_readme(repo, options, args,
                     base = os.path.basename(docdir)
                     if base == 'doc':
                         base = repo.name
-                    doc_header += '  * `%s <../%s/html/index.html>`_' % (title,base)
-                    doc_header += ' `PDF <../%s/%s.pdf>`_ \n' % (base,base)
+                    doc_header += '  * `%s <././%s/index.html>`_' % (title,base)
+                    doc_header += ' `PDF <././%s.pdf>`_ \n' % (base)
 
                 doc_header += '\n\n'
             else:
@@ -1176,7 +1194,7 @@ def xpd_check_info(repo, options, args,check_icon=True):
             repo.description = raw_input()
             update = True
 
-    if check_icon and repo.icon==None:
+    if False and check_icon and repo.icon==None:
         print "The repo's icon is a path relative to the repository pointing to a 16x16 png icon representing the repository."
         if confirm("No icon found. Add one (Y/n)?",default=True):
             print "Enter path to icon: "
@@ -1383,6 +1401,13 @@ def xpd_check_infr(repo, options, args, return_ok=False):
     else:
         return False
 
+def xpd_check_makefiles(repo, options, args, return_ok=False):
+    ok = xpd.check_project.check_makefiles(repo)
+    if return_ok:
+        return ok
+    else:
+        return False
+
 def xpd_check_partinfo(repo, options, args):
     update = False
     if not repo.partnumber:
@@ -1449,11 +1474,11 @@ h3. Metadata
 
     if to_file:
         f = open(to_file,"w")
-        f.write(dh.toxml("DocumentHolder"))
+        f.write(dh.toxml("documentHolder"))
         f.close()
         return
 
-    print dh.toxml("DocumentHolder")
+    print dh.toxml("documentHolder")
     return False
 
 def import_xdoc():
@@ -1505,7 +1530,7 @@ def xpd_build_docs(repo, options=None, args=None):
         os.chdir(docdir)
         if repo.is_xmos_repo():
             if options and options.upload:
-                xdoc.main('draft')
+                xdoc.main('issue')
             else:
                 xdoc.main('xdehtml')
                 xdoc.main('xmospdf')
@@ -1527,6 +1552,7 @@ def xpd_build_docs(repo, options=None, args=None):
             swlink.title = repo.longname
             swlink.repo_name = repo.name
             swlink.primary = "True"
+            swlink.subpartnumber = repo.subpartnumber
 
     xpd_build_topdoc(repo)
     if repo.is_xmos_repo():
@@ -1538,6 +1564,33 @@ def xpd_check_all(repo, options, args):
     xpd_check_info(repo, options, args)
     xpd_check_infr(repo, options, args)
     return True
+
+def xpd_create_warnings(repo, options, args, return_warnings = False):
+    warnings = []
+    rel = repo.current_release()
+    if not rel:
+        warnings.append("Repository is not at a specified version")
+    for dep in repo.dependencies:
+        if dep.repo.name == 'xcommon':
+            continue
+        print "Checking dependency %s" % dep.repo.name
+        rel = dep.repo.current_release()
+        if not rel:
+            warning = "Dependency '%s' is not on a specified version"%dep.repo.name
+            warnings.append(warning)
+        elif not dep.repo.partnumber:
+            warning = "Dependency '%s' is not a published component"%dep.repo.name
+            warnings.append(warning)
+
+    if not return_warnings:
+        print "WARNINGS\n========\n\n"
+        for warning in warnings:
+            print warning
+        return False
+    else:
+        return warnings
+
+
 
 commands = [("init","Initialize the xpd meta-information file"),
             ("check_dep","Check dependencies of the current repository"),
@@ -1553,12 +1606,14 @@ commands = [("init","Initialize the xpd meta-information file"),
             ("check_info","Check related information"),
             ("tag","Tag the repo with a version"),
             ("check_infr","Check infrastructure (Makefiles, eclipse projects)"),
+            ("check_makefiles","Check makefiles"),
             ("create_app","Create application within project"),
             ("update_readme","Update README.rst with latest metainformation"),
             ("create_module","Create module within project"),
             ("check_partinfo","Check part information (DEBUG)"),
             ("make_docholder","Make docholder (DEBUG)"),
-            ("build_docs","Make docs (DEBUG)")]
+            ("build_docs","Make docs (DEBUG)"),
+            ("create_warnings","Create release warnings list (DEBUG)")]
 
 if __name__ == "__main__":
     usage = "usage: %prog command [options]"

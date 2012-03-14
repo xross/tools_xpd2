@@ -206,6 +206,7 @@ class Release(XmlObject):
     githash = XmlAttribute()
     location = XmlValue()
     usecases = XmlNodeList(UseCase)
+    warnings = XmlValueList()
 
     def post_import(self):
         if self.parenthash and not self.githash:
@@ -286,6 +287,7 @@ class Repo(XmlObject):
     exclude_dirs = XmlValueList()
     tools = XmlValueList(tagname="tools")
     boards = XmlValueList()
+    extra_eclipse_projects = XmlValueList()
 
     path = None
 
@@ -477,7 +479,7 @@ class Repo(XmlObject):
         if rel:
             vstr = str(rel.version)
         else:
-            vstr = repo.current_githash()
+            vstr = self.current_githash()
         return vstr
 
     def post_import(self):
