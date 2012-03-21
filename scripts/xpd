@@ -599,9 +599,14 @@ def xpd_make_zip(repo, options, args):
 
     if options.upload:
         print "Uploading zip file"
+        m = re.match('(.*)rc(\d+)$',vstr)
+        if m:
+            zip_vstr = m.groups(0)[0]
+        else:
+            zip_vstr = vstr
         cognidox.doCognidoxCheckIn(repo.subpartnumber,
                                    fname,
-                                   version = vstr,
+                                   version = zip_vstr,
                                    draft=False)
         print "Creating document holder"
         xpd_make_docholder(repo, options, args, to_file = ".docholder.xml")
@@ -654,6 +659,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
 
 
         for i in exports:
+            if not re.match('.*\.project$|.*\.cproject|.*\.xproject$',f):
                 if os.path.commonprefix([f,i])==i:
                     ok = False
 
@@ -1167,11 +1173,20 @@ def xpd_checkout(repo, options, args):
     if local_mod:
         exit(1)
 
-    try:
-        version = Version(version_str=args[0])
-    except:
-        xpd_dep_iter(repo, "git checkout %s" % args[0])
-        return False
+    if args[0] == 'latest':
+        rel = repo.latest_release()
+        if not rel:
+            print "Cannot find latest release"
+            exit(1)
+        else:
+            print "Checking out %s" % str(rel.version)
+            version=rel.version
+    else:
+        try:
+            version = Version(version_str=args[0])
+        except:
+            xpd_dep_iter(repo, "git checkout %s" % args[0])
+            return False
 
     rel = repo.get_release(version)
     githash = repo.get_child_hash(rel.parenthash)

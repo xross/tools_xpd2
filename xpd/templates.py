@@ -88,7 +88,11 @@ cproject_configuration = '''
                     <folderInfo id="com.xmos.cdt.toolchain.%CONFIG_ID%.1127281840" name="/" resourcePath="">
                         <toolChain id="com.xmos.cdt.toolchain.1842437102" name="com.xmos.cdt.toolchain" superClass="com.xmos.cdt.toolchain">
                             <targetPlatform archList="all" binaryParser="com.xmos.cdt.core.XEBinaryParser" id="com.xmos.cdt.core.platform.942407365" isAbstract="false" osList="linux,win32,macosx" superClass="com.xmos.cdt.core.platform" />
-                            <builder arguments="%CONFIG_ARGS%" id="com.xmos.cdt.builder.base.2141163380" keepEnvironmentInBuildfile="false" managedBuildOn="false" superClass="com.xmos.cdt.builder.base" />
+                            <builder arguments="%CONFIG_ARGS%" id="com.xmos.cdt.builder.base.2141163380" keepEnvironmentInBuildfile="false" managedBuildOn="false" superClass="com.xmos.cdt.builder.base">
+                                <outputEntries>
+                                    <entry flags="VALUE_WORKSPACE_PATH" kind="outputPath" name="%CONFIG_OUTPUT_DIR%" />
+                                </outputEntries>
+                            </builder>
                             <tool id="com.xmos.cdt.xc.compiler.73393562" name="com.xmos.cdt.xc.compiler" superClass="com.xmos.cdt.xc.compiler">
                                 <option id="com.xmos.c.compiler.option.include.paths.569332846" name="com.xmos.c.compiler.option.include.paths" superClass="com.xmos.c.compiler.option.include.paths" valueType="includePath">
                                     <listOptionValue builtIn="false" value='&quot;${XMOS_DOC_PATH}/../target/include&quot;' />

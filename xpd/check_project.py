@@ -99,7 +99,7 @@ def find_all_subprojects(repo):
                continue
           mkfile = os.path.join(path,x,'Makefile')
           modinfo = os.path.join(path,x,'module_build_info')
-          if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or (x in repo.extra_eclipse_projects):
+          if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or (x in repo.extra_eclipse_projects) or re.match('^module_.*',x):
                subs.add(x)
      return subs
 
@@ -252,16 +252,20 @@ def create_cproject(repo, path=None, name=None, configs=None, all_includes=[],
        lines = templates.cproject_configuration.split('\n')
        if config == 'Default':
            config_args = ''
+           config_output_dir='bin'
        else:
            config_args = 'CONFIG=%s'%config
-
+           config_output_dir='bin/%s'%config
 
        if is_module or is_extra_project:
             config_args += ' -f .makefile'
 
+
+
        for i in range(len(lines)):
            lines[i] = lines[i].replace('%PROJECT%',name)
            lines[i] = lines[i].replace('%CONFIG%',config)
+           lines[i] = lines[i].replace('%CONFIG_OUTPUT_DIR%',config_output_dir)
            lines[i] = lines[i].replace('%CONFIG_ARGS%',config_args)
            lines[i] = lines[i].replace('%INCLUDES%',includes)
            lines[i] = re.sub(r'id\s*=\s*[\'"]([\w.]*)\.\d*[\'"]',new_id,lines[i])
