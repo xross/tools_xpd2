@@ -8,6 +8,6 @@ setup(name='xpd',
       author='Dave Lacey',
       author_email='david.lacey@xmos.com',
       url='http://github.com/xcore/tool_xpd',
-      packages=['xpd'],
+      packages=['xpd','xpd.ntlm'],
       scripts=['scripts/xpd']
      )

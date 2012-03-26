@@ -2,7 +2,7 @@ import getpass
 import base64
 import urllib
 import urllib2
-from ntlm import HTTPNtlmAuthHandler
+from xpd.ntlm import HTTPNtlmAuthHandler
 import xml.dom.minidom
 from xml.dom.minidom import parse, parseString
 import time
