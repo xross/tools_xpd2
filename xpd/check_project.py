@@ -47,9 +47,15 @@ def _check_project(repo,path=None, force_creation=False):
 
         root = getFirstChild(dom, 'projectDescription')
 
+        names = [x.toxml() for x in dom.getElementsByTagName('name')]
+
         if not root:
             print ".project file is invalid"
             project_ok = False
+
+        if not '<name>com.xmos.cdt.core.ModulePathBuilder</name>' in names:
+             print ".project file is invalid (no module path builder)"
+             project_ok = False
 
         if project_ok:
 
@@ -104,6 +110,7 @@ def find_all_subprojects(repo):
      return subs
 
 def check_project(repo, force_creation=False):
+     print force_creation
      if flat_projects:
           for sub in find_all_subprojects(repo):
                _check_project(repo, path=os.path.join(repo.path,sub), force_creation=force_creation)
@@ -326,7 +333,7 @@ def _check_cproject(repo,makefiles,path=None, force_creation=False):
                                    cwd=os.path.dirname(mkfile),
                                    stdout=subprocess.PIPE)
               except:
-                   sys.stderr.write("Cannot find xmake\n")
+                   sys.stderr.write("ERROR: Cannot find xmake\n")
                    exit(1)
 
               lines = process.stdout.readlines()

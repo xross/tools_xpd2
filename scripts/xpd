@@ -1404,10 +1404,11 @@ A repository can contains modules that contain sets of source files than can be 
     return True
 
 def xpd_check_infr(repo, options, args, return_ok=False):
+    print options
     ok = True
-    project_ok = xpd.check_project.check_project(repo)
+    project_ok = xpd.check_project.check_project(repo, force_creation = options.force)
     ok = ok and project_ok
-    cproject_ok = xpd.check_project.check_cproject(repo)
+    cproject_ok = xpd.check_project.check_cproject(repo, force_creation = options.force)
     ok = ok and cproject_ok
     makefiles_ok = xpd.check_project.check_makefiles(repo)
     ok = ok and makefiles_ok
