@@ -349,6 +349,8 @@ def _get_latest_from_elems(elems, exclude_drafts = False):
                 (version[0]==max_version[0] and version[1] > max_version[1]):
                 max_version = version
                 max_elem = elem
+    if max_version == None:
+        return None, None
     return str(max_version[0]) + max_version[1], max_elem
 
 def _get_latest_issue(partnum, exclude_drafts=False):
@@ -402,6 +404,8 @@ def fetch_version(partnum, version):
     elems = dom.getElementsByTagName('VersionItem')
     elems = [elem for elem in elems if match_version(version,get_version_tag(elem))]
     version, elem = _get_latest_from_elems(elems)
+    if version == None:
+        return None
     print "Fetching %s" % (docs_url+'/'+get_subinfo(elem,'file'))
     return urllib2.urlopen(docs_url+'/'+get_subinfo(elem,'file'))
 

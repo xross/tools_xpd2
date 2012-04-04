@@ -21,6 +21,8 @@ xdoc = None
 xmossphinx = None
 xmos_xref = None
 
+rst_title_regexp = r'[-=^~.][-=^~.]+'
+
 def samefile(fileA, fileB):
     try:
         return os.path.samefile(fileA, fileB)
@@ -227,7 +229,10 @@ def xpd_list(repo, options, args):
     rels.sort()
     rels.reverse()
     for rel in rels:
-        print rel.version
+        if rel.virtual == "True":
+            print "%s (unknown git location)" % str(rel.version)
+        else:
+            print rel.version
 
 def xpd_upgrade_rc(repo, options, args):
     if len(args) < 1:
@@ -396,8 +401,23 @@ def xpd_create_release(repo, options, args):
         exit(1)
 
 
-
     xpd_check_info(repo, options, args)
+
+    notes = xpd_parse_release_notes(repo, options, args, return_notes = True)
+
+    fstr = version.final_version_str()
+    if not fstr in notes:
+        print "Cannot find release notes for %s, please update CHANGELOG.rst" % fstr
+        return True
+    else:
+        print "RELEASE NOTES FOR %s:" % fstr
+        print "----"
+        for item in notes[fstr]:
+            print item
+            print "----"
+        if not confirm("Are these notes up to date? (Y/n)", default=True):
+            print "Please update notes and try again"
+            return True
 
     ok = xpd.check_project.check_makefiles(repo)
 
@@ -549,6 +569,13 @@ def xpd_make_zip(repo, options, args):
             insert_doc(repo.name, os.path.join(repo.path,docdir), f, is_xmos_repo = repo.is_xmos_repo(),
                    repo=repo)
 
+        if repo and xpd.check_project.flat_projects:
+            (dotproject, xproject) = xpd.check_project.create_doc_project(repo)
+            f.writestr(os.path.join(repo.name,'doc','.project'),dotproject)
+            f.writestr(os.path.join(repo.name,'doc','.xproject'),xproject)
+
+
+
         insert_topdoc(repo,f)
 
         xref = xmos_xref.XRefInfo('xpd')
@@ -557,6 +584,9 @@ def xpd_make_zip(repo, options, args):
             if dep.repo.subpartnumber and dep.repo.is_xmos_repo():
                 version = dep.repo.current_version_or_githash()
                 print "Trying to find version %s of %s in cognidox" % (version, dep.repo.name)
+                m = re.match('(.*)(rc|beta|alpha)\d*$',version)
+                if m:
+                    version = m.groups(0)[0]
                 cogfile = cognidox.fetch_version(dep.repo.subpartnumber, version)
 
                 if cogfile:
@@ -804,16 +834,26 @@ def insert_topdoc(repo,zipfile):
             src = os.path.join(htmlpath, f)
             dst = os.path.join(zipdocpath, f)
             dst = dst.replace('_static','.static')
-            if f == 'index.html':
+            if re.match('.*\.html',f):
                 index_str = open(src).read()
                 index_str = index_str.replace('_static','.static')
+                if f == 'index.html':
+                    rel = repo.current_release()
+                    if repo.is_xmos_repo() and repo.subpartnumber and rel:
+                        xde_comment = '\n<!--XDE partnum="%s" version="%s"-->\n'%(repo.subpartnumber,str(rel.version))
+                        index_str = index_str.replace('<html','%s<html'%xde_comment)
+
                 zipfile.writestr(dst,index_str)
 
                 readme = ''.join(open(src).readlines())
                 readme = readme.replace('"_static','"doc/.static')
                 readme = readme.replace('"././','"doc/')
-                zipfile.writestr(os.path.join(repo.name,'README.html'),
-                                 readme)
+                if f == 'index.html':
+                    zipfile.writestr(os.path.join(repo.name,'README.html'),
+                                     readme)
+                else:
+                    zipfile.writestr(os.path.join(repo.name,f),
+                                     readme)
             else:
                 zipfile.write(src,arcname=dst)
 
@@ -842,11 +882,6 @@ def insert_doc(repo_name, path, zipfile,base = None,insert_pdf = True,
         htmlpath=os.path.join(path,'_build','xdehtml')
     else:
         htmlpath=os.path.join(path,'_build','html')
-
-    if repo and xpd.check_project.flat_projects:
-        (dotproject, xproject) = xpd.check_project.create_doc_project(repo)
-        zipfile.writestr(os.path.join(repo_name,'doc','.project'),dotproject)
-        zipfile.writestr(os.path.join(repo_name,'doc','.xproject'),xproject)
 
 
     fs = find_files(htmlpath)
@@ -944,7 +979,7 @@ def xpd_update_readme(repo, options, args,
                 line = '-DELETED-\n'
 
         if i < len(lines)-1:
-            m = re.match(r'[-=^.][-=^.]+',lines[i+1])
+            m = re.match(rst_title_regexp,lines[i+1])
         else:
             m = None
 
@@ -1022,6 +1057,7 @@ def xpd_update_readme(repo, options, args,
                     doc_header += '  * `%s <././%s/index.html>`_' % (title,base)
                     doc_header += ' `PDF <././%s.pdf>`_ \n' % (base)
 
+                doc_header += '  * `Release Notes <././changelog.html>`_\n'
                 doc_header += '\n\n'
             else:
                 lines += ['Documentation\n','=============\n','\n',
@@ -1514,13 +1550,18 @@ def import_xdoc():
 def xpd_build_dep_docs(dep):
     pass
 
-def xpd_build_topdoc(repo):
+def xpd_build_topdoc(repo,options=None,args=None):
     doc_path = repo.path
     readme = xpd_update_readme(repo,[],[],
                                write_back=False,
                                xmos_package = repo.is_xmos_repo(),
                                use_current_version=True,
                                doclinks = True)
+    readme += [
+        '.. toctree::\n',
+        '   :hidden:\n',
+        '\n'
+        '   changelog\n']
     import_xdoc()
     topdoc_path = os.path.join(doc_path,'toplevel_doc')
     if os.path.exists(topdoc_path):
@@ -1529,8 +1570,12 @@ def xpd_build_topdoc(repo):
     f = open(os.path.join(topdoc_path,'index.rst'),'w')
     f.write(''.join(readme))
     f.close()
+    changelog_path = os.path.join(repo.path,'CHANGELOG.rst')
+    if os.path.exists(changelog_path):
+        shutil.copy(changelog_path,os.path.join(topdoc_path,'changelog.rst'))
     if repo.is_xmos_repo():
-        xdoc.main('xdehtml',path=topdoc_path)
+        xdoc.main('xdehtml',path=topdoc_path,
+                  config={'XDEHTML_UNPAGED_OUTPUT':'1'})
     else:
         xdoc.main('html',path=topdoc_path)
 
@@ -1607,6 +1652,65 @@ def xpd_create_warnings(repo, options, args, return_warnings = False):
         return warnings
 
 
+def xpd_parse_release_notes(repo, options, args, return_notes = False):
+    changelog_path = os.path.join(repo.path,'CHANGELOG.rst')
+    if not os.path.exists(changelog_path):
+        print >>sys.stderr, "ERROR: cannot find CHANGELOG.rst"
+        exit(1)
+    f = open(changelog_path)
+    lines = f.readlines()
+    f.close()
+    item = ''
+    new_item = False
+    current_version = None
+    notes = {}
+    for i in range(len(lines)):
+        line = lines[i]
+        if i < len(lines)-1:
+            next = lines[i+1]
+        else:
+            next = ''
+
+        if re.match(rst_title_regexp,line):
+            continue
+
+        try:
+            v = Version(version_str=line.strip())
+        except xpd.xpd_data.VersionParseError:
+            v = None
+
+        if v:
+            if current_version:
+                items.append(item.strip())
+                notes[str(current_version)] = items
+#                print "VERSION: %s" % str(current_version)
+#                print items
+            current_version = v
+            new_item = True
+            items = []
+            item = ''
+            line = ''
+
+        m = re.match('\s*[-*] (.*)',line)
+        if m:
+            new_item = True
+            line = m.groups(0)[0]
+
+        if new_item:
+            item = item.strip()
+            if item != '':
+                items.append(item)
+            item = ''
+            new_item = False
+
+        item += line
+
+#        print line.strip()
+
+    if not return_notes:
+        print notes
+        return False
+    return notes
 
 commands = [("init","Initialize the xpd meta-information file"),
             ("check_dep","Check dependencies of the current repository"),
@@ -1629,6 +1733,8 @@ commands = [("init","Initialize the xpd meta-information file"),
             ("check_partinfo","Check part information (DEBUG)"),
             ("make_docholder","Make docholder (DEBUG)"),
             ("build_docs","Make docs (DEBUG)"),
+            ("build_topdoc","Make toplevel docs (DEBUG)"),
+            ("parse_release_notes","Parse release notes (DEBUG)"),
             ("create_warnings","Create release warnings list (DEBUG)")]
 
 if __name__ == "__main__":

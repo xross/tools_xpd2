@@ -210,7 +210,8 @@ class XmlObject(object):
 
     def _fromdom(self, dom, root):
         for attr in self.attrs:
-            setattr(self, attr.name,root.getAttribute(attr.attrname))
+            attr_val = root.getAttribute(attr.attrname)
+            setattr(self, attr.name,attr_val)
 
         for tag in self.tags:
             vals = []

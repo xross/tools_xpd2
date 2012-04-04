@@ -121,7 +121,7 @@ def check_project(repo, force_creation=False):
 def find_all_app_makefiles(path):
     makefiles = set()
     for x in os.listdir(path):
-        if x[0:4] == 'app_' or x[0:4] == 'test_':
+        if x[0:4] == 'app_' or x[0:5] == 'test_':
             mkfile = os.path.join(path,x,'Makefile')
             if os.path.isfile(mkfile):
                 makefiles.add(mkfile)
@@ -439,7 +439,10 @@ def check_makefile(mkfile_path, repo, all_configs):
     f = open(mkfile_path)
     lines = f.readlines()
     f.close()
+    found_xcommon =False
     for line in lines:
+        if re.match('.*xcommon.*',line):
+             found_xcommon = True
         if re.match('all:.*',line):
             print "%s defines all target" % relpath
             updates_required = True
@@ -459,6 +462,10 @@ def check_makefile(mkfile_path, repo, all_configs):
                 print "%s has incorrect xcommon include" % relpath
                 updates_required = True
 
+    if not found_xcommon:
+         print "Doesn't look like an xcommon makefile ... leaving alone"
+         updates_required = False
+
     return updates_required
 
 
@@ -476,6 +483,13 @@ def update_makefile(mkfile_path, all_configs):
     f = open(mkfile_path)
     lines = f.readlines()
     f.close()
+    found_xcommon = False
+    for line in lines:
+        if re.match('.*xcommon.*',line):
+             found_xcommon = True
+    if not found_xcommon:
+         return
+
     in_config_branch = None
     newlines = []
     comments = []

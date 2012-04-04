@@ -20,6 +20,10 @@ def exec_and_match(command, regexp, cwd=None):
             return m.groups(0)[0]
     return None
 
+class VersionParseError(Exception):
+    def __str__(self):
+        return "VersionParseError"
+
 class Version(object):
     
     def __init__(self, major=0, minor=0, point=0, 
@@ -41,10 +45,10 @@ class Version(object):
             self.parse_string(version_str)
 
     def parse_string(self, version_string):
-        m = re.match(r'([^\.]*)\.([^\.]*)\.([^\.*])(alpha|beta|rc|)(\d*)_?(\w*)(\d*)', version_string)
+        m = re.match(r'(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)_?(\w*)(\d*)', version_string)
 
         if not m:
-            m = re.match(r'([^v])v(\d)(\d?)(alpha|beta|rc|)(\d*)', version_string)
+            m = re.match(r'([^v])v(\d)(\d?)(alpha|beta|rc|)(\d*)()()', version_string)
         if m:
             self.major = int(m.groups(0)[0]) 
             self.minor = int(m.groups(0)[1]) 
@@ -72,8 +76,7 @@ class Version(object):
 
 
         else:
-            sys.stderr.write("ERROR: invalid version %s\n" % version_string)
-            exit(1)
+            raise VersionParseError
 
     def major_increment(self):
         return Version(self.major+1,0,0)
@@ -122,6 +125,10 @@ class Version(object):
         if self.branch:
             vstr += "_%s%d" % (self.branch, self.branch_rnumber)
 
+        return vstr
+
+    def final_version_str(self):
+        vstr = "%d.%d.%d" % (self.major, self.minor, self.point)
         return vstr
 
     def match_modulo_rnumber(self, other):
@@ -207,6 +214,7 @@ class Release(XmlObject):
     location = XmlValue()
     usecases = XmlNodeList(UseCase)
     warnings = XmlValueList()
+    virtual = XmlAttribute()
 
     def post_import(self):
         if self.parenthash and not self.githash:
