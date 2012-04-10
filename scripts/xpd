@@ -834,7 +834,7 @@ def insert_topdoc(repo,zipfile):
             src = os.path.join(htmlpath, f)
             dst = os.path.join(zipdocpath, f)
             dst = dst.replace('_static','.static')
-            if re.match('.*\.html',f):
+            if re.match('[^/]*.html',f):
                 index_str = open(src).read()
                 index_str = index_str.replace('_static','.static')
                 if f == 'index.html':
