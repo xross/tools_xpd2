@@ -613,3 +613,41 @@ class Repo(XmlObject):
             dep.repo._restore_path()
         shutil.rmtree(self.sb)
 
+
+    def get_software_blocks(self):
+        path = self.path
+        subs = set([])
+        for x in os.listdir(path):
+          if x == 'doc':
+               continue
+          mkfile = os.path.join(path,x,'Makefile')
+          modinfo = os.path.join(path,x,'module_build_info')
+          if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or (x in self.extra_eclipse_projects) or re.match('^module_.*',x):
+              subs.add(x)
+        return [SoftwareBlock(self, x) for x in subs]
+
+    def get_apps(self):
+        return [x for x in self.get_software_blocks() if not x.is_module()]
+
+    def get_modules(self):
+        return [x for x in self.get_software_blocks() if x.is_module()]
+
+    def get_published_apps(self):
+        pass
+
+    def get_published_modules(self):
+        pass
+
+class SoftwareBlock(XmlObject):
+
+    def __init__(self, repo, path):
+        self.name = os.path.basename(path)
+        self.repo = repo
+
+    def __str__(self):
+        return "<" + self.repo.name + ":" + self.name  + ">"
+
+    def is_module(self):
+        return re.match('module_.*',self.name)
+
+    

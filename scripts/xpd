@@ -112,8 +112,6 @@ def get_current_modules(repo):
                 s = m.groups(0)[0]
                 ms = [m for m in s.split(' ') if m != '']
                 modules = modules | set(ms)
-            if re.match(r'.*include.*module_xcommon', line):
-                modules.add('module_xcommon')
         f.close()
 
     return modules
@@ -902,6 +900,11 @@ def insert_doc(repo_name, path, zipfile,base = None,insert_pdf = True,
             dst = dst.replace('_static','.static')
             zipfile.writestr(dst, src_str)
 
+def xpd_status(repo, options, args):
+    xpd_show(repo, options, args)
+
+def xpd_info(repo, options, args):
+    xpd_show(repo, options, args)
 
 def xpd_show(repo, options, args):
 
@@ -924,6 +927,18 @@ def xpd_show(repo, options, args):
         print "     Documentation: %s" % repo.docdirs[0]
         for doc in repo.docdirs[1:]:
             print "                    %s" % doc
+
+    print "\nSOFTWARE BLOCKS\n"
+
+    print "Apps:\n"
+
+    for app in repo.get_apps():
+        print app
+
+    print "\nModules:\n"
+
+    for module in repo.get_modules():
+        print module
 
     print "\nDEPENDENCIES:\n"
     xpd_show_dep(repo, options, args)
@@ -1724,7 +1739,9 @@ commands = [("init","Initialize the xpd meta-information file"),
             ("create_release","Create a release"),
             ("upgrade_rc","Upgrade an RC to a final release"),
             ("list","List releases"),
-            ("show","Show current state"),
+            ("status","Show current status (can also use show or info)"),
+            ("info","Same as status"),
+            ("show","Same as status"),
             ("checkout","Checkout release"),
             ("make_zip","Make zipfile of release"),
             ("check_all","Check all meta information and infrastructure"),
