@@ -5,6 +5,7 @@ import re
 import subprocess
 import random
 import shutil
+import hashlib
 from xpd.xpd_subprocess import call, Popen
 from xpd import templates
 
@@ -94,6 +95,8 @@ def _check_project(repo,path=None, force_creation=False):
             print "New .project created"
             project_ok = True
 
+    repo.git_add(project_path)
+
     return project_ok
 
 
@@ -110,12 +113,23 @@ def find_all_subprojects(repo):
      return subs
 
 def check_project(repo, force_creation=False):
-     print force_creation
+     ok = True
      if flat_projects:
           for sub in find_all_subprojects(repo):
-               _check_project(repo, path=os.path.join(repo.path,sub), force_creation=force_creation)
+               proj_ok = _check_project(repo, path=os.path.join(repo.path,sub), force_creation=force_creation)
+               ok = ok and proj_ok
+
+          if os.path.exists(os.path.join(repo.path,'.project')):
+               sys.stdout.write("Found top level .project, removing...")
+               repo.git_remove(os.path.join(repo.path,'.project'))
+               ok = False
+          if os.path.exists(os.path.join(repo.path,'.cproject')):
+               sys.stdout.write("Found top level .cproject, removing...")
+               repo.git_remove(os.path.join(repo.path,'.cproject'))
+               ok = False
      else:
-          _check_project(repo, force_creation=force_creation)
+          ok = _check_project(repo, force_creation=force_creation)
+     return ok
 
 
 def find_all_app_makefiles(path):
@@ -241,6 +255,8 @@ def create_cproject(repo, path=None, name=None, configs=None, all_includes=[],
         else:
              configs = get_configs(os.path.join(path,'Makefile'))
    cproject_path = os.path.join(path,'.cproject')
+   seed = int(hashlib.md5(cproject_path.replace('\\','/')).hexdigest(), 16)
+   rand.seed(seed)
    if 'Default' in configs:
         base_config = ''
    elif 'Release' in configs:
@@ -343,6 +359,7 @@ def _check_cproject(repo,makefiles,path=None, force_creation=False):
                         includes = lines[i+1].strip()
                         break
               includes = includes.split(' ')
+              includes = [i for i in includes if not re.match('.*/doc.*',i)]
               all_includes = all_includes | set(includes)
               sys.stdout.write('\n')
     else:
@@ -410,22 +427,30 @@ def _check_cproject(repo,makefiles,path=None, force_creation=False):
              create_cproject(repo, path, name, configs, all_includes,is_module=is_module)
              print "New .cproject created."
 
+    repo.git_add(cproject_path)
+    repo.git_add(cproject_path.replace('.cproject','.xproject'))
+    dotmakefile_path = cproject_path.replace('.cproject','.makefile')
+    if os.path.exists(dotmakefile_path):
+         repo.git_add(dotmakefile_path)
+
     return cproject_ok
 
 def check_cproject(repo,force_creation=False):
+     ok = True
      if flat_projects:
           for sub in find_all_subprojects(repo):
                mkfile = os.path.join(repo.path,sub,'Makefile')
                makefiles = set([])
                if os.path.exists(mkfile):
                     makefiles.add(mkfile)
-               _check_cproject(repo, makefiles, path=os.path.join(repo.path,sub),
+               proj_ok = _check_cproject(repo, makefiles, path=os.path.join(repo.path,sub),
                                force_creation=force_creation)
+               ok = ok and proj_ok
      else:
           makefiles = find_all_app_makefiles(repo.path)
-          _check_cproject(repo, makefiles,
-                          force_creation=force_creation)
-
+          ok = _check_cproject(repo, makefiles,
+                               force_creation=force_creation)
+     return ok
 
 
 def check_makefile(mkfile_path, repo, all_configs):
@@ -558,7 +583,7 @@ def update_makefile(mkfile_path, all_configs):
     f.write(''.join(newlines) + include_section)
     f.close()
 
-def check_toplevel_makefile(repo):
+def check_toplevel_makefile(repo, force_creation=False):
     print "Checking toplevel Makefile"
     updates_required = False
     path = os.path.join(repo.path,'Makefile')
@@ -582,9 +607,12 @@ def check_toplevel_makefile(repo):
               updates_required = True
 
     if updates_required:
-        sys.stdout.write("There is a problem with the toplevel Makefile.\n")
-        sys.stdout.write("Do you want xpd to create a new one (Y/n)?")
-        x = raw_input()
+        if force_creation:
+             x="y"
+        else:
+             sys.stdout.write("There is a problem with the toplevel Makefile.\n")
+             sys.stdout.write("Do you want xpd to create a new one (Y/n)?")
+             x = raw_input()
         if not x in ['n','N','No','NO','no']:
              f = open(os.path.join(repo.path,'Makefile'),'w')
              f.write(templates.toplevel_makefile)
@@ -593,8 +621,9 @@ def check_toplevel_makefile(repo):
 
     return updates_required
 
-def check_makefiles(repo):
-    updates_required = check_toplevel_makefile(repo)
+def check_makefiles(repo, force_creation = False):
+    updates_required = check_toplevel_makefile(repo,
+                                               force_creation = force_creation)
     makefiles = find_all_app_makefiles(repo.path)
     all_configs = get_all_configs(makefiles)
     for mkfile in makefiles:
@@ -606,8 +635,11 @@ def check_makefiles(repo):
         dirname = os.path.dirname(os.path.relpath(mkfile, repo.path))
         updates_required |= check_makefile(mkfile, repo, configs)
     if updates_required:
-        print "Makefiles need updating. Do updates (Y/n)?"
-        x = raw_input()
+        if (force_creation):
+             x = 'y'
+        else:
+             print "Makefiles need updating. Do updates (Y/n)?"
+             x = raw_input()
         if x not in ['N','n','No','NO','no']:
             for mkfile in makefiles:
                 if flat_projects:

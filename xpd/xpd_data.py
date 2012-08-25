@@ -5,9 +5,23 @@ from copy import copy
 from xpd.xpd_subprocess import call, Popen
 import shutil
 import tempfile
+from docutils.core import publish_file
+import xml.dom.minidom
+from StringIO import StringIO
 
 xpd_version = "1.0"
     
+DEFAULT_SCOPE='Experimental'
+
+def rst2xml(path):
+    """Convert restructured text to XML"""
+    xml_file = StringIO()
+    xml_file.close = lambda: None
+    xml = publish_file(open(path),
+                       writer_name='xml',
+                       destination=xml_file)
+    xml_file.seek(0)
+    return xml_file.read()
 
 def exec_and_match(command, regexp, cwd=None):
     process = Popen(command, cwd=cwd,
@@ -267,6 +281,107 @@ class ChangeLog(XmlObject):
             self.version = None
 
 
+class Component(XmlObject):
+    id = XmlAttribute()
+    name = XmlAttribute()
+    description = XmlAttribute()
+    metainfo_path = XmlAttribute()
+    buildresults_path = XmlAttribute()
+    scope = XmlAttribute()
+    path = XmlAttribute()
+    type = XmlAttribute()
+    local = XmlAttribute()
+    keywords = XmlValueList()
+    boards = XmlValueList()
+
+    def init_from_path(self, repo, path):
+        self.id = os.path.basename(path)
+        self.path = path
+        self.repo = repo
+        fields = self.readme_to_dict()
+        if 'title' in fields:
+            self.name = fields['title']
+        else:
+            self.name = self.id
+
+        if 'scope' in fields:
+            self.scope = fields['scope']
+        else:
+            self.scope = DEFAULT_SCOPE
+
+        if 'keywords' in fields:
+            self.keywords_text = fields['keywords']
+            if self.keywords_text[0] != '<':
+                self.keywords = [x.strip() for x in fields['keywords'].split(',')]
+        else:
+            self.keywords_text = None
+            self.keywords = []
+
+        if 'boards' in fields:
+            self.boards_text = fields['boards']
+            if self.boards_text[0] != '<':
+                self.boards = [x.strip() for x in fields['boards'].split(',')]
+        else:
+            self.boards_text = None
+            self.boards = []
+
+        if 'description' in fields:
+            self.description = fields['description']
+        else:
+            self.description = "Software Block: " + self.name
+
+        if (os.path.exists(os.path.join(repo.path,path,self.id+'.metainfo'))):
+                self.metainfo_path = os.path.join(path,self.id+'.metainfo')
+                self.buildresults_path = os.path.join(path,"."+self.id+".buildresults")
+
+        if self.metainfo_path:
+            if self.id[0:4] == "app_":
+                self.type = "applicationTemplate"
+            else:
+                self.type = "component"
+        else:
+            self.type = "demoCode"
+
+    def readme_to_dict(self):
+        if not self.has_readme():
+            return {}
+        fields = {}
+        xml_str = rst2xml(os.path.join(self.repo.path,self.path,'README.rst'))
+        dom = xml.dom.minidom.parseString(xml_str)
+        docnode = dom.getElementsByTagName('document')[0]
+        fields['title'] = docnode.getAttribute('title')
+        for field in dom.getElementsByTagName('field'):
+            name_element = field.getElementsByTagName('field_name')[0]
+            name = name_element.childNodes[0].data
+            paras = field.getElementsByTagName('paragraph')
+            value = ''
+            for p in paras:
+                value += p.childNodes[0].data
+            fields[name] = value
+        return fields
+
+    def __str__(self):
+        return "<" + self.repo.name + ":" + self.name  + ">"
+
+    def is_module(self):
+        return re.match('module_.*',self.id)
+
+    def is_published(self):
+        if self.repo.include_dirs != []:
+            return self.name in self.repo.include_dirs
+        if self.repo.exclude_dirs != []:
+            return self.name not in self.repo.include_dirs
+        return True
+
+    def readme_path(self):
+        return os.path.join(self.repo.path,self.path,'README.rst')
+
+    def has_readme(self):
+        return os.path.exists(self.readme_path())
+
+    
+
+
 class Repo(XmlObject):
 
     dependencies = XmlNodeList(Dependency, tagname="dependency")
@@ -281,7 +396,6 @@ class Repo(XmlObject):
     include_binaries = XmlValue(default=False)
     xpd_version = XmlValue(default=xpd_version)
     release_notes = XmlNodeList(ReleaseNote)
-    scope = XmlValue()
     vendor = XmlValue()
     maintainer = XmlValue()
     keywords = XmlValueList()
@@ -296,6 +410,7 @@ class Repo(XmlObject):
     tools = XmlValueList(tagname="tools")
     boards = XmlValueList()
     extra_eclipse_projects = XmlValueList()
+    components = XmlNodeList(Component, wrapper="components")
 
     path = None
 
@@ -496,6 +611,8 @@ class Repo(XmlObject):
             self.longname = self.name
         if self.location == None:
             self.location = self.uri()
+        for comp in self.components:
+            comp.repo = self
 
     def pre_export(self):
         self.xpd_version = xpd_version
@@ -616,38 +733,70 @@ class Repo(XmlObject):
 
     def get_software_blocks(self):
         path = self.path
-        subs = set([])
+        components = []
         for x in os.listdir(path):
           if x == 'doc':
                continue
           mkfile = os.path.join(path,x,'Makefile')
           modinfo = os.path.join(path,x,'module_build_info')
           if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or (x in self.extra_eclipse_projects) or re.match('^module_.*',x):
-              subs.add(x)
-        return [SoftwareBlock(self, x) for x in subs]
+              comp = Component()
+              comp.init_from_path(self, x)
+              components.append(comp)
+        return components
 
     def get_apps(self):
         return [x for x in self.get_software_blocks() if not x.is_module()]
 
+
     def get_modules(self):
         return [x for x in self.get_software_blocks() if x.is_module()]
 
-    def get_published_apps(self):
-        pass
 
-    def get_published_modules(self):
-        pass
+    def create_dummy_package(self):
+        package = Package()
+        package.id = "xm-local-"+self.name
+        package.hash = "DUMMY-HASH"
+        package.latestversion = "0.0.0"
+        package.version = "0.0.0"
+        package.name = package.id + "(" + package.version + ").zip"
+        package.packageName = package.id + "(" + package.version + ")"
+        package.project = self.name
+        package.description = self.description
+        package.components = self.components
+        package.authorised = "true"
+        return package
 
-class SoftwareBlock(XmlObject):
+    def git_add(self, path):
+        call(["git","add",path],
+             cwd=self.path)
 
-    def __init__(self, repo, path):
-        self.name = os.path.basename(path)
-        self.repo = repo
+    def git_remove(self, path):
+        call(["git","rm","-f",path],
+             cwd=self.path)
 
-    def __str__(self):
-        return "<" + self.repo.name + ":" + self.name  + ">"
 
-    def is_module(self):
-        return re.match('module_.*',self.name)
+class Package(XmlObject):
+    name = XmlAttribute()
+    id = XmlAttribute()
+    hash = XmlAttribute()
+    project = XmlAttribute()
+    authorised = XmlAttribute()
+    packageName = XmlAttribute()
+    latestversion = XmlAttribute()
+    version = XmlAttribute()
+    description = XmlValue()
+    components = XmlNodeList(Component,wrapper="components")
 
-    
+class AllSoftwareDescriptor(XmlObject):
+    packages = XmlNodeList(Package)
+    toolsVersion = XmlAttribute()
+
+class SoftwareDescriptor(XmlObject):
+    packages = XmlNodeList(Package)
+    toolsVersion = XmlAttribute()
+    id = XmlAttribute()
+    project = XmlAttribute()
+    name = XmlAttribute()
+
+

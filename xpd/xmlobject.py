@@ -2,13 +2,14 @@ import xml.dom.minidom
 from xml.dom.minidom import parse, parseString
 import sys
 from xpd.xpd_subprocess import call, Popen
+import xml.sax.saxutils
 
 def pp_xml(dom, elem, indent=''):
     if hasattr(elem,"tagName"):
         s = indent + '<' + str(elem.tagName)
         try:
             for (key, value) in elem.attributes.items():
-                s += " %s = \"%s\"" % (key, value.strip())
+                s += " %s = \"%s\"" % (key, xml.sax.saxutils.escape(value.strip()))
         except:
             pass
         s += '>'
@@ -25,7 +26,7 @@ def pp_xml(dom, elem, indent=''):
 
         s += '</' + str(elem.tagName) + '>\n'
     elif hasattr(elem,"wholeText"):
-        s = str(elem.wholeText).strip()
+        s = xml.sax.saxutils.escape(str(elem.wholeText).strip())
     else:
         s = indent + '<!--' + str(elem.nodeValue) + '-->\n'
 
