@@ -1723,8 +1723,8 @@ def xpd_build_docs(repo, options=None, args=None):
             if options and options.upload:
                 xdoc.main('issue', config=xdoc_config)
             else:
+                xdoc.main('xdehtml', config=xdoc_config)
                 if not is_block_readme:
-                    xdoc.main('xdehtml', config=xdoc_config)
                     xdoc.main('xmospdf', config=xdoc_config)
         else:
             xdoc.main('html')
@@ -1911,6 +1911,8 @@ def xpd_install_local(repo, options, args):
     package = repo.create_dummy_package()
     for c in package.components:
         c.local = "true"
+        c.docPartNumber = package.packageName + ".doc-" + c.id
+        c.docVersion = "latest"
         if c.metainfo_path:
             shutil.copy(os.path.join(repo.path,c.metainfo_path),
                         os.path.join(cache_path,package.packageName + "-" + c.id + ".metainfo"))
@@ -1942,6 +1944,66 @@ def xpd_install_local(repo, options, args):
     f.write("dummyzip")
     f.close()
     print "Package installed in local cache"
+    if not options.nodocs:
+        print "Building documentation"
+
+        repo.move_to_temp_sandbox()
+        xpd_build_docs(repo, options, [])
+
+        seealsos = ""
+        i = 0;
+        for doc_dir in repo.docdirs:
+            i = i + 1
+            local_name = package.name + "-local-doc-%d" % i
+            title = xdoc.get_title(os.path.join(repo.path,doc_dir))
+            dst = os.path.join(cache_path, local_name)
+            if os.path.exists(dst):
+                shutil.rmtree(dst)
+            shutil.copytree(os.path.join(repo.path,doc_dir,'_build','xdehtml'),
+                            dst)
+            seealsos += '<li><a href="../%s/index.html">%s</a></li>'%(local_name,title)
+            print "Installed documentation from %s" % doc_dir
+
+        seealsos = """
+        <div class="content">
+        <div class="seealso">
+          <h2>See Also</h2>
+            <ul class="iconmenu">
+            %s
+            </ul>
+        </div>
+        </div>
+        """ % seealsos
+
+        for comp in package.components:
+            zipfilepath=os.path.join(cache_path,
+                                     comp.docPartNumber+"("+comp.docVersion+").zip")
+            doc_dir = os.path.join(repo.path,comp.path,"_build","xdehtml")
+
+
+
+            f = open(os.path.join(doc_dir,'README.html'))
+            readme_str = f.read()
+            f.close()
+            readme_str = readme_str.replace("<!--seealsos-->",seealsos)
+            index = open(os.path.join(doc_dir,'index.html'),'w')
+            index.write(readme_str)
+            index.close()
+            zfile = zipfile.ZipFile(zipfilepath, 'w')
+            for root, dirs, files in os.walk(doc_dir):
+                for f in files:
+                    fpath = os.path.join(root, f)
+                    arcname = os.path.relpath(fpath, doc_dir)
+                    zfile.write(fpath, arcname)
+            zfile.close()
+            if os.path.exists(os.path.join(cache_path,
+                                     comp.docPartNumber+"("+comp.docVersion+")")):
+                shutil.rmtree(os.path.join(cache_path,
+                                     comp.docPartNumber+"("+comp.docVersion+")"))
+            print "Installed " + zipfilepath
+
+        repo.delete_temp_sandbox()
+
     return False
 
 
@@ -1976,6 +2038,23 @@ other_commands =     [("info","Same as status"),
             ("parse_release_notes","Parse release notes (DEBUG)"),
             ("create_warnings","Create release warnings list (DEBUG)"),
             ("gen_package_xml","Generate package xml (DEBUG)")]
+
+
+def get_git_dir(path):
+    process = Popen(["git","rev-parse","--show-cdup"],
+                    cwd=path,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE)
+
+    err_lines = process.stderr.readlines()
+    lines = process.stdout.readlines()
+
+    if lines == []:
+        git_dir = path
+    else:
+        git_dir = os.path.abspath(os.path.join(path,lines[0][:-1]))
+
+    return git_dir
 
 if __name__ == "__main__":
     usage = "usage: %prog command [options]"
@@ -2032,6 +2111,9 @@ if __name__ == "__main__":
 
     if len(args) < 1:
         optparser.error("incorrect number of arguments")
+
+    git_dir = get_git_dir('.')
+    os.chdir(git_dir)
 
 
     repo = Repo(".")

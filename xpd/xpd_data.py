@@ -293,6 +293,8 @@ class Component(XmlObject):
     local = XmlAttribute()
     keywords = XmlValueList()
     boards = XmlValueList()
+    docPartNumber = XmlAttribute()
+    docVersion = XmlAttribute()
 
     def init_from_path(self, repo, path):
         self.id = os.path.basename(path)
@@ -714,6 +716,9 @@ class Repo(XmlObject):
         self._path = self.path
         self.path = os.path.join(path,self.name)
         self._prune_dirs()
+
+    def orig_path(self):
+        return self._path
 
     def move_to_temp_sandbox(self):
         self.sb = tempfile.mkdtemp()

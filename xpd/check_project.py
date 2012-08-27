@@ -255,7 +255,7 @@ def create_cproject(repo, path=None, name=None, configs=None, all_includes=[],
         else:
              configs = get_configs(os.path.join(path,'Makefile'))
    cproject_path = os.path.join(path,'.cproject')
-   seed = int(hashlib.md5(cproject_path.replace('\\','/')).hexdigest(), 16)
+   seed = int(hashlib.md5(name).hexdigest(), 16)
    rand.seed(seed)
    if 'Default' in configs:
         base_config = ''
