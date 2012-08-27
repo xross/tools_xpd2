@@ -6,6 +6,8 @@ cwd = os.getcwd()
 
 tools_xdoc_path = os.path.join(cwd,'..','tools_xdoc')
 
+sys.path.insert(0,tools_xdoc_path)
+
 a = Analysis([os.path.join(HOMEPATH,'support/_mountzlib.py'), os.path.join(HOMEPATH,'support/useUnicode.py'), 'scripts/xpd', '../tools_xdoc/xdoc/xsphinx/conf.py','../infr_docs/xmossphinx/xmosconf.py'],
              pathex=[cwd,
                      os.path.join(cwd,'xpd'),
