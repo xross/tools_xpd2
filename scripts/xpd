@@ -17,6 +17,9 @@ import xpd.xmlobject
 from xpd import templates
 from xpd import cognidox
 from xpd.docholder import DocumentHolder, DHSection, DHDocumentLink
+import xdoc
+import xmossphinx
+import xmos_xref
 
 ALLOWED_SCOPES=["Roadmap","Experimental","Early Development","General Use"]
 
