@@ -1910,8 +1910,10 @@ def xpd_gen_package_xml(repo, options, args, return_string = False):
         return software_str
 
     print software_str
-    return Falsedef xpd_validate_swblock(repo, options, args):
-    swblock_id = args[0]|
+    return False
+
+def xpd_validate_swblock(repo, options, args):
+    swblock_id = args[0]
     for comp in repo.components:
         if comp.id == swblock_id:
             comp.init_from_path(repo,comp.path)
