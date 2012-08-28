@@ -334,7 +334,7 @@ class Component(XmlObject):
 
         if (os.path.exists(os.path.join(repo.path,path,self.id+'.metainfo'))):
                 self.metainfo_path = os.path.join(path,self.id+'.metainfo')
-                self.buildresults_path = os.path.join(path,"."+self.id+".buildresults")
+                self.buildresults_path = os.path.join(path,"."+self.id+".buildresults.xml")
 
         if self.metainfo_path:
             if self.id[0:4] == "app_":

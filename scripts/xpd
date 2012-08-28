@@ -1153,6 +1153,44 @@ def xpd_update_readme(repo, options, args,
         f.close()
     return False
 
+def check_swblock(repo, options, args, comp):
+   print comp.id
+   print "   Name: %s" % comp.name
+   print "   Type: %s" % comp.type
+   print ""
+
+   if not comp.has_readme():
+       print "  ERROR: software block %s has no README.rst" % comp.path
+       valid = False
+       print "  Creating new template README"
+       f = open(comp.readme_path(),"w")
+       f.write(templates.swblock_readme)
+       f.close()
+       repo.git_add(comp.readme_path())
+   else:
+       if comp.name=='' or comp.name[0] == '<':
+           print "  ERROR: software block title not specified, update README.rst"
+           valid = False
+       if comp.description[0]=='<' or re.match('Software Block:',comp.description):
+           print "  ERROR: software block description not specified, update README.rst"
+           valid = False
+
+       if comp.scope not in ALLOWED_SCOPES:
+           print "  ERROR: inavlid scope"
+           print "  Update README to set scope to one of:"
+           for scope in ALLOWED_SCOPES:
+               print "         " + scope
+           print ""
+
+       if comp.keywords_text and comp.keywords_text[0]=='<':
+           print "  ERROR: keywords field as template, update README.rst to specify keywords or delete the line"
+           valid = False
+
+       if comp.boards_text and comp.boards_text[0]=='<':
+           print "  ERROR: boards field as template, update README.rst to specify keywords or delete the line"
+           valid = False
+
+
 def xpd_check_swblocks(repo, options, args, return_valid = False):
     valid = True
     def find(f,xs):
@@ -1168,42 +1206,7 @@ def xpd_check_swblocks(repo, options, args, return_valid = False):
     repo.components = actual_blocks
 
     for comp in repo.components:
-        print comp.id
-        print "   Name: %s" % comp.name
-        print "   Type: %s" % comp.type
-        print ""
-
-        if not comp.has_readme():
-            print "  ERROR: software block %s has no README.rst" % comp.path
-            valid = False
-            print "  Creating new template README"
-            f = open(comp.readme_path(),"w")
-            f.write(templates.swblock_readme)
-            f.close()
-            repo.git_add(comp.readme_path())
-        else:
-            if comp.name=='' or comp.name[0] == '<':
-                print "  ERROR: software block title not specified, update README.rst"
-                valid = False
-            if comp.description[0]=='<' or re.match('Software Block:',comp.description):
-                print "  ERROR: software block description not specified, update README.rst"
-                valid = False
-
-            if comp.scope not in ALLOWED_SCOPES:
-                print "  ERROR: inavlid scope"
-                print "  Update README to set scope to one of:"
-                for scope in ALLOWED_SCOPES:
-                    print "         " + scope
-                print ""
-
-            if comp.keywords_text and comp.keywords_text[0]=='<':
-                print "  ERROR: keywords field as template, update README.rst to specify keywords or delete the line"
-                valid = False
-
-            if comp.boards_text and comp.boards_text[0]=='<':
-                print "  ERROR: boards field as template, update README.rst to specify keywords or delete the line"
-                valid = False
-
+        check_swblock(repo,options,args,comp)
 
 
 
@@ -1907,7 +1910,14 @@ def xpd_gen_package_xml(repo, options, args, return_string = False):
         return software_str
 
     print software_str
-    return False
+    return Falsedef xpd_validate_swblock(repo, options, args):
+    swblock_id = args[0]|
+    for comp in repo.components:
+        if comp.id == swblock_id:
+            comp.init_from_path(repo,comp.path)
+            check_swblock(repo, options, args, comp)
+            if comp.metainfo_path:
+                call(["xsoftip","validate",comp.metainfo_path], cwd=repo.path, shell=True)
 
 def xpd_install_local(repo, options, args):
     cache_path = os.environ['XMOS_CACHE_PATH']
@@ -1919,6 +1929,9 @@ def xpd_install_local(repo, options, args):
         if c.metainfo_path:
             shutil.copy(os.path.join(repo.path,c.metainfo_path),
                         os.path.join(cache_path,package.packageName + "-" + c.id + ".metainfo"))
+        if c.buildresults_path and os.path.exists(os.path.join(repo.path,c.buildresults_path)):
+            shutil.copy(os.path.join(repo.path,c.buildresults_path),
+                        os.path.join(cache_path,package.packageName + "-" + c.id + ".buildresults"))
 
     sw = SoftwareDescriptor()
     sw.id = package.id
@@ -2024,6 +2037,7 @@ other_commands =     [("info","Same as status"),
             ("check_all","Check all meta information and infrastructure"),
             ("check_info","Check related information"),
             ("check_swblocks","Check swblocks"),
+            ("validate_swblock","Validate swblock"),
             ("tag","Tag the repo with a version"),
             ("add_dep","Add dependency"),
             ("remove_dep","Remove dependency"),
