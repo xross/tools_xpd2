@@ -146,7 +146,9 @@ Content-Type: application/octet-stream; name="%(path)s"
     except TypeError:
         print >>sys.stderr, "Error connecting to cognidox"
         exit(1)
+
     resp_xml = response.read()
+
     dom = xml.dom.minidom.parseString(resp_xml)
     try:
         elem = dom.getElementsByTagName('cg:IssueNumber')[0]
@@ -363,7 +365,10 @@ def _get_latest_issue(partnum, exclude_drafts=False):
     return max_version,elem
 
 def get_latest_issue(partnum, exclude_drafts=False):
-    max_version,elem = _get_latest_issue(partnum, exclude_drafts)
+    res = _get_latest_issue(partnum, exclude_drafts)
+    if not res:
+        return None
+    max_version,elem = res
     return max_version
 
 def fetch_revision(partnum, revision):

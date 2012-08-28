@@ -12,6 +12,7 @@ a = Analysis([os.path.join(HOMEPATH,'support/_mountzlib.py'), os.path.join(HOMEP
              pathex=[cwd,
                      os.path.join(cwd,'xpd'),
                      os.path.join(cwd,'..','tools_python_hashlib','install','lib','python'),
+                     os.path.join(cwd,'..','tools_python_hashlib','install','lib64','python'),
                      tools_xdoc_path,
                      os.path.join(tools_xdoc_path,'xdoc'),
                      os.path.join(tools_xdoc_path,'xdoc','xsphinx'),

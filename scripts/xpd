@@ -152,12 +152,12 @@ def find_current_dependencies(repo):
 def xpd_add_dep(repo, options, args):
     if len(args) < 1:
         sys.stderr.write("ERROR: required repo name")
-        exit(1)
+        sys.exit(1)
 
     for dep in repo.dependencies:
         if dep.repo_name == args[0]:
             sys.stderr.write("ERROR: dependency already exists")
-            exit(1)
+            sys.exit(1)
 
 
     dep = Dependency(parent=repo)
@@ -243,7 +243,7 @@ def xpd_list(repo, options, args):
 def xpd_upgrade_rc(repo, options, args):
     if len(args) < 1:
         sys.stderr.write("Requires version number.\n")
-        exit(1)
+        sys.exit(1)
 
     version = Version(version_str=args[0])
 
@@ -252,14 +252,14 @@ def xpd_upgrade_rc(repo, options, args):
 
     if repo.get_release(version):
         sys.stderr.write("Version already exists.\n")
-        exit(1)
+        sys.exit(1)
 
 
     rc = repo.latest_release(release_filter=lambda r: r.version.match_modulo_rtype(version) and r.version.rtype=='rc')
 
     if not rc:
         sys.stderr.write("Cannot find rc.\n")
-        exit(1)
+        sys.exit(1)
 
 
     if not confirm("Upgrade %s to %s. Are you sure (Y/n)?"%(rc.version,version),default=True):
@@ -298,14 +298,14 @@ def xpd_build_sw(repo, options):
     ret = call(["xmake","CONFIG=All","NO_IGNORE_ERRORS=1","all"], cwd=repo.path, shell=True)
     if ret != 0 and not options.force:
         print "Error building"
-        exit(1)
+        sys.exit(1)
 
 
 def xpd_create_release(repo, options, args):
 
     if repo.is_detached_head():
         sys.stderr.write("Cannot create release from detached head.\n")
-        exit(1)
+        sys.exit(1)
 
     if hasattr(options,'release_branch') and options.release_branch:
         create_branch = True
@@ -316,7 +316,7 @@ def xpd_create_release(repo, options, args):
         candidates = branch_candidates(repo)
         if len(candidates) == 0:
             print "No candidates to branch from"
-            exit(1)
+            sys.exit(1)
         if len(candidates) == 1:
             base_release = candidates[0]
         else:
@@ -329,7 +329,7 @@ def xpd_create_release(repo, options, args):
                 base_release = candidates[int(x)]
             except:
                 print "Invalid choice"
-                exit(1)
+                sys.exit(1)
     elif hasattr(options,'release_type') and options.release_type:
         rtype = options.release_type
     else:
@@ -344,11 +344,11 @@ def xpd_create_release(repo, options, args):
             rtype='release'
         else:
             sys.stderr.write("Unknown release type\n")
-            exit(1)
+            sys.exit(1)
 
         if rtype in ['release','']:
             sys.stderr.write("Cannot create release directly - must upgrade an rc\n")
-            exit(1)
+            sys.exit(1)
 
     if create_branch:
         pass
@@ -398,13 +398,13 @@ def xpd_create_release(repo, options, args):
 
     if local_mod and not options.force:
         print "Cannot create release: uncommitted modifications"
-        exit(1)
+        sys.exit(1)
 
     current_ok = xpd_check_dep(repo, options, args, return_current_ok=True)
 
     if not current_ok:
         print "Cannot create release: dependencies not up to date"
-        exit(1)
+        sys.exit(1)
 
 
     xpd_check_info(repo, options, args)
@@ -513,7 +513,7 @@ def xpd_make_zip(repo, options, args):
 
     if local_mod and not options.force:
         print "Cannot make zip: uncommitted modifications"
-        exit(1)
+        sys.exit(1)
 
     current_ok = xpd_check_dep(repo, options, args, return_current_ok=True,
                                 allow_updates=False)
@@ -1322,13 +1322,13 @@ def xpd_checkout(repo, options, args):
             local_mod = True
 
     if local_mod:
-        exit(1)
+        sys.exit(1)
 
     if args[0] == 'latest':
         rel = repo.latest_release()
         if not rel:
             print "Cannot find latest release"
-            exit(1)
+            sys.exit(1)
         else:
             print "Checking out %s" % str(rel.version)
             version=rel.version
@@ -1343,7 +1343,7 @@ def xpd_checkout(repo, options, args):
     githash = repo.get_child_hash(rel.parenthash)
     if not githash:
         print >>sys.stderr, "ERROR: cannot find githash for version %s, maybe the git history has been modified" % str(version)
-        exit(1)
+        sys.exit(1)
     vrepo = repo.get_versioned_repo(version)
 
     vrepo.checkout(githash)
@@ -1397,7 +1397,7 @@ def xpd_check_info(repo, options, args,check_icon=True):
 def xpd_tag(repo, options, args):
     if len(args) < 1:
         sys.stderr.write("error: requires version number\n")
-        exit(1)
+        sys.exit(1)
 
     v = Version(version_str=args[0])
 
@@ -1407,7 +1407,7 @@ def xpd_tag(repo, options, args):
 
     if not relhash:
         sys.stderr.write("error: cannot determine release hash\n")
-        exit(1)
+        sys.exit(1)
 
     call(["git","tag","v%s"%str(v),relhash],cwd=Repo.path)
 
@@ -1609,13 +1609,7 @@ h3. Description
 
 %s
 
-h3. Metadata
-
-*Tools*: %s
-*Boards*: %s
-*Domain*: %s
-*Sub-Domain*: %s
-""" % (repo.description, toolstr, '', repo.domain, repo.subdomain)
+""" % (repo.description)
     zip_section = DHSection()
     zip_link = DHDocumentLink()
     zip_section.title = "Software Zip"
@@ -1638,8 +1632,24 @@ h3. Metadata
             doc_link.issue = "%s" % cognidox.get_latest_issue(docinfo.partnum)
             doc_section.documents.append(doc_link)
 
+    readme_section = DHSection()
+    readme_section.title = "README Documents"
+    include_readme_section = False
+    for comp in repo.components:
+        docinfo = xref.get_or_create_docinfo_from_dir(comp.path)
+        if docinfo.partnum:
+            include_readme_section = True
+            doc_link = DHDocumentLink()
+            doc_link.partnum = docinfo.partnum
+            doc_link.issue = "%s" % cognidox.get_latest_issue(docinfo.partnum)
+            readme_section.documents.append(doc_link)
+
+
     if include_doc_section:
         dh.sections.append(doc_section)
+
+    if include_readme_section:
+        dh.sections.append(readme_section)
 
     if to_file:
         f = open(to_file,"w")
@@ -1662,7 +1672,7 @@ def import_xdoc():
     xmos_xref = __import__("xmos_xref")
 #    except ImportError:
     #    sys.stderr.write("Cannot find xdoc")
-     #   exit(1)
+     #   sys.exit(1)
 
 def xpd_build_dep_docs(dep):
     pass
@@ -1706,41 +1716,60 @@ def xpd_build_docs(repo, options=None, args=None):
     import_xdoc()
     if repo.is_xmos_repo():
         xref = xmos_xref.XRefInfo('xpd')
-    swblock_docdirs = [swblock.path for swblock in repo.components]
-    docdirs = swblock_docdirs + repo.docdirs
+    docdirs = repo.docdirs
     rstonlysuffix = '.__rstonlythisone__'
-    for docdir in docdirs:
-        is_block_readme = docdir in swblock_docdirs
 
+    for swblock in repo.components:
+        docdir = os.path.join(repo.path,swblock.path)
+        curdir = os.path.abspath(os.curdir)
+        os.chdir(docdir)
         xdoc_config = {}
+        xdoc_config['SOURCE_SUFFIX'] = rstonlysuffix
+        xdoc_config['ALT_TITLE'] = "%s README" % swblock.id
+        xdoc_config['FORCE_UPLOAD'] = '1'
+        xdoc_config['AUTO_CREATE'] = "1"
+
+        readme = os.path.join(docdir,'README.rst')
+        shutil.copy(readme,readme.replace('.rst',rstonlysuffix))
+
+        if repo.is_xmos_repo():
+            xdoc.main('text', config=xdoc_config)
+            if options and options.upload:
+                xdoc.main('issue', config=xdoc_config)
+                docinfo = xref.get_or_create_docinfo_from_dir(docdir)
+                swblock.docPartNumber = docinfo.partnum
+                swblock.docVersion = 'latest'
+            else:
+                xdoc.main('xdehtml', config=xdoc_config)
+        else:
+            xdoc.main('html')
+            xdoc.main('pdf')
+
+        readme = os.path.join(docdir,'README.rst')
+        os.remove(readme.replace('.rst',rstonlysuffix))
+        os.chdir(curdir)
+
+    for docdir in docdirs:
 
         docdir = os.path.join(repo.path,docdir)
         curdir = os.path.abspath(os.curdir)
         os.chdir(docdir)
 
-        if is_block_readme:
-            xdoc_config['SOURCE_SUFFIX'] = rstonlysuffix
-            readme = os.path.join(docdir,'README.rst')
-            shutil.copy(readme,readme.replace('.rst',rstonlysuffix))
+        xdoc_config = {}
+        xdoc_config['AUTO_CREATE'] = "1"
 
         if repo.is_xmos_repo():
-            if is_block_readme:
-                xdoc.main('text', config=xdoc_config)
             if options and options.upload:
                 xdoc.main('issue', config=xdoc_config)
             else:
                 xdoc.main('xdehtml', config=xdoc_config)
-                if not is_block_readme:
-                    xdoc.main('xmospdf', config=xdoc_config)
+                xdoc.main('xmospdf', config=xdoc_config)
         else:
             xdoc.main('html')
             xdoc.main('pdf')
         os.chdir(curdir)
-        if is_block_readme:
-            readme = os.path.join(docdir,'README.rst')
-            os.remove(readme.replace('.rst',rstonlysuffix))
 
-        if repo.is_xmos_repo() and not is_block_readme and repo.partnumber:
+        if repo.is_xmos_repo() and repo.partnumber:
             print "Adding link from document to software package"
             docinfo = xref.get_or_create_docinfo_from_dir(docdir, topdir = repo.name)
             swlink = docinfo.get_swlink(repo.partnumber)
@@ -1824,7 +1853,7 @@ def xpd_parse_release_notes(repo, options, args, return_notes = False):
     changelog_path = os.path.join(repo.path,'CHANGELOG.rst')
     if not os.path.exists(changelog_path):
         print >>sys.stderr, "ERROR: cannot find CHANGELOG.rst"
-        exit(1)
+        sys.exit(1)
     f = open(changelog_path)
     lines = f.readlines()
     f.close()
@@ -2122,7 +2151,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == 'git':
         repo = Repo(".")
         xpd_dep_iter(repo, ' '.join(sys.argv[1:]))
-        exit(0)
+        sys.exit(0)
 
     (options, args) = optparser.parse_args()
 
@@ -2141,7 +2170,7 @@ if __name__ == "__main__":
 
     if command == "help":
         optparser.print_help()
-        exit(0)
+        sys.exit(0)
 
     args = args[1:]
 
