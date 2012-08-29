@@ -83,7 +83,7 @@ sub ListTargets
 sub DoBuild
 {
   print("$BUILDPATH");
-  system("python $TOOLS_PYINSTALLER/pyinstaller.py xpd.spec");
+  system("python2.7 $TOOLS_PYINSTALLER/pyinstaller.py xpd.spec");
 }
 
 sub DoClean
