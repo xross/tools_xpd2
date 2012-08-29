@@ -145,7 +145,7 @@ Content-Type: application/octet-stream; name="%(path)s"
         response = urllib2.urlopen(req)
     except TypeError:
         print >>sys.stderr, "Error connecting to cognidox"
-        exit(1)
+        sys.exit(1)
 
     resp_xml = response.read()
 
@@ -252,7 +252,7 @@ def query_and_create_document(default_path,
         info = get_docinfo(partnum)
         if not info:
             print "Invalid part number"
-            exit(1)
+            sys.exit(1)
     else:
         sys.stdout.write("Do you want to create a part (Y/n)?")
         if auto_create:
@@ -270,7 +270,7 @@ def query_and_create_document(default_path,
                     title = default_title
                 if title == '':
                     sys.stderr.write("Need title to proceed.\n")
-                    exit(1)
+                    sys.exit(1)
             if not doctype:
                 print "Possible document types:"
                 print doctypes
@@ -307,15 +307,15 @@ def query_and_create_document(default_path,
                     error = True
                 if error:
                     print "Something has gone wrong"
-                    exit(1)
+                    sys.exit(1)
                 else:
                     print "Created document with part number " + partnum
             else:
                 print "Need part number to proceed"
-                exit(1)
+                sys.exit(1)
         else:
             print "Need part number to proceed"
-            exit(1)
+            sys.exit(1)
 
     return partnum
 
