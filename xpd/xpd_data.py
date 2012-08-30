@@ -742,6 +742,8 @@ class Repo(XmlObject):
         for x in os.listdir(path):
           if x == 'doc':
                continue
+          if x in self.exclude_dirs:
+              continue
           mkfile = os.path.join(path,x,'Makefile')
           modinfo = os.path.join(path,x,'module_build_info')
           if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or (x in self.extra_eclipse_projects) or re.match('^module_.*',x):
