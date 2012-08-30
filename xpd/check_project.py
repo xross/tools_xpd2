@@ -350,7 +350,7 @@ def _check_cproject(repo,makefiles,path=None, force_creation=False):
                                    stdout=subprocess.PIPE)
               except:
                    sys.stderr.write("ERROR: Cannot find xmake\n")
-                   exit(1)
+                   sys.exit(1)
 
               lines = process.stdout.readlines()
               includes = ''
@@ -457,10 +457,6 @@ def check_makefile(mkfile_path, repo, all_configs):
     updates_required = False
     relpath = os.path.relpath(mkfile_path,repo.path)
     flag_types, configs = get_configs(mkfile_path)
-    if configs != all_configs:
-        print "%s is missing flags for configs: %s" \
-               %(relpath,' '.join(all_configs - configs))
-        updates_required = True
     f = open(mkfile_path)
     lines = f.readlines()
     f.close()
@@ -570,14 +566,7 @@ def update_makefile(mkfile_path, all_configs):
     else:
          base_config = ''
 
-    for config in all_configs - configs:
-        for flag_type in flag_types:
-            if config == 'Default':
-                newlines += "XCC%s_FLAGS = $(XCC%s_FLAGS%s)\n" \
-                                         % (flag_type, flag_type, base_config)
-            else:
-                newlines += "XCC%s_FLAGS_%s = $(XCC%s_FLAGS%s)\n" \
-                                          % (flag_type, config, flag_type, base_config)
+
 
     f = open(mkfile_path,"w")
     f.write(''.join(newlines) + include_section)

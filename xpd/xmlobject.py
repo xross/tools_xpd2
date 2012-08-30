@@ -285,10 +285,10 @@ class XmlObject(object):
         except xml.parsers.expat.ExpatError:
             if src:
                 print >>sys.stderr, "XML parsing error: %s" % src
-                exit(1)
+                sys.exit(1)
             else:
                 print >>sys.stderr, "XML parsing error"
-                exit(1)
+                sys.exit(1)
 
         self._fromdom(dom, dom.childNodes[0])
 
