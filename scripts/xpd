@@ -1982,6 +1982,7 @@ def xpd_install_local(repo, options, args):
     for p in all_software.packages:
         if p.project == repo.name:
             all_software.packages.remove(p)
+    all_software.toolsVersion = "unknown"
     all_software.packages.append(package)
 
     f = open(fpath,"w")
