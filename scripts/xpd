@@ -1710,7 +1710,7 @@ def xpd_build_topdoc(repo,options=None,args=None):
 
     repo.topdoc_path = topdoc_path
 
-def xpd_build_docs(repo, options=None, args=None):
+def xpd_build_docs(repo, options=None, args=None, buildlatex=True):
     if options.nodocs:
         return
     import_xdoc()
@@ -1743,7 +1743,8 @@ def xpd_build_docs(repo, options=None, args=None):
                 xdoc.main('xdehtml', config=xdoc_config)
         else:
             xdoc.main('html')
-            xdoc.main('pdf')
+            if buildlatex:
+                xdoc.main('pdf')
 
         readme = os.path.join(docdir,'README.rst')
         os.remove(readme.replace('.rst',rstonlysuffix))
@@ -1995,7 +1996,7 @@ def xpd_install_local(repo, options, args):
         print "Building documentation"
 
         repo.move_to_temp_sandbox()
-        xpd_build_docs(repo, options, [])
+        xpd_build_docs(repo, options, [], buildlatex=False)
 
         seealsos = ""
         i = 0;
