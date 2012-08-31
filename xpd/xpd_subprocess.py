@@ -6,14 +6,20 @@ import subprocess
 ostype = platform.system()
 
 if not re.match('.*Darwin.*',ostype) and re.match('.*[W|w]in.*',ostype):
-    use_shell = True
+    concat_args = True
 else:
-    use_shell = False
+    concat_args = False
 
-def Popen(*args, **kwargs):
+use_shell = True
+
+def Popen(*args, **kwargs):    
     kwargs['shell'] = use_shell
+    if concat_args:
+        args = (' '.join(args[0]),) + args[1:]
     return subprocess.Popen(*args,**kwargs)
 
 def call(*args, **kwargs):
     kwargs['shell'] = use_shell
+    if concat_args:
+        args = (' '.join(args[0]),) + args[1:]
     return subprocess.call(*args,**kwargs)
