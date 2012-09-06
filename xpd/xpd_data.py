@@ -296,6 +296,7 @@ class Component(XmlObject):
     docPartNumber = XmlAttribute()
     docVersion = XmlAttribute()
 
+
     def init_from_path(self, repo, path):
         self.id = os.path.basename(path)
         self.path = path
@@ -744,6 +745,8 @@ class Repo(XmlObject):
                continue
           if x in self.exclude_dirs:
               continue
+          if x[:2] == '__':
+              continue
           mkfile = os.path.join(path,x,'Makefile')
           modinfo = os.path.join(path,x,'module_build_info')
           if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or (x in self.extra_eclipse_projects) or re.match('^module_.*',x):
@@ -767,7 +770,7 @@ class Repo(XmlObject):
         package.latestversion = "0.0.0"
         package.version = "0.0.0"
         package.name = package.id + "(" + package.version + ").zip"
-        package.packageName = package.id + "(" + package.version + ")"
+        package.packagename = package.id + "(" + package.version + ")"
         package.project = self.name
         package.description = self.description
         package.components = self.components
@@ -789,7 +792,7 @@ class Package(XmlObject):
     hash = XmlAttribute()
     project = XmlAttribute()
     authorised = XmlAttribute()
-    packageName = XmlAttribute()
+    packagename = XmlAttribute()
     latestversion = XmlAttribute()
     version = XmlAttribute()
     description = XmlValue()

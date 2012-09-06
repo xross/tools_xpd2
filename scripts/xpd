@@ -1764,10 +1764,12 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True):
                 xdoc.main('issue', config=xdoc_config)
             else:
                 xdoc.main('xdehtml', config=xdoc_config)
-                xdoc.main('xmospdf', config=xdoc_config)
+                if buildlatex:
+                    xdoc.main('xmospdf', config=xdoc_config)
         else:
             xdoc.main('html')
-            xdoc.main('pdf')
+            if buildlatex:
+                xdoc.main('pdf')
         os.chdir(curdir)
 
         if repo.is_xmos_repo() and repo.partnumber:
@@ -1956,14 +1958,14 @@ def xpd_install_local(repo, options, args):
     package = repo.create_dummy_package()
     for c in package.components:
         c.local = "true"
-        c.docPartNumber = package.packageName + ".doc-" + c.id
+        c.docPartNumber = package.packagename + ".doc-" + c.id
         c.docVersion = "latest"
         if c.metainfo_path:
             shutil.copy(os.path.join(repo.path,c.metainfo_path),
-                        os.path.join(cache_path,package.packageName + "-" + c.id + ".metainfo"))
+                        os.path.join(cache_path,package.packagename + "-" + c.id + ".metainfo"))
         if c.buildresults_path and os.path.exists(os.path.join(repo.path,c.buildresults_path)):
             shutil.copy(os.path.join(repo.path,c.buildresults_path),
-                        os.path.join(cache_path,package.packageName + "-" + c.id + ".buildresults"))
+                        os.path.join(cache_path,package.packagename + "-" + c.id + ".buildresults"))
 
     sw = SoftwareDescriptor()
     sw.id = package.id
