@@ -330,9 +330,13 @@ def remove_repo_from_include(include):
 def _check_cproject(repo,makefiles,path=None, force_creation=False):
     if not path:
          path = repo.path
+         configs = get_all_configs(makefiles)
+    else:
+         _, configs = get_configs(os.path.join(path,'Makefile'))
     name = get_project_name(repo,path)
     print "Checking .cproject file [%s]" % os.path.basename(path)
-    configs = get_all_configs(makefiles)
+
+
     if 'Debug' in configs and 'Release' in configs:
          configs.remove('Default')
     print "Using configs: %s" % ', '.join(configs)
