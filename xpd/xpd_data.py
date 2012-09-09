@@ -335,7 +335,7 @@ class Component(XmlObject):
 
         if (os.path.exists(os.path.join(repo.path,path,self.id+'.metainfo'))):
                 self.metainfo_path = os.path.join(path,self.id+'.metainfo')
-                self.buildresults_path = os.path.join(path,"."+self.id+".buildresults.xml")
+                self.buildresults_path = os.path.join(path,"."+self.id+".buildinfo")
 
         if self.metainfo_path:
             if self.id[0:4] == "app_":
@@ -704,28 +704,33 @@ class Repo(XmlObject):
         for d in excludes:
             shutil.rmtree(os.path.join(self.path,d))
 
-    def _move_to_temp_sandbox(self, path):
-        p = Popen(["git","clone",self.path],
-                  cwd=path,
-                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        p.communicate()
-        p=Popen(["git","checkout",self.current_githash()],
-                cwd=path,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT)
-        p.communicate()
+    def _move_to_temp_sandbox(self, path, git_only=True):
+        if git_only:
+            p = Popen(["git","clone",self.path],
+                      cwd=path,
+                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            p.communicate()
+            p=Popen(["git","checkout",self.current_githash()],
+                    cwd=path,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT)
+            p.communicate()
+        else:
+            shutil.copytree(self.path, os.path.join(path,os.path.basename(self.path)))
+
         self._path = self.path
         self.path = os.path.join(path,self.name)
         self._prune_dirs()
 
+
     def orig_path(self):
         return self._path
 
-    def move_to_temp_sandbox(self):
+    def move_to_temp_sandbox(self,git_only=True):
         self.sb = tempfile.mkdtemp()
-        self._move_to_temp_sandbox(self.sb)
+        self._move_to_temp_sandbox(self.sb,git_only=git_only)
         for dep in self.dependencies:
-            dep.repo._move_to_temp_sandbox(self.sb)
+            dep.repo._move_to_temp_sandbox(self.sb,git_only=git_only)
 
     def _restore_path(self):
         self.path = self._path

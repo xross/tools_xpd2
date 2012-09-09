@@ -21,7 +21,7 @@ import xdoc
 import xmossphinx
 import xmos_xref
 
-ALLOWED_SCOPES=["Roadmap","Experimental","Early Development","General Use"]
+ALLOWED_SCOPES=["Roadmap","Example","Early Development","General Use"]
 
 xdoc = None
 xmossphinx = None
@@ -1181,6 +1181,12 @@ def check_swblock(repo, options, args, comp):
            for scope in ALLOWED_SCOPES:
                print "         " + scope
            print ""
+           valid = False
+
+       if not comp.metainfo_path and comp.scope != "Example":
+           print "  ERROR: software block without metainfo must have scope 'Example'"
+           valid = False
+
 
        if comp.keywords_text and comp.keywords_text[0]=='<':
            print "  ERROR: keywords field as template, update README.rst to specify keywords or delete the line"
@@ -1944,17 +1950,47 @@ def xpd_gen_package_xml(repo, options, args, return_string = False):
     print software_str
     return False
 
-def xpd_validate_swblock(repo, options, args):
+def call_xsoftip(command,comp,repo):
+    args = ['','','','']
+    tmp = tempfile.mkdtemp()
+    package = xpd_install_local_xml(repo,tmp)
+
+    args[0] = comp.id
+    args[1] = os.path.join(repo.path,comp.metainfo_path)
+    args[2] = os.path.join(tmp,package.id+".xml")
+    args[3] = repo.path
+
+    cmd = ["xsoftip",command]+args
+    print " ".join(cmd)
+    call(cmd, cwd=repo.path, shell=True)
+
+
+
+def xpd_build_results(repo,options,args):
     swblock_id = args[0]
-    for comp in repo.components:
-        if comp.id == swblock_id:
+    for comp in repo.get_software_blocks():
+        if comp.id == swblock_id or swblock_id=='all':
             comp.init_from_path(repo,comp.path)
             check_swblock(repo, options, args, comp)
             if comp.metainfo_path:
-                call(["xsoftip","validate",comp.metainfo_path], cwd=repo.path, shell=True)
+                call_xsoftip("buildresults",comp,repo)
+            else:
+                print "Cannot find metadata file"
 
-def xpd_install_local(repo, options, args):
-    cache_path = os.environ['XMOS_CACHE_PATH']
+
+def xpd_validate_swblock(repo, options, args):
+    swblock_id = args[0]
+    for comp in repo.get_software_blocks():
+        if comp.id == swblock_id or swblock_id=='all':
+            comp.init_from_path(repo,comp.path)
+            check_swblock(repo, options, args, comp)
+            if comp.metainfo_path:
+                call_xsoftip("validate",comp,repo)
+            else:
+                print "Cannot find metadata file"
+
+
+def xpd_install_local_xml(repo,cache_path):
     package = repo.create_dummy_package()
     for c in package.components:
         c.local = "true"
@@ -1963,9 +1999,15 @@ def xpd_install_local(repo, options, args):
         if c.metainfo_path:
             shutil.copy(os.path.join(repo.path,c.metainfo_path),
                         os.path.join(cache_path,package.packagename + "-" + c.id + ".metainfo"))
+
         if c.buildresults_path and os.path.exists(os.path.join(repo.path,c.buildresults_path)):
             shutil.copy(os.path.join(repo.path,c.buildresults_path),
-                        os.path.join(cache_path,package.packagename + "-" + c.id + ".buildresults"))
+                        os.path.join(cache_path,package.packagename + "-" + c.id + ".buildinfo"))
+        elif c.buildresults_path:
+            print "WARNING: %s has no buildresults!!" % c.name
+            f = open(os.path.join(cache_path,package.packagename + "-" + c.id + ".buildinfo"),"w")
+            f.write("<buildresults></buildresults>");
+            f.close()
 
     sw = SoftwareDescriptor()
     sw.id = package.id
@@ -1994,11 +2036,17 @@ def xpd_install_local(repo, options, args):
     f = open(os.path.join(cache_path,package.name),"w")
     f.write("dummyzip")
     f.close()
+    return package
+
+def xpd_install_local(repo, options, args):
+    xpd_check_swblocks(repo, [],[])
+    cache_path = os.environ['XMOS_CACHE_PATH']
+    package = xpd_install_local_xml(repo,cache_path)
     print "Package installed in local cache"
     if not options.nodocs:
         print "Building documentation"
 
-        repo.move_to_temp_sandbox()
+        repo.move_to_temp_sandbox(git_only=False)
         xpd_build_docs(repo, options, [], buildlatex=False)
 
         seealsos = ""
@@ -2073,6 +2121,7 @@ other_commands =     [("info","Same as status"),
             ("check_info","Check related information"),
             ("check_swblocks","Check swblocks"),
             ("validate_swblock","Validate swblock"),
+            ("build_results","Build results for swblock"),
             ("tag","Tag the repo with a version"),
             ("add_dep","Add dependency"),
             ("remove_dep","Remove dependency"),
