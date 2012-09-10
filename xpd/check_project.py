@@ -331,8 +331,10 @@ def _check_cproject(repo,makefiles,path=None, force_creation=False):
     if not path:
          path = repo.path
          configs = get_all_configs(makefiles)
-    else:
+    elif os.path.exists(os.path.join(path,'Makefile')):
          _, configs = get_configs(os.path.join(path,'Makefile'))
+    else:
+         configs = []
     name = get_project_name(repo,path)
     print "Checking .cproject file [%s]" % os.path.basename(path)
 

@@ -768,12 +768,12 @@ class Repo(XmlObject):
         return [x for x in self.get_software_blocks() if x.is_module()]
 
 
-    def create_dummy_package(self):
+    def create_dummy_package(self, version_str):
         package = Package()
         package.id = "xm-local-"+self.name
         package.hash = "DUMMY-HASH"
-        package.latestversion = "0.0.0"
-        package.version = "0.0.0"
+        package.latestversion = version_str
+        package.version = version_str
         package.name = package.id + "(" + package.version + ").zip"
         package.packagename = package.id + "(" + package.version + ")"
         package.project = self.name

@@ -435,6 +435,7 @@ def xpd_create_release(repo, options, args):
     print "Creating sandbox and checking build"
     repo.move_to_temp_sandbox()
     xpd_build_sw(repo, options)
+    xpd_build_results(repo,options,['all'])
     repo.delete_temp_sandbox()
 
     release = Release()
@@ -545,6 +546,10 @@ def xpd_make_zip(repo, options, args):
 
     if repo.include_binaries:
         xpd_build_sw(repo, options)
+
+    if not options.nobuild:
+        print "Creating build result info"
+        xpd_build_results(repo, options, ["all"])
 
     xpd.check_project.check_project(repo, force_creation=True)
     xpd.check_project.check_cproject(repo, force_creation=True)
@@ -1918,37 +1923,6 @@ def xpd_parse_release_notes(repo, options, args, return_notes = False):
         return False
     return notes
 
-def xpd_gen_package_xml(repo, options, args, return_string = False):
-    swblocks = ""
-    for swblock in repo.get_software_blocks():
-        if not swblock.is_published():
-            continue
-        swblock_str = """\
-<component id="%(id)s" name="%(name)s" description = "%(description)s" file="%(metadata_file)s" scope="%(scope)s"/>
-        """ % {'id' : swblock.name,
-               'name' : swblock.longname,
-               'description' : swblock.description,
-               'metadata_file' : swblock.metadata_file,
-               'scope' : swblock.scope}
-        swblocks += swblock_str
-
-    software_str = """
-<software id="%(id)s" toolsVersion="development" name="%(name)s"
-          project="%(project)s">
-    <components>
-       %(components)s
-    </components>
-</software>
-""" % { 'id' : repo.subpartnumber,
-        'name' : repo.longname,
-        'project': repo.name,
-        'components' : swblocks
-        }
-    if return_string:
-        return software_str
-
-    print software_str
-    return False
 
 def call_xsoftip(command,comp,repo):
     args = ['','','','']
@@ -1989,9 +1963,26 @@ def xpd_validate_swblock(repo, options, args):
             else:
                 print "Cannot find metadata file"
 
+def get_tools_version():
+    process = Popen(["xcc","--version"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE)
+
+    err_lines = process.stderr.readlines()
+    lines = process.stdout.readlines()
+
+    try:
+        m = re.match("(\d+\.\d+\.\d+).*",lines[0])
+        if m:
+            print "VERSION:" + m.groups(1)[0]
+            return m.groups(1)[0]
+    except e:
+        return "development"
+
+    return "development"
 
 def xpd_install_local_xml(repo,cache_path):
-    package = repo.create_dummy_package()
+    package = repo.create_dummy_package(repo.current_version_or_githash())
     for c in package.components:
         c.local = "true"
         c.docPartNumber = package.packagename + ".doc-" + c.id
@@ -2002,16 +1993,16 @@ def xpd_install_local_xml(repo,cache_path):
 
         if c.buildresults_path and os.path.exists(os.path.join(repo.path,c.buildresults_path)):
             shutil.copy(os.path.join(repo.path,c.buildresults_path),
-                        os.path.join(cache_path,package.packagename + "-" + c.id + ".buildinfo"))
+                        os.path.join(cache_path,package.packagename + "-" + c.id + ".buildresults"))
         elif c.buildresults_path:
             print "WARNING: %s has no buildresults!!" % c.name
-            f = open(os.path.join(cache_path,package.packagename + "-" + c.id + ".buildinfo"),"w")
+            f = open(os.path.join(cache_path,package.packagename + "-" + c.id + ".buildresults"),"w")
             f.write("<buildresults></buildresults>");
             f.close()
 
     sw = SoftwareDescriptor()
     sw.id = package.id
-    sw.toolsVersion = "unknown"
+    sw.toolsVersion = get_tools_version()
     sw.name = repo.longname
     sw.project = package.project
     sw.packages.append(package)
@@ -2026,7 +2017,7 @@ def xpd_install_local_xml(repo,cache_path):
     for p in all_software.packages:
         if p.project == repo.name:
             all_software.packages.remove(p)
-    all_software.toolsVersion = "unknown"
+    all_software.toolsVersion = sw.toolsVersion
     all_software.packages.append(package)
 
     f = open(fpath,"w")
