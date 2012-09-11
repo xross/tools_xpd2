@@ -334,7 +334,7 @@ def _check_cproject(repo,makefiles,path=None, force_creation=False):
     elif os.path.exists(os.path.join(path,'Makefile')):
          _, configs = get_configs(os.path.join(path,'Makefile'))
     else:
-         configs = []
+         configs = ['Default']
     name = get_project_name(repo,path)
     print "Checking .cproject file [%s]" % os.path.basename(path)
 

@@ -688,6 +688,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
 
     excludes.append('toplevel_doc/*')
     excludes.append('*_build/*')
+    excludes.append('__gen*')
     excludes.append('*app_description')
     excludes.append('*module_description')
     excludes.append('*README.rst')
