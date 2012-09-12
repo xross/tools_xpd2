@@ -200,6 +200,12 @@ def get_docnumber(partnum):
     except IndexError:
         return None
 
+def clear_docnumber(partnum):
+    resp_xml = doCognidox('CogniDoxMetaValRequest',
+                          {'PartNumber':partnum,
+                           'MetaName':'Document Number',
+                           'MetaVal':''})
+
 def create_docnumber(partnum):
     initCognidox()
     actions = 'plugin-CogniDoxXMOSDocumentNumbersPlugin-plg_generateDocumentNumber'
@@ -415,6 +421,67 @@ def fetch_version(partnum, version):
     return urllib2.urlopen(docs_url+'/'+get_subinfo(elem,'file'))
 
 
+def get_all_version_tags(partnum, exclude_drafts=False):
+    info = get_docinfo(partnum)
+    if not info or not 'Versions' in info:
+        return None
+    dom = xml.dom.minidom.parseString(info['Versions'].replace('cg:',''))
+    elems = dom.getElementsByTagName('VersionItem')
+    tags = []
+    for elem in elems:
+        if get_version_tag(elem):
+            tags.append(get_version_tag(elem))
+    return tags
+
+def version_to_num(s):
+    x = list(s.upper())
+    total = ord(x[0])-64
+    for c in x[1:]:
+        total = (ord(c)-65) + total*26
+    return total
+
+def num_to_version(x):
+    l = []
+    while (x != 0):
+        l.append(chr(x%26+65))
+        x = x/26
+    l.reverse()
+    l[0] = chr(ord(l[0])-1)
+    return ''.join(l)
+
+def increment_version(v):
+    x = version_to_num(v)+1
+    return num_to_version(x)
+
+def get_next_doc_version_tag(partnum,base_version=None):
+    if get_docnumber(partnum):
+        return None
+
+    tags = get_all_version_tags(partnum)
+
+    if tags == None or tags == []:
+        if base_version:
+            return base_version + '.a'
+        else:
+            return 'A'
+
+    if base_version:
+        tags = [tag[len(base_version)+1:] for tag in tags if tag.startswith(base_version+".")]
+
+
+    num_tags = [version_to_num(tag) for tag in tags]
+    max_tag = max(num_tags)
+
+    if base_version:
+        return base_version + '.' + num_to_version(max_tag+1).lower()
+    else:
+        return num_to_version(max_tag+1)
+
 if __name__ == "__main__":
-    initCognidox()
-    print get_docinfo('XM-001603-DH')
+    v = "A"
+    for x in range(200):
+        v = increment_version(v)
+        print v
+#    initCognidox()
+#    print get_docinfo('XM-001828-SM')
+#    print

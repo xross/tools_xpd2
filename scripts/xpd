@@ -693,6 +693,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
     excludes.append('*module_description')
     excludes.append('*README.rst')
     excludes.append('.zipinfo')
+    excludes.append('*issue.zip')
     if xpd.check_project.flat_projects:
         excludes.append('.cproject')
         excludes.append('.project')
@@ -1740,17 +1741,22 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True):
         xdoc_config['ALT_TITLE'] = "%s README" % swblock.id
         xdoc_config['FORCE_UPLOAD'] = '1'
         xdoc_config['AUTO_CREATE'] = "1"
-
+        xdoc_config['COGNIDOX_PATH'] = "/Projects/Apps"
+        xdoc_config['BASE_VERSION'] = repo.current_version_or_githash()
         readme = os.path.join(docdir,'README.rst')
         shutil.copy(readme,readme.replace('.rst',rstonlysuffix))
 
         if repo.is_xmos_repo():
             xdoc.main('text', config=xdoc_config)
             if options and options.upload:
-                xdoc.main('issue', config=xdoc_config)
+                lastversion = xdoc.main('issue', config=xdoc_config)
                 docinfo = xref.get_or_create_docinfo_from_dir(docdir)
                 swblock.docPartNumber = docinfo.partnum
-                swblock.docVersion = 'latest'
+                if lastversion:
+                    swblock.docVersion = lastversion
+                else:
+                    swblock.docVersion = "latest"
+                print "LAST VERSION:" + swblock.docVersion
             else:
                 xdoc.main('xdehtml', config=xdoc_config)
         else:
@@ -1770,7 +1776,8 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True):
 
         xdoc_config = {}
         xdoc_config['AUTO_CREATE'] = "1"
-
+        xdoc_config['COGNIDOX_PATH'] = "/Projects/Apps"
+        xdoc_config['BASE_VERSION'] = repo.current_version_or_githash()
         if repo.is_xmos_repo():
             if options and options.upload:
                 xdoc.main('issue', config=xdoc_config)
