@@ -9,6 +9,7 @@ from docutils.core import publish_file
 import xml.dom.minidom
 from StringIO import StringIO
 
+
 xpd_version = "1.0"
     
 DEFAULT_SCOPE='Experimental'
@@ -750,7 +751,7 @@ class Repo(XmlObject):
                continue
           if x in self.exclude_dirs:
               continue
-          if x[:2] == '__':
+          if x.startswith('__'):
               continue
           mkfile = os.path.join(path,x,'Makefile')
           modinfo = os.path.join(path,x,'module_build_info')
@@ -778,7 +779,7 @@ class Repo(XmlObject):
         package.packagename = package.id + "(" + package.version + ")"
         package.project = self.name
         package.description = self.description
-        package.components = self.components
+        package.components = [copy(c) for c in self.components]
         package.authorised = "true"
         return package
 

@@ -435,7 +435,8 @@ def xpd_create_release(repo, options, args):
     print "Creating sandbox and checking build"
     repo.move_to_temp_sandbox()
     xpd_build_sw(repo, options)
-    xpd_build_results(repo,options,['all'])
+    if not options.nobuild:
+        xpd_build_results(repo,options,['all'])
     repo.delete_temp_sandbox()
 
     release = Release()
@@ -565,6 +566,9 @@ def xpd_make_zip(repo, options, args):
     for dep in repo.dependencies:
         exports += do_exports(dep.repo)
 
+    for c in repo.components:
+        c.local = "false"
+
     fname = name + ".zip"
     print "Creating %s" % fname
 
@@ -603,7 +607,11 @@ def xpd_make_zip(repo, options, args):
                 m = re.match('(.*)(rc|beta|alpha)\d*$',version)
                 if m:
                     version = m.groups(0)[0]
-                cogfile = cognidox.fetch_version(dep.repo.subpartnumber, version)
+                try:
+                    cogfile = cognidox.fetch_version(dep.repo.subpartnumber, version)
+                except:
+                    print "WARNING: Cannot connect to cognidox"
+                    cogfile = None
 
                 if cogfile:
                     tmpfile = tempfile.TemporaryFile()
@@ -1203,6 +1211,7 @@ def check_swblock(repo, options, args, comp):
            print "  ERROR: boards field as template, update README.rst to specify keywords or delete the line"
            valid = False
 
+       comp.local = "false"
 
 def xpd_check_swblocks(repo, options, args, return_valid = False):
     valid = True
@@ -1749,9 +1758,8 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True):
         if repo.is_xmos_repo():
             xdoc.main('text', config=xdoc_config)
             if options and options.upload:
-                lastversion = xdoc.main('issue', config=xdoc_config)
-                docinfo = xref.get_or_create_docinfo_from_dir(docdir)
-                swblock.docPartNumber = docinfo.partnum
+                partnum,lastversion = xdoc.main('issue', config=xdoc_config)
+                swblock.docPartNumber = partnum
                 if lastversion:
                     swblock.docVersion = lastversion
                 else:

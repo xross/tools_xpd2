@@ -459,14 +459,15 @@ def get_next_doc_version_tag(partnum,base_version=None):
 
     tags = get_all_version_tags(partnum)
 
+    if tags and base_version:
+        tags = [tag[len(base_version)+1:] for tag in tags if tag.startswith(base_version+".")]
+
     if tags == None or tags == []:
         if base_version:
             return base_version + '.a'
         else:
             return 'A'
 
-    if base_version:
-        tags = [tag[len(base_version)+1:] for tag in tags if tag.startswith(base_version+".")]
 
 
     num_tags = [version_to_num(tag) for tag in tags]
