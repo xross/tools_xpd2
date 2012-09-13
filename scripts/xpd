@@ -2099,7 +2099,7 @@ def xpd_install_local(repo, options, args):
             for root, dirs, files in os.walk(doc_dir):
                 for f in files:
                     fpath = os.path.join(root, f)
-                    arcname = os.path.relpath(fpath, doc_dir)
+                    arcname = os.path.join('html',os.path.relpath(fpath, doc_dir))
                     zfile.write(fpath, arcname)
             zfile.close()
             if os.path.exists(os.path.join(cache_path,
