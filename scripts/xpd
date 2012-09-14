@@ -1172,6 +1172,9 @@ def check_swblock(repo, options, args, comp):
    print comp.id
    print "   Name: %s" % comp.name
    print "   Type: %s" % comp.type
+   print "   Dependencies:"
+   for d in comp.dependencies:
+       print "      "+d
    print ""
 
    if not comp.has_readme():
@@ -1532,17 +1535,6 @@ A repository can contains modules that contain sets of source files than can be 
             f.write(templates.xcore_license % {'holder':holder})
             f.close()
 
-    if not os.path.exists(os.path.join(repo.path,'.project')):
-        project_lines = templates.dotproject.split('\n')
-        f = open(os.path.join(repo.path,'.project'),'w')
-        for line in project_lines:
-            line = line.replace('%PROJECT%',repo.name)
-            f.write(line+'\n')
-        f.close()
-
-    if not os.path.exists(os.path.join(repo.path,'.cproject')):
-        configs = ['Debug','Release']
-        xpd.check_project.create_cproject(repo, configs)
 
     if not os.path.exists(os.path.join(repo.path,'README.rst')):
         maintainer = repo.maintainer

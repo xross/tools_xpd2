@@ -296,7 +296,7 @@ class Component(XmlObject):
     boards = XmlValueList()
     docPartNumber = XmlAttribute()
     docVersion = XmlAttribute()
-
+    dependencies = XmlValueList(tagname="dependency")
 
     def init_from_path(self, repo, path):
         self.id = os.path.basename(path)
@@ -759,6 +759,17 @@ class Repo(XmlObject):
               comp = Component()
               comp.init_from_path(self, x)
               components.append(comp)
+              if os.path.exists(modinfo):
+                  for line in open(modinfo).readlines():
+                      m = re.match('.*DEPENDENT_MODULES\s*=\s*(.*)',line)
+                      if m:
+                          comp.dependencies += [x.strip() for x in m.groups(0)[0].split(' ')]
+              if os.path.exists(mkfile):
+                  for line in open(mkfile).readlines():
+                      m = re.match('.*USED_MODULES\s*=\s*(.*)',line)
+                      if m:
+                          comp.dependencies += [x.strip() for x in m.groups(0)[0].split(' ')]
+
         return components
 
     def get_apps(self):

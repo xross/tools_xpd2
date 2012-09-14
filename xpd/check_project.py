@@ -106,6 +106,8 @@ def find_all_subprojects(repo):
      for x in os.listdir(path):
           if x == 'doc':
                continue
+          if x.startswith('__'):
+               continue
           mkfile = os.path.join(path,x,'Makefile')
           modinfo = os.path.join(path,x,'module_build_info')
           if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or (x in repo.extra_eclipse_projects) or re.match('^module_.*',x):
