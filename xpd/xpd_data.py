@@ -346,6 +346,13 @@ class Component(XmlObject):
         else:
             self.type = "demoCode"
 
+        if self.scope == "Roadmap":
+            if self.id[0:4] == "app_":
+                self.type = "applicationTemplate"
+            else:
+                self.type = "component"
+
+
     def readme_to_dict(self):
         if not self.has_readme():
             return {}
@@ -601,12 +608,15 @@ class Repo(XmlObject):
 
         return None
 
-    def current_version_or_githash(self):
+    def current_version_or_githash(self, short=False):
         rel = self.current_release()
         if rel:
             vstr = str(rel.version)
         else:
-            vstr = self.current_githash()
+            if short:
+                vstr = self.current_githash()[:8]
+            else:
+                vstr = self.current_githash()
         return vstr
 
     def post_import(self):

@@ -1194,7 +1194,7 @@ def check_swblock(repo, options, args, comp):
            valid = False
 
        if comp.scope not in ALLOWED_SCOPES:
-           print "  ERROR: inavlid scope"
+           print "  ERROR: invalid scope"
            print "  Update README to set scope to one of:"
            for scope in ALLOWED_SCOPES:
                print "         " + scope
@@ -1202,7 +1202,11 @@ def check_swblock(repo, options, args, comp):
            valid = False
 
        if not comp.metainfo_path and comp.scope != "Example":
-           print "  ERROR: software block without metainfo must have scope 'Example'"
+
+           if comp.scope == "Roadmap":
+               print "  ERROR: roadmap software block must have metainfo"
+           else:
+               print "  ERROR: software block without metainfo must have scope 'Example'"
            valid = False
 
 
@@ -1463,6 +1467,9 @@ def xpd_create_app(repo, options, args):
     f = open(os.path.join(repo.path,appname,'Makefile'),'w')
     f.write(templates.app_makefile)
     f.close()
+    f = open(os.path.join(repo.path,appname,'README.rst'),'w')
+    f.write(templates.swblock_readme)
+    f.close()
     return False
 
 def xpd_create_module(repo, options, args):
@@ -1486,6 +1493,9 @@ def xpd_create_module(repo, options, args):
     os.mkdir(os.path.join(repo.path,modulename,'src'))
     f = open(os.path.join(repo.path,modulename,'module_build_info'),'w')
     f.write(templates.module_build_info)
+    f.close()
+    f = open(os.path.join(repo.path,modulename,'README.rst'),'w')
+    f.write(templates.swblock_readme)
     f.close()
     return False
 
@@ -1521,9 +1531,8 @@ A repository can contains modules that contain sets of source files than can be 
         f.write(templates.toplevel_makefile)
         f.close()
 
-    if not os.path.exists(os.path.join(repo.path,'docs')):
-        os.mkdir(os.path.join(repo.path,'docs'))
-        os.mkdir(os.path.join(repo.path,'docs','src'))
+    if not os.path.exists(os.path.join(repo.path,'doc')):
+        os.mkdir(os.path.join(repo.path,'doc'))
 
     if not os.path.exists(os.path.join(repo.path,'LICENSE.txt')):
         if confirm("Would you like to license the code in this repository under the XCore Open Source License (Y/n)?",default=True):
@@ -1747,7 +1756,7 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True):
         readme = os.path.join(docdir,'README.rst')
         shutil.copy(readme,readme.replace('.rst',rstonlysuffix))
 
-        if repo.is_xmos_repo():
+        if repo.is_xmos_repo() or options.github:
             xdoc.main('text', config=xdoc_config)
             if options and options.upload:
                 partnum,lastversion = xdoc.main('issue', config=xdoc_config)
@@ -1768,7 +1777,8 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True):
         os.remove(readme.replace('.rst',rstonlysuffix))
         os.chdir(curdir)
 
-    for docdir in docdirs:
+    if not options.github:
+     for docdir in docdirs:
 
         docdir = os.path.join(repo.path,docdir)
         curdir = os.path.abspath(os.curdir)
@@ -1807,7 +1817,8 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True):
             swlink.primary = "True"
             swlink.subpartnumber = repo.subpartnumber
 
-    xpd_build_topdoc(repo)
+    if not options.github:
+        xpd_build_topdoc(repo)
     if repo.is_xmos_repo():
         xref.update()
     return False
@@ -1989,12 +2000,15 @@ def get_tools_version():
 
     return "development"
 
-def xpd_install_local_xml(repo,cache_path):
-    package = repo.create_dummy_package(repo.current_version_or_githash())
+def xpd_install_local_xml(repo,cache_path,github=False):
+    package = repo.create_dummy_package(repo.current_version_or_githash(short=True))
     for c in package.components:
         c.local = "true"
         c.docPartNumber = package.packagename + ".doc-" + c.id
         c.docVersion = "latest"
+        if github:
+            c.type="communityCode"
+            c.scope="Open Source"
         if c.metainfo_path:
             shutil.copy(os.path.join(repo.path,c.metainfo_path),
                         os.path.join(cache_path,package.packagename + "-" + c.id + ".metainfo"))
@@ -2040,7 +2054,7 @@ def xpd_install_local_xml(repo,cache_path):
 def xpd_install_local(repo, options, args):
     xpd_check_swblocks(repo, [],[])
     cache_path = os.environ['XMOS_CACHE_PATH']
-    package = xpd_install_local_xml(repo,cache_path)
+    package = xpd_install_local_xml(repo,cache_path,github=options.github)
     print "Package installed in local cache"
     if not options.nodocs:
         print "Building documentation"
@@ -2198,6 +2212,9 @@ if __name__ == "__main__":
 
     optparser.add_option("--nocheckdep",dest="nocheckdep",action="store_true",default=False,
                          help="Do not check repo dependencies on update")
+
+    optparser.add_option("--github",dest="github",action="store_true",default=False,
+                         help="Treat repo as an \"Open Source Community\" repo for publishing")
 
 
     if len(sys.argv) > 1 and sys.argv[1] == 'git':
