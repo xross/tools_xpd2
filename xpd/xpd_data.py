@@ -401,6 +401,7 @@ class Repo(XmlObject):
     description = XmlValue()
     icon = XmlValue()
     location = XmlValue()
+    xcore_repo = XmlValue()
     docdirs = XmlValueList()
     exports = XmlValueList(tagname="binary_only")
     git_export = XmlValue(default=False)
@@ -414,6 +415,8 @@ class Repo(XmlObject):
     changelog = XmlNodeList(ChangeLog)
     partnumber = XmlValue()
     subpartnumber = XmlValue()
+    xcore_partnumber = XmlValue()
+    xcore_subpartnumber = XmlValue()
     domain = XmlValue()
     subdomain = XmlValue()
     include_dirs = XmlValueList()
@@ -812,6 +815,18 @@ class Repo(XmlObject):
         call(["git","rm","-f",path],
              cwd=self.path)
 
+    def enter_github_mode(self):
+        print "Github mode"
+        self._partnumber = self.partnumber
+        self._subpartnumber = self.subpartnumber
+        self.partnumber = self.xcore_partnumber
+        self.subpartnumber = self.xcore_subpartnumber
+
+    def leave_github_mode(self):
+        self.xcore_partnumber = self.partnumber
+        self.xcore_subpartnumber = self.subpartnumber
+        self.partnumber = self._partnumber
+        self.subpartnumber = self._subpartnumber
 
 class Package(XmlObject):
     name = XmlAttribute()

@@ -528,7 +528,7 @@ def xpd_make_zip(repo, options, args):
     if rel:
         vstr = str(rel.version)
     else:
-        vstr = repo.current_githash()
+        vstr = repo.current_githash()[:8]
 
     if alternate_name:
         vstr = raw_input("Please give a name for this snapshot: ")
@@ -595,8 +595,8 @@ def xpd_make_zip(repo, options, args):
             f.writestr(os.path.join(repo.name,'doc','.xproject'),xproject)
 
 
-
-        insert_topdoc(repo,f)
+        if not options.github:
+            insert_topdoc(repo,f)
 
         xref = xmos_xref.XRefInfo('xpd')
 
@@ -824,6 +824,11 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
         elem.appendChild(text)
         rootelem.appendChild(elem)
 
+    if options.github:
+        comp_elems = xpd_dom.getElementsByTagName("component")
+        for comp in comp_elems:
+            comp.setAttribute("scope","Open Source")
+            comp.setAttribute("type","communityCode")
 
     rootelem = xpd_dom.getElementsByTagName("xpd")[0]
     xpd_str = '<?xml version=\"1.0\" ?>\n' + xpd.xmlobject.pp_xml(xpd_dom, rootelem).strip()
@@ -1418,6 +1423,11 @@ def xpd_check_info(repo, options, args,check_icon=True):
             update = True
 
 
+    if not repo.xcore_repo and re.match('.*github.com',repo.location):
+        repo.xcore_repo = os.path.basename(repo.location)
+        update = True
+
+
     update_partinfo = xpd_check_partinfo(repo, options, args)
     update = update or update_partinfo
 
@@ -1589,7 +1599,7 @@ def xpd_check_makefiles(repo, options, args, return_ok=False):
 def xpd_check_partinfo(repo, options, args):
     update = False
     if not repo.partnumber:
-        print "If this is an XMOS package, there should be an associated part number for the repository."
+        print "If this is an XMOS package or a github repo showing to the xsoftipexplorer, there should be an associated part number for the repository."
         if confirm("No part number found. Add one (Y/n)?",default=True):
             repo.partnumber = \
                 cognidox.query_and_create_document('/Projects/Apps',
@@ -2118,6 +2128,14 @@ def xpd_install_local(repo, options, args):
 
     return False
 
+def xpd_publish(repo, options, args):
+    options.upload = True
+    xpd_make_zip(repo, options, args)
+
+def xpd_publish_github(repo, options, args):
+    options.upload = True
+    options.github = True
+    xpd_make_zip(repo, options, args)
 
 common_commands =  [("init","Initialize the xpd meta-information file"),
             ("status","Show current status (can also use show or info)"),
@@ -2125,6 +2143,8 @@ common_commands =  [("init","Initialize the xpd meta-information file"),
             ("create_release","Create a release"),
             ("make_zip","Make zipfile of release"),
             ("upgrade_rc","Upgrade an RC to a final release"),
+            ("publish","Publish the current version to cognidox"),
+            ("publish_github","Publish the current version to cognidox as a github open source stub"),
             ("list","List releases")]
 
 other_commands =     [("info","Same as status"),
@@ -2246,8 +2266,17 @@ if __name__ == "__main__":
     commands = common_commands + other_commands
 
     if command in [c[0] for c in commands]:
+        if command == 'publish_github':
+            options.github = True
+
+        if options.github:
+            repo.enter_github_mode()
+
         command_fn = eval("xpd_%s" % command)
+
         if command_fn(repo, options, args):
+            if options.github:
+                repo.leave_github_mode()
             repo.save()
     else:
         matches = difflib.get_close_matches(command, commands)
