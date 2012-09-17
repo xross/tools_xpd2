@@ -188,6 +188,8 @@ class Dependency(XmlObject):
                 self.parent._repo_cache[path] = self.repo
         else:
             self.repo = None
+            print "ERROR: Cannot find dependency: %s"%self.repo_name
+            sys.exit(1)
         
 
     def __str__(self):
@@ -296,7 +298,7 @@ class Component(XmlObject):
     boards = XmlValueList()
     docPartNumber = XmlAttribute()
     docVersion = XmlAttribute()
-    dependencies = XmlValueList(tagname="dependency")
+    dependencies = XmlValueList(tagname="componentDependency")
 
     def init_from_path(self, repo, path):
         self.id = os.path.basename(path)

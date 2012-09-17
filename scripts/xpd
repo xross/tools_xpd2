@@ -509,7 +509,7 @@ def xpd_make_zip(repo, options, args):
 
     local_mod = False
     for r in repo.all_repos():
-        if r.has_local_modifications():
+        if r and r.has_local_modifications():
             print "%s has local modifications" % r
             local_mod = True
 
@@ -699,9 +699,12 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
     excludes.append('__gen*')
     excludes.append('*app_description')
     excludes.append('*module_description')
-    excludes.append('*README.rst')
     excludes.append('.zipinfo')
     excludes.append('*issue.zip')
+
+    for c in repo.components:
+        excludes.append('*'+c.path+'/README.rst')
+
     if xpd.check_project.flat_projects:
         excludes.append('.cproject')
         excludes.append('.project')
