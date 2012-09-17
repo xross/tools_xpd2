@@ -1107,6 +1107,9 @@ def xpd_update_readme(repo, options, args,
         lines += ['  * None\n']
     else:
         for dep in repo.dependencies:
+            if not dep.repo:
+                continue
+
             if dep.repo.name == 'xcommon':
                 lines += ['  * xcommon (if using development tools earlier than 11.11.0)\n']
             else:

@@ -188,9 +188,9 @@ class Dependency(XmlObject):
                 self.parent._repo_cache[path] = self.repo
         else:
             self.repo = None
-            print "ERROR: Cannot find dependency: %s"%self.repo_name
-            sys.exit(1)
-        
+            print "WARNING: Cannot find dependency: %s"%self.repo_name
+
+
 
     def __str__(self):
         return self.repo_name
@@ -317,7 +317,7 @@ class Component(XmlObject):
 
         if 'keywords' in fields:
             self.keywords_text = fields['keywords']
-            if self.keywords_text[0] != '<':
+            if self.keywords_text == '' or self.keywords_text[0] != '<':
                 self.keywords = [x.strip() for x in fields['keywords'].split(',')]
         else:
             self.keywords_text = None
@@ -325,7 +325,7 @@ class Component(XmlObject):
 
         if 'boards' in fields:
             self.boards_text = fields['boards']
-            if self.boards_text[0] != '<':
+            if self.boards_text == '' or self.boards_text[0] != '<':
                 self.boards = [x.strip() for x in fields['boards'].split(',')]
         else:
             self.boards_text = None

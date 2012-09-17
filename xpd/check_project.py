@@ -247,12 +247,15 @@ def create_doc_project(repo):
 
 def create_cproject(repo, path=None, name=None, configs=None, all_includes=[],
                     is_module=False):
+   is_extra_project = (os.path.basename(path) in repo.extra_eclipse_projects)
    if path==None:
         path = repo.path
    if name==None:
         name = get_project_name(repo, path)
    if configs==None:
-        if path == repo.path:
+        if is_module or is_extra_project:
+             configs = set(['Default'])
+        elif path == repo.path:
              configs = get_all_configs(path)
         else:
              configs = get_configs(os.path.join(path,'Makefile'))
@@ -270,7 +273,6 @@ def create_cproject(repo, path=None, name=None, configs=None, all_includes=[],
 
    includes = ['<listOptionValue builtIn="false" value=\'%s\' />\n'%x for x in all_includes]
    includes = ''.join(includes)
-   is_extra_project = (os.path.basename(path) in repo.extra_eclipse_projects)
    config_str = ''
    for config in configs:
        config_id = str(rand.randint(1,100000000))
