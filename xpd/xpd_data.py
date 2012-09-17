@@ -746,7 +746,8 @@ class Repo(XmlObject):
         self.sb = tempfile.mkdtemp()
         self._move_to_temp_sandbox(self.sb,git_only=git_only)
         for dep in self.dependencies:
-            dep.repo._move_to_temp_sandbox(self.sb,git_only=git_only)
+            if dep.repo:
+                dep.repo._move_to_temp_sandbox(self.sb,git_only=git_only)
 
     def _restore_path(self):
         self.path = self._path
@@ -754,7 +755,8 @@ class Repo(XmlObject):
     def delete_temp_sandbox(self):
         self._restore_path()
         for dep in self.dependencies:
-            dep.repo._restore_path()
+            if dep.repo:
+                dep.repo._restore_path()
         shutil.rmtree(self.sb)
 
 
