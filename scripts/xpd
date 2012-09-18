@@ -477,8 +477,6 @@ def xpd_create_release(repo, options, args):
     if confirm("Do you want to make a zipfile (Y/n)? ",default=True):
         xpd_make_zip(repo,options,[])
 
-    repo.delete_temp_sandbox()
-
     return False
 
 
