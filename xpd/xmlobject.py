@@ -230,9 +230,11 @@ class XmlObject(object):
             for x in childNodes:
                 if hasattr(x,"tagName") and x.tagName == tag.tagname:
                     if tag.plural and hasattr(tag,"typ") and tag.typ == str:
-
-                        val = x.childNodes[0].wholeText
-                        val = val.strip()
+                        if x.childNodes == []:
+                            val = ""
+                        else:
+                            val = x.childNodes[0].wholeText
+                            val = val.strip()
                         vals.append(val)
                     elif hasattr(tag,"typ") and issubclass(tag.typ, XmlObject):
                         val = tag.typ(parent=self)

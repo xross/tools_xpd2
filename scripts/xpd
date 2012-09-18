@@ -1020,7 +1020,7 @@ def xpd_update_readme(repo, options, args,
                       xmos_package=False, write_back=True,
                       use_current_version=False,
                       doclinks = False):
-
+    print "Updating README in " + repo.name
     f = open(os.path.join(repo.path,'README.rst'))
     lines = f.readlines()
     f.close()
@@ -1068,10 +1068,14 @@ def xpd_update_readme(repo, options, args,
 
         lines[i] = line
 
-    heading, prologue, lines = \
-        lines[:section_indices[1]+1],\
-        lines[section_indices[1]+1:section_indices[2]-1],\
-        lines[section_indices[2]-1:]
+    heading  = lines[:section_indices[1]+1]
+    if 2 in section_indices:
+        prologue = lines[section_indices[1]+1:section_indices[2]-1]
+        lines = lines[section_indices[2]-1:]
+    else:
+        prologue = []
+        lines = lines[section_indices[1]+1:]
+
     lines = [x for x in lines if x != '-DELETED-\n']
 
 
@@ -2089,7 +2093,7 @@ def xpd_install_local(repo, options, args):
                 shutil.rmtree(dst)
             shutil.copytree(os.path.join(repo.path,doc_dir,'_build','xdehtml'),
                             dst)
-            seealsos += '<li><a href="../%s/index.html">%s</a></li>'%(local_name,title)
+            seealsos += '<li><a href="../../%s/index.html">%s</a></li>'%(local_name,title)
             print "Installed documentation from %s" % doc_dir
 
         seealsos = """
