@@ -448,8 +448,8 @@ class Repo(XmlObject):
         err_lines = process.stderr.readlines()
         lines = process.stdout.readlines()
 
-        if err_lines != []:
-            self.git = False
+        #if err_lines != []:
+        #    self.git = False
 
         if self.git or lines == []:
             git_dir = path
