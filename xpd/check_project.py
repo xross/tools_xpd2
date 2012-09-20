@@ -343,8 +343,6 @@ def _check_cproject(repo,makefiles,path=None, force_creation=False):
     print "Checking .cproject file [%s]" % os.path.basename(path)
 
 
-    if 'Debug' in configs and 'Release' in configs:
-         configs.remove('Default')
     print "Using configs: %s" % ', '.join(configs)
     if makefiles != set():
          is_module = False

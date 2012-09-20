@@ -600,6 +600,10 @@ def xpd_make_zip(repo, options, args):
 
         for dep in repo.dependencies:
             if dep.repo.subpartnumber and dep.repo.is_xmos_repo():
+                if not dep.repo.current_release():
+                    print "WARNING: Dependency %s is not on a released version." % dep.repo.name
+                    continue
+
                 version = dep.repo.current_version_or_githash()
                 print "Trying to find version %s of %s in cognidox" % (version, dep.repo.name)
                 m = re.match('(.*)(rc|beta|alpha)\d*$',version)
@@ -741,6 +745,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
                re.match('.*app_.*',f):
                ok = False
 
+
         if ok and f != "xpd.xml":
             if oldstyle:
                 arcname = os.path.join(oldstyle_root, f)
@@ -763,6 +768,19 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
                     fh.close()
                     makefile_str = xpd.check_project.patch_makefile(makefile_str)
                     zipfile.writestr(arcname,makefile_str)
+            elif re.match('(.*)/\.xproject$',f):
+                m = re.match('(.*)/\.xproject$',f)
+                dirname = os.path.basename(m.groups(0)[0])
+                lines = open(os.path.join(repo.path,f)).readlines()
+                new_xproject = ''.join(lines)
+                for comp in repo.components:
+                    if comp.id == dirname:
+                        if comp.docPartNumber:
+                            xml = "\n<docPartNumber>%s</docPartNumber>\n" % comp.docPartNumber
+                            xml += "<docVersion>%s</docVersion>\n" % comp.docVersion
+                            new_xproject = new_xproject.replace("<xproject>",
+                                                                "<xproject>"+xml)
+                zipfile.writestr(arcname, new_xproject)
             elif f == 'README.rst':
                 lines = xpd_update_readme(repo,[],[],
                                           write_back=False,
@@ -1931,8 +1949,6 @@ def xpd_parse_release_notes(repo, options, args, return_notes = False):
             if current_version:
                 items.append(item.strip())
                 notes[str(current_version)] = items
-#                print "VERSION: %s" % str(current_version)
-#                print items
             current_version = v
             new_item = True
             items = []
@@ -1952,6 +1968,10 @@ def xpd_parse_release_notes(repo, options, args, return_notes = False):
             new_item = False
 
         item += line
+
+    if current_version:
+        items.append(item.strip())
+        notes[str(current_version)] = items
 
 #        print line.strip()
 

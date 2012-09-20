@@ -305,7 +305,7 @@ class Component(XmlObject):
         self.path = path
         self.repo = repo
         fields = self.readme_to_dict()
-        if 'title' in fields:
+        if 'title' in fields and fields['title']:
             self.name = fields['title']
         else:
             self.name = self.id
