@@ -20,6 +20,7 @@ from xpd.docholder import DocumentHolder, DHSection, DHDocumentLink
 import xdoc
 import xmossphinx
 import xmos_xref
+import xml.dom.minidom
 
 ALLOWED_SCOPES=["Roadmap","Example","Early Development","General Use"]
 
@@ -664,6 +665,9 @@ def xpd_make_zip(repo, options, args):
                                    fname,
                                    version = zip_vstr,
                                    draft=False)
+        print "Assigning License Info"
+        cognidox.assign_license(repo.subpartnumber,'General Public')
+        cognidox.assign_license_agreement(repo.subpartnumber,6)
         print "Creating document holder"
         xpd_make_docholder(repo, options, args, to_file = ".docholder.xml")
         print "Uploading document holder"
@@ -1084,6 +1088,9 @@ def xpd_update_readme(repo, options, args,
 
         lines[i] = line
 
+    if len(section_indices) < 1:
+        return
+
     heading  = lines[:section_indices[1]+1]
     if 2 in section_indices:
         prologue = lines[section_indices[1]+1:section_indices[2]-1]
@@ -1265,7 +1272,11 @@ def xpd_check_swblocks(repo, options, args, return_valid = False):
 
     repo.components = actual_blocks
 
+    deps = get_project_deps(repo)
+
     for comp in repo.components:
+        if comp.id in deps:
+            comp.dependencies = deps[comp.id][1]
         check_swblock(repo,options,args,comp)
 
 
@@ -1743,10 +1754,13 @@ def xpd_build_topdoc(repo,options=None,args=None):
                                xmos_package = repo.is_xmos_repo(),
                                use_current_version=True,
                                doclinks = True)
+
+    if not readme:
+        return
     readme += [
         '.. toctree::\n',
         '   :hidden:\n',
-        '\n'
+        '\n',
         '   changelog\n']
     import_xdoc()
 
@@ -1769,7 +1783,8 @@ def xpd_build_topdoc(repo,options=None,args=None):
 
     repo.topdoc_path = topdoc_path
 
-def xpd_build_docs(repo, options=None, args=None, buildlatex=True):
+def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
+                   local_only=False):
     if options.nodocs:
         return
     import_xdoc()
@@ -1778,40 +1793,7 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True):
     docdirs = repo.docdirs
     rstonlysuffix = '.__rstonlythisone__'
 
-    for swblock in repo.components:
-        docdir = os.path.join(repo.path,swblock.path)
-        curdir = os.path.abspath(os.curdir)
-        os.chdir(docdir)
-        xdoc_config = {}
-        xdoc_config['SOURCE_SUFFIX'] = rstonlysuffix
-        xdoc_config['ALT_TITLE'] = "%s README" % swblock.id
-        xdoc_config['FORCE_UPLOAD'] = '1'
-        xdoc_config['AUTO_CREATE'] = "1"
-        xdoc_config['COGNIDOX_PATH'] = "/Projects/Apps"
-        xdoc_config['BASE_VERSION'] = repo.current_version_or_githash()
-        readme = os.path.join(docdir,'README.rst')
-        shutil.copy(readme,readme.replace('.rst',rstonlysuffix))
-
-        if repo.is_xmos_repo() or options.github:
-            xdoc.main('text', config=xdoc_config)
-            if options and options.upload:
-                partnum,lastversion = xdoc.main('issue', config=xdoc_config)
-                swblock.docPartNumber = partnum
-                if lastversion:
-                    swblock.docVersion = lastversion
-                else:
-                    swblock.docVersion = "latest"
-                print "LAST VERSION:" + swblock.docVersion
-            else:
-                xdoc.main('xdehtml', config=xdoc_config)
-        else:
-            xdoc.main('html')
-            if buildlatex:
-                xdoc.main('pdf')
-
-        readme = os.path.join(docdir,'README.rst')
-        os.remove(readme.replace('.rst',rstonlysuffix))
-        os.chdir(curdir)
+    docnums = []
 
     if not options.github:
      for docdir in docdirs:
@@ -1826,7 +1808,9 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True):
         xdoc_config['BASE_VERSION'] = repo.current_version_or_githash()
         if repo.is_xmos_repo():
             if options and options.upload:
-                xdoc.main('issue', config=xdoc_config)
+                partnum,issue = xdoc.main('issue', config=xdoc_config)
+                docnums.append((partnum,issue,docdir))
+                cognidox.assign_license(partnum,'General Public')
             else:
                 xdoc.main('xdehtml', config=xdoc_config)
                 if buildlatex:
@@ -1852,6 +1836,60 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True):
             swlink.repo_name = repo.name
             swlink.primary = "True"
             swlink.subpartnumber = repo.subpartnumber
+
+    if repo.is_xmos_repo():
+        xref = xmos_xref.XRefInfo('xpd')
+
+
+
+    seealsos = []
+    for (docnum, issue, docdir) in docnums:
+        docinfo = xref.get_or_create_docinfo_from_dir(docdir, topdir = repo.name)
+        if issue == None:
+            issue = 'latest'
+        seealsos.append(('http://webdev.xmos.local/doc/%s/%s'%(docnum,issue),
+                         docinfo.title))
+
+
+    for swblock in repo.components:
+        docdir = os.path.join(repo.path,swblock.path)
+        curdir = os.path.abspath(os.curdir)
+        os.chdir(docdir)
+        xdoc_config = {}
+        xdoc_config['SOURCE_SUFFIX'] = rstonlysuffix
+        xdoc_config['ALT_TITLE'] = "%s README" % swblock.id
+        xdoc_config['FORCE_UPLOAD'] = '1'
+        xdoc_config['AUTO_CREATE'] = "1"
+        xdoc_config['COGNIDOX_PATH'] = "/Projects/Apps"
+        xdoc_config['BASE_VERSION'] = repo.current_version_or_githash()
+        xdoc_config['EXTRA_SEEALSOS'] = seealsos
+        readme = os.path.join(docdir,'README.rst')
+        shutil.copy(readme,readme.replace('.rst',rstonlysuffix))
+
+        if repo.is_xmos_repo() or options.github:
+            xdoc.main('text', config=xdoc_config)
+            if options and options.upload:
+                partnum,lastversion = xdoc.main('issue', config=xdoc_config)
+                swblock.docPartNumber = partnum
+                if lastversion:
+                    swblock.docVersion = lastversion
+                else:
+                    swblock.docVersion = "latest"
+                cognidox.assign_license(partnum,'General Public')
+
+
+
+            else:
+                xdoc.main('xdehtml', config=xdoc_config)
+        else:
+            xdoc.main('html')
+            if buildlatex:
+                xdoc.main('pdf')
+
+        readme = os.path.join(docdir,'README.rst')
+        os.remove(readme.replace('.rst',rstonlysuffix))
+        os.chdir(curdir)
+
 
     if not options.github:
         xpd_build_topdoc(repo)
@@ -2098,7 +2136,7 @@ def xpd_install_local(repo, options, args):
         print "Building documentation"
 
         repo.move_to_temp_sandbox(git_only=False)
-        xpd_build_docs(repo, options, [], buildlatex=False)
+        xpd_build_docs(repo, options, [], buildlatex=False, local_only=True)
 
         seealsos = ""
         i = 0;
@@ -2156,6 +2194,22 @@ def xpd_install_local(repo, options, args):
 
     return False
 
+def xpd_approve_latest(repo, options, args):
+    if not repo.partnumber:
+        return
+    if not confirm("Approve latest version in cognidox. This may cause it to automatically appear on xmos.com? (y/N)?",default=False):
+        return
+    f,_ = cognidox.fetch_latest(repo.partnumber)
+    dom = xml.dom.minidom.parseString(f.read())
+    docs = dom.getElementsByTagName('document')
+    for doc in docs:
+        partnum = doc.getAttribute('partnum')
+        issue = doc.getAttribute('issue')
+        print "Approving %s, issue %s" % (partnum,issue)
+        #cognidox.set_approval_notification(partnum)
+        cognidox.approve_doc(partnum, issue, comment="Bulk approve from xpd")
+
+
 def xpd_publish(repo, options, args):
     options.upload = True
     xpd_make_zip(repo, options, args)
@@ -2164,6 +2218,37 @@ def xpd_publish_github(repo, options, args):
     options.upload = True
     options.github = True
     xpd_make_zip(repo, options, args)
+
+def get_project_deps(repo):
+    projs = {}
+    for repo in repo.all_repos():
+        for sub in  xpd.check_project.find_all_subprojects(repo):
+            projs[sub] = (repo, set([]))
+
+    for proj, (repo, deps) in projs.iteritems():
+        for x in xpd.check_project.get_project_immediate_deps(repo, proj):
+            deps.add(x)
+
+    something_changed = True
+    while (something_changed):
+        something_changed = False
+        for proj, (repo, deps) in projs.iteritems():
+            to_add = set([])
+            for dep in deps:
+                if dep in projs:
+                    (_,dep_dep) = projs[dep]
+                    to_add.update(dep_dep)
+            if not to_add.issubset(deps):
+                deps.update(to_add)
+                something_changed = True
+
+    return projs
+
+def xpd_show_project_deps(repo, options, args):
+    deps = get_project_deps(repo)
+    for proj, (repo, deps) in deps.iteritems():
+        print proj
+        print deps
 
 common_commands =  [("init","Initialize the xpd meta-information file"),
             ("status","Show current status (can also use show or info)"),
@@ -2199,7 +2284,10 @@ other_commands =     [("info","Same as status"),
             ("build_topdoc","Make toplevel docs (DEBUG)"),
             ("parse_release_notes","Parse release notes (DEBUG)"),
             ("create_warnings","Create release warnings list (DEBUG)"),
-            ("gen_package_xml","Generate package xml (DEBUG)")]
+            ("gen_package_xml","Generate package xml (DEBUG)"),
+            ("show_project_deps","Show app/modules dependencies (DEBUG)")]
+
+hidden_commands = [("approve_latest","Approved latest cognidox version")]
 
 
 def get_git_dir(path):
@@ -2291,7 +2379,7 @@ if __name__ == "__main__":
 
     args = args[1:]
 
-    commands = common_commands + other_commands
+    commands = common_commands + other_commands + hidden_commands
 
     if command in [c[0] for c in commands]:
         if command == 'publish_github':

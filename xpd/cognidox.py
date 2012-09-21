@@ -12,6 +12,9 @@ import re
 #url = "http://cognidox/cgi-perl/part-details?partnum=XM-000571-PC"
 url = 'http://cognidox.xmos.local/cgi-perl/soap/soapservice'
 form_url = 'http://cognidox.xmos.local/cgi-perl/do-action'
+assign_license_url = 'http://cognidox.xmos.local/cgi-perl/assign-license-to-document'
+assign_license_agreement_url = 'http://cognidox.xmos.local/cgi-perl/assign-license-agreement'
+set_document_notifiers_url = 'http://cognidox.xmos.local/cgi-perl/set-document-notifiers'
 docs_url = 'http://cognidox/vdocs'
 if 'COGNIDOX_USER' in os.environ:
     saved_user = 'XMOS\\'+os.environ['COGNIDOX_USER']
@@ -38,6 +41,9 @@ def initCognidox(user=None,password=None):
     passman.add_password(None, url, user, password)
     passman.add_password(None, form_url, user, password)
     passman.add_password(None, docs_url, user, password)
+    passman.add_password(None, assign_license_url, user, password)
+    passman.add_password(None, assign_license_agreement_url, user, password)
+    passman.add_password(None, set_document_notifiers_url, user, password)
     # create the NTLM authentication handler
     auth_NTLM = HTTPNtlmAuthHandler.HTTPNtlmAuthHandler(passman)
 
@@ -188,6 +194,18 @@ def get_docinfo(partnum):
         info[key] = value
     return info
 
+def approve_doc(partnum, issuenum,comment="Automated Approval"):
+    resp_xml = doCognidox('CogniDoxApproveDocRequest',
+                          {'PartNumber':partnum,
+                           'IssueNumber':issuenum,
+                           'ApprovalComment':comment})
+    return
+
+def publish_doc(partnum, comment="Automated Approval"):
+    resp_xml = doCognidox('CogniDoxPublishDocRequest',
+                          {'PartNumber':partnum,
+                           'PublishlComment':comment})
+    return
 
 def get_docnumber(partnum):
     resp_xml = doCognidox('CogniDoxMetaValRequest',
@@ -478,11 +496,38 @@ def get_next_doc_version_tag(partnum,base_version=None):
     else:
         return num_to_version(max_tag+1)
 
+
+def assign_license(partnum, licenses):
+    multipart_text = "------WebKitFormBoundaryscKAMSWdzM66YOPx\r\nContent-Disposition: form-data; name=\"input-licenses\"\r\n\r\n%(licenses)s\r\n------WebKitFormBoundaryscKAMSWdzM66YOPx\r\nContent-Disposition: form-data; name=\"licenses\"\r\n\r\n%(licenses)s\r\n------WebKitFormBoundaryscKAMSWdzM66YOPx\r\nContent-Disposition: form-data; name=\"comment\"\r\n\r\n\r\n------WebKitFormBoundaryscKAMSWdzM66YOPx\r\nContent-Disposition: form-data; name=\".submit\"\r\n\r\nSet Licenses\r\n------WebKitFormBoundaryscKAMSWdzM66YOPx\r\nContent-Disposition: form-data; name=\"partnum\"\r\n\r\n%(partnum)s\r\n------WebKitFormBoundaryscKAMSWdzM66YOPx\r\nContent-Disposition: form-data; name=\"assignlicense\"\r\n\r\n1\r\n------WebKitFormBoundaryscKAMSWdzM66YOPx\r\nContent-Disposition: form-data; name=\".cgifields\"\r\n\r\nlicenses\r\n------WebKitFormBoundaryscKAMSWdzM66YOPx\r\nContent-Disposition: form-data; name=\".cgifields\"\r\n\r\ninput-licenses\r\n------WebKitFormBoundaryscKAMSWdzM66YOPx--\r\n" % {'licenses':licenses,'partnum':partnum}
+
+    initCognidox()
+    headers = {'Content-Type':  "multipart/form-data; boundary=----WebKitFormBoundaryscKAMSWdzM66YOPx"}
+    req = urllib2.Request(assign_license_url + '?partnum=%s'%partnum, multipart_text, headers)
+    response = urllib2.urlopen(req)
+    return
+
+def assign_license_agreement(partnum, agreements):
+    multipart_text = "------WebKitFormBoundaryiJAMNwLBAIscEsPU\r\nContent-Disposition: form-data; name=\"input-agreements\"\r\n\r\n%(agreements)s\r\n------WebKitFormBoundaryiJAMNwLBAIscEsPU\r\nContent-Disposition: form-data; name=\"agreements\"\r\n\r\n%(agreements)s\r\n------WebKitFormBoundaryiJAMNwLBAIscEsPU\r\nContent-Disposition: form-data; name=\"comment\"\r\n\r\n\r\n------WebKitFormBoundaryiJAMNwLBAIscEsPU\r\nContent-Disposition: form-data; name=\".submit\"\r\n\r\nSet License Agreements\r\n------WebKitFormBoundaryiJAMNwLBAIscEsPU\r\nContent-Disposition: form-data; name=\"partnum\"\r\n\r\n%(partnum)s\r\n------WebKitFormBoundaryiJAMNwLBAIscEsPU\r\nContent-Disposition: form-data; name=\"assignagreement\"\r\n\r\n1\r\n------WebKitFormBoundaryiJAMNwLBAIscEsPU\r\nContent-Disposition: form-data; name=\".cgifields\"\r\n\r\ninput-agreements\r\n------WebKitFormBoundaryiJAMNwLBAIscEsPU\r\nContent-Disposition: form-data; name=\".cgifields\"\r\n\r\nagreements\r\n------WebKitFormBoundaryiJAMNwLBAIscEsPU--\r\n"  % {'agreements':agreements,'partnum':partnum}
+    initCognidox()
+    headers = {'Content-Type':  "multipart/form-data; boundary=----WebKitFormBoundaryiJAMNwLBAIscEsPU"}
+    req = urllib2.Request(assign_license_agreement_url + '?partnum=%s'%partnum, multipart_text, headers)
+    response = urllib2.urlopen(req)
+    print response.read()
+    return
+
+def set_approval_notification(partnum):
+    initCognidox()
+    multipart_text = "------WebKitFormBoundaryXQaTZBcOhOSF4dnE\r\nContent-Disposition: form-data; name=\"input-notifiers\"\r\n\r\n%(user)s\r\n------WebKitFormBoundaryXQaTZBcOhOSF4dnE\r\nContent-Disposition: form-data; name=\"notifiers\"\r\n\r\n%(user)s\r\n------WebKitFormBoundaryXQaTZBcOhOSF4dnE\r\nContent-Disposition: form-data; name=\"type\"\r\n\r\napproval\r\n------WebKitFormBoundaryXQaTZBcOhOSF4dnE\r\nContent-Disposition: form-data; name=\"action\"\r\n\r\nadd\r\n------WebKitFormBoundaryXQaTZBcOhOSF4dnE\r\nContent-Disposition: form-data; name=\"partnum\"\r\n\r\n%(partnum)s\r\n------WebKitFormBoundaryXQaTZBcOhOSF4dnE\r\nContent-Disposition: form-data; name=\".submit\"\r\n\r\nAdd Notifiers\r\n------WebKitFormBoundaryXQaTZBcOhOSF4dnE--\r\n"  % {'user':saved_user.replace('XMOS\\',''),'partnum':partnum}
+    headers = {'Content-Type':  "multipart/form-data; boundary=----WebKitFormBoundaryXQaTZBcOhOSF4dnE"}
+    req = urllib2.Request(set_document_notifiers_url + '?partnum=%s'%partnum, multipart_text, headers)
+    response = urllib2.urlopen(req)
+    return
+
+
 if __name__ == "__main__":
-    v = "A"
-    for x in range(200):
-        v = increment_version(v)
-        print v
+    set_approval_notification('XM-001900-PC')
+    #assign_license_agreement('XM-001886-DH','6')
+     #assign_license('XM-001886-DH','General Public')
 #    initCognidox()
 #    print get_docinfo('XM-001828-SM')
 #    print

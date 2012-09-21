@@ -114,6 +114,25 @@ def find_all_subprojects(repo):
                subs.add(x)
      return subs
 
+def get_project_immediate_deps(repo, project):
+     mkfile = os.path.join(repo.path,project,'Makefile')
+     modinfo = os.path.join(repo.path,project,'module_build_info')
+     deps = []
+     if os.path.exists(modinfo):
+          for line in open(modinfo).readlines():
+               m = re.match('.*DEPENDENT_MODULES\s*=\s*(.*)',line)
+               if m:
+                    deps += [x.strip() for x in m.groups(0)[0].split(' ')]
+
+     if os.path.exists(mkfile):
+          for line in open(mkfile).readlines():
+               m = re.match('.*USED_MODULES\s*=\s*(.*)',line)
+               if m:
+                    deps += [x.strip() for x in m.groups(0)[0].split(' ')]
+
+     return deps
+
+
 def check_project(repo, force_creation=False):
      ok = True
      if flat_projects:
