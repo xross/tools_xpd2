@@ -2219,33 +2219,9 @@ def xpd_publish_github(repo, options, args):
     options.github = True
     xpd_make_zip(repo, options, args)
 
-def get_project_deps(repo):
-    projs = {}
-    for repo in repo.all_repos():
-        for sub in  xpd.check_project.find_all_subprojects(repo):
-            projs[sub] = (repo, set([]))
-
-    for proj, (repo, deps) in projs.iteritems():
-        for x in xpd.check_project.get_project_immediate_deps(repo, proj):
-            deps.add(x)
-
-    something_changed = True
-    while (something_changed):
-        something_changed = False
-        for proj, (repo, deps) in projs.iteritems():
-            to_add = set([])
-            for dep in deps:
-                if dep in projs:
-                    (_,dep_dep) = projs[dep]
-                    to_add.update(dep_dep)
-            if not to_add.issubset(deps):
-                deps.update(to_add)
-                something_changed = True
-
-    return projs
 
 def xpd_show_project_deps(repo, options, args):
-    deps = get_project_deps(repo)
+    deps = repo.get_project_deps()
     for proj, (repo, deps) in deps.iteritems():
         print proj
         print deps

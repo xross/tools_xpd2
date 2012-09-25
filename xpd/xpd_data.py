@@ -3,6 +3,7 @@ import difflib
 from xmlobject import XmlObject, XmlValue, XmlNode, XmlNodeList, XmlAttribute, XmlValueList
 from copy import copy
 from xpd.xpd_subprocess import call, Popen
+from xpd.check_project import find_all_subprojects, get_project_immediate_deps
 import shutil
 import tempfile
 from docutils.core import publish_file
@@ -831,6 +832,33 @@ class Repo(XmlObject):
         self.xcore_subpartnumber = self.subpartnumber
         self.partnumber = self._partnumber
         self.subpartnumber = self._subpartnumber
+
+
+    def get_project_deps(self):
+        projs = {}
+        for repo in self.all_repos():
+            for sub in find_all_subprojects(repo):
+                projs[sub] = (repo, set([]))
+
+        for proj, (repo, deps) in projs.iteritems():
+            for x in get_project_immediate_deps(repo, proj):
+                deps.add(x)
+
+        something_changed = True
+        while (something_changed):
+            something_changed = False
+            for proj, (repo, deps) in projs.iteritems():
+                to_add = set([])
+                for dep in deps:
+                    if dep in projs:
+                        (_,dep_dep) = projs[dep]
+                        to_add.update(dep_dep)
+                if not to_add.issubset(deps):
+                    deps.update(to_add)
+                    something_changed = True
+
+        return projs
+
 
 class Package(XmlObject):
     name = XmlAttribute()

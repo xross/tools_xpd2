@@ -350,7 +350,22 @@ def remove_repo_from_include(include):
      else:
           return include
 
-def _check_cproject(repo,makefiles,path=None, force_creation=False):
+def valid_include_path(relpath):
+     if re.match('^doc.*',relpath):
+          return False
+
+     if re.match('.*/doc$',relpath):
+          return False
+
+     if re.match('^__.*',relpath):
+          return False
+
+     if re.match('.*/__.*',relpath):
+          return False
+
+     return True
+
+def _check_cproject(repo,makefiles,project_deps,path=None, force_creation=False):
     if not path:
          path = repo.path
          configs = get_all_configs(makefiles)
@@ -361,42 +376,37 @@ def _check_cproject(repo,makefiles,path=None, force_creation=False):
     name = get_project_name(repo,path)
     print "Checking .cproject file [%s]" % os.path.basename(path)
 
-
     print "Using configs: %s" % ', '.join(configs)
+
+    sys.stdout.write('Finding include directories')
+    sys.stdout.flush()
+
+    all_includes = set([os.path.basename(path)])
+    for root, dirs, files in os.walk(path):
+         for d in dirs:
+              relpath = os.path.join(root,d)[len(path)+1:]
+              if valid_include_path(relpath):
+                   all_includes.add(os.path.join(os.path.basename(path),relpath))
+
+
+    (_,deps) = project_deps[os.path.basename(path)]
+    for dep in deps:
+         dep_repo = project_deps[dep][0]
+         dep_path = os.path.join(dep_repo.path, dep)
+         all_includes.add(dep)
+         for root, dirs, files in os.walk(dep_path):
+              for d in dirs:
+                   relpath = os.path.join(root,d)[len(dep_path)+1:]
+                   if valid_include_path(relpath):
+                        all_includes.add(os.path.join(dep,relpath))
+
+
     if makefiles != set():
          is_module = False
-         sys.stdout.write('Finding include directories')
-         sys.stdout.flush()
-         all_includes = set()
-         for mkfile in makefiles:
-              sys.stdout.write('.')
-              sys.stdout.flush()
-              try:
-                   process = Popen(["xmake","list_includes"],
-                                   cwd=os.path.dirname(mkfile),
-                                   stdout=subprocess.PIPE)
-              except:
-                   sys.stderr.write("ERROR: Cannot find xmake\n")
-                   sys.exit(1)
-
-              lines = process.stdout.readlines()
-              includes = ''
-              for i in range(len(lines)-1):
-                   if lines[i] == '**-includes-**\n':
-                        includes = lines[i+1].strip()
-                        break
-              includes = includes.split(' ')
-              includes = [i for i in includes if not re.match('.*/doc.*',i)]
-              all_includes = all_includes | set(includes)
-              sys.stdout.write('\n')
     else:
          is_module = True
-         all_includes = set()
-         pass
 
 
-    if flat_projects:
-         all_includes = [remove_repo_from_include(x) for x in all_includes]
 
     all_includes = ['&quot;${workspace_loc:/%s}&quot;'%i \
                          for i in all_includes if i != '']
@@ -462,20 +472,21 @@ def _check_cproject(repo,makefiles,path=None, force_creation=False):
 
     return cproject_ok
 
-def check_cproject(repo,force_creation=False):
+def check_cproject(repo, force_creation=False):
      ok = True
+     project_deps = repo.get_project_deps()
      if flat_projects:
           for sub in find_all_subprojects(repo):
                mkfile = os.path.join(repo.path,sub,'Makefile')
                makefiles = set([])
                if os.path.exists(mkfile):
                     makefiles.add(mkfile)
-               proj_ok = _check_cproject(repo, makefiles, path=os.path.join(repo.path,sub),
+               proj_ok = _check_cproject(repo, makefiles, project_deps, path=os.path.join(repo.path,sub),
                                force_creation=force_creation)
                ok = ok and proj_ok
      else:
           makefiles = find_all_app_makefiles(repo.path)
-          ok = _check_cproject(repo, makefiles,
+          ok = _check_cproject(repo, makefiles, project_deps,
                                force_creation=force_creation)
      return ok
 
