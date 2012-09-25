@@ -2,6 +2,7 @@
 import re
 import platform
 import subprocess
+import sys
 
 ostype = platform.system()
 
@@ -16,10 +17,21 @@ def Popen(*args, **kwargs):
     kwargs['shell'] = use_shell
     if concat_args:
         args = (' '.join(args[0]),) + args[1:]
-    return subprocess.Popen(*args,**kwargs)
+    try:
+        return subprocess.Popen(*args,**kwargs)
+    except:
+        sys.stderr.write("ERROR: Cannot run command `%s'\n"%' '.join(args[0]))
+        sys.stderr.write("ABORTING\n")
+        sys.exit(1)
 
 def call(*args, **kwargs):
     kwargs['shell'] = use_shell
     if concat_args:
         args = (' '.join(args[0]),) + args[1:]
-    return subprocess.call(*args,**kwargs)
+    try:
+        return subprocess.call(*args,**kwargs)
+    except:
+        sys.stderr.write("ERROR: Cannot run command `%s'\n"%' '.join(args[0]))
+        sys.stderr.write("ABORTING\n")
+        sys.exit(1)
+
