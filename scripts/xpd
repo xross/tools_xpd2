@@ -1272,7 +1272,7 @@ def xpd_check_swblocks(repo, options, args, return_valid = False):
 
     repo.components = actual_blocks
 
-    deps = get_project_deps(repo)
+    deps = repo.get_project_deps()
 
     for comp in repo.components:
         if comp.id in deps:
