@@ -201,10 +201,10 @@ def approve_doc(partnum, issuenum,comment="Automated Approval"):
                            'ApprovalComment':comment})
     return
 
-def publish_doc(partnum, comment="Automated Approval"):
+def publish_doc(partnum, comment="Automated Publish"):
     resp_xml = doCognidox('CogniDoxPublishDocRequest',
                           {'PartNumber':partnum,
-                           'PublishlComment':comment})
+                           'PublishComment':comment})
     return
 
 def get_docnumber(partnum):

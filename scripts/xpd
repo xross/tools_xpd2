@@ -543,7 +543,6 @@ def xpd_make_zip(repo, options, args, dest = None):
 
     print "Creating temporary sandbox"
     repo.move_to_temp_sandbox()
-
     if repo.include_binaries:
         xpd_build_sw(repo, options)
 
@@ -2224,6 +2223,7 @@ def xpd_approve_latest(repo, options, args):
         issue = doc.getAttribute('issue')
         print "Approving %s, issue %s" % (partnum,issue)
         #cognidox.set_approval_notification(partnum)
+        cognidox.publish_doc(partnum, comment="Publish to extranet via xpd")
         cognidox.approve_doc(partnum, issue, comment="Bulk approve from xpd")
 
 

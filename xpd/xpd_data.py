@@ -424,6 +424,7 @@ class Repo(XmlObject):
     subdomain = XmlValue()
     include_dirs = XmlValueList()
     exclude_dirs = XmlValueList()
+    xsoftip_excludes = XmlValueList()
     tools = XmlValueList(tagname="tools")
     boards = XmlValueList()
     extra_eclipse_projects = XmlValueList()
@@ -769,6 +770,8 @@ class Repo(XmlObject):
                continue
           if x in self.exclude_dirs:
               continue
+          if x in self.xsoftip_excludes:
+              continue
           if x.startswith('__'):
               continue
           mkfile = os.path.join(path,x,'Makefile')
@@ -837,23 +840,57 @@ class Repo(XmlObject):
     def get_project_deps(self):
         projs = {}
         for repo in self.all_repos():
-            for sub in find_all_subprojects(repo):
-                projs[sub] = (repo, set([]))
+            if repo:
+                for sub in find_all_subprojects(repo):
+                    projs[sub] = (repo, set([]))
 
         for proj, (repo, deps) in projs.iteritems():
             for x in get_project_immediate_deps(repo, proj):
                 if x != '':
                     deps.add(x)
 
+        def find_untracked_deps(sub):
+            parent_dir = os.path.join(self.path,'..')
+            possible_repos = [d for d in os.listdir(parent_dir) if os.path.isdir(os.path.join(parent_dir,d))]
+            print possible_repos
+            for d in possible_repos:
+                for x in os.listdir(os.path.join(parent_dir,d)):
+                    if x==sub:
+                        deps = set([])
+                        repo = Repo(os.path.join(parent_dir,d))
+                        for y in get_project_immediate_deps(repo, x):
+                            if y != '':
+                                deps.add(y)
+
+                        return (repo,deps)
+
+
+            return None,None
+
+
+
+
         something_changed = True
         while (something_changed):
             something_changed = False
             for proj, (repo, deps) in projs.iteritems():
                 to_add = set([])
+                update = None
                 for dep in deps:
                     if dep in projs:
                         (_,dep_dep) = projs[dep]
                         to_add.update(dep_dep)
+                    else:
+                        (repo,dep_dep) = find_untracked_deps(dep)
+                        if repo:
+                            update = (dep, repo, dep_dep)
+                            break
+
+                if update:
+                    something_changed = True
+                    projs[update[0]] = (update[1],update[2])
+                    break
+
                 if not to_add.issubset(deps):
                     deps.update(to_add)
                     something_changed = True

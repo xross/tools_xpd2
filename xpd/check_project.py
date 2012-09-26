@@ -391,6 +391,9 @@ def _check_cproject(repo,makefiles,project_deps,path=None, force_creation=False)
 
     (_,deps) = project_deps[os.path.basename(path)]
     for dep in deps:
+         if not dep in project_deps:
+              print "ERROR: Cannot find %s" % dep
+              sys.exit(1)
          dep_repo = project_deps[dep][0]
          dep_path = os.path.join(dep_repo.path, dep)
          all_includes.add(dep)
