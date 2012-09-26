@@ -488,7 +488,7 @@ def do_exports(repo):
         call(["xmake","export"],cwd = os.path.join(repo.path,export))
     return repo.exports
 
-def xpd_make_zip(repo, options, args):
+def xpd_make_zip(repo, options, args, dest = None):
 
     # Do some checks
 
@@ -529,7 +529,7 @@ def xpd_make_zip(repo, options, args):
     else:
         vstr = repo.current_githash()[:8]
 
-    if alternate_name:
+    if alternate_name and not dest:
         vstr = raw_input("Please give a name for this snapshot: ")
 
     if old_style:
@@ -568,7 +568,11 @@ def xpd_make_zip(repo, options, args):
     for c in repo.components:
         c.local = "false"
 
-    fname = name + ".zip"
+    if dest:
+        fname = dest
+    else:
+        fname = name + ".zip"
+
     print "Creating %s" % fname
 
     f = zipfile.ZipFile(fname,"w")
@@ -1206,14 +1210,15 @@ def xpd_update_readme(repo, options, args,
         f.close()
     return False
 
-def check_swblock(repo, options, args, comp):
-   print comp.id
-   print "   Name: %s" % comp.name
-   print "   Type: %s" % comp.type
-   print "   Dependencies:"
-   for d in comp.dependencies:
-       print "      "+d
-   print ""
+def check_swblock(repo, options, args, comp, verbose = True):
+   if verbose:
+       print comp.id
+       print "   Name: %s" % comp.name
+       print "   Type: %s" % comp.type
+       print "   Dependencies:"
+       for d in comp.dependencies:
+           print "      "+d
+       print ""
 
    if not comp.has_readme():
        print "  ERROR: software block %s has no README.rst" % comp.path
@@ -1258,7 +1263,7 @@ def check_swblock(repo, options, args, comp):
 
        comp.local = "false"
 
-def xpd_check_swblocks(repo, options, args, return_valid = False):
+def xpd_check_swblocks(repo, options, args, return_valid = False, verbose=True):
     valid = True
     def find(f,xs):
         for x in xs:
@@ -1277,7 +1282,7 @@ def xpd_check_swblocks(repo, options, args, return_valid = False):
     for comp in repo.components:
         if comp.id in deps:
             comp.dependencies = deps[comp.id][1]
-        check_swblock(repo,options,args,comp)
+        check_swblock(repo,options,args,comp,verbose=verbose)
 
 
 
@@ -2049,6 +2054,7 @@ def xpd_build_results(repo,options,args):
 
 def xpd_validate_swblock(repo, options, args):
     swblock_id = args[0]
+    xpd_check_swblocks(repo, options, args, verbose=False)
     for comp in repo.get_software_blocks():
         if comp.id == swblock_id or swblock_id=='all':
             comp.init_from_path(repo,comp.path)
@@ -2192,6 +2198,17 @@ def xpd_install_local(repo, options, args):
 
         repo.delete_temp_sandbox()
 
+    if options.install_code:
+        options.nobuild = True
+        options.nodocs = True
+        options.force = True
+        zfile = tempfile.mktemp()
+        xpd_make_zip(repo,options,args, dest = zfile)
+        installed_zip = os.path.join(cache_path,package.id + "(" + package.version + ").zip")
+        shutil.copy(zfile,installed_zip)
+        print "Installed " + installed_zip
+
+
     return False
 
 def xpd_approve_latest(repo, options, args):
@@ -2314,7 +2331,7 @@ if __name__ == "__main__":
                          help="Ignore safety check")
 
     optparser.add_option("--upload",dest="upload",action="store_true",default=False,
-                         help="Upload package to document managament system")
+                         help="Upload package to document management system")
 
     optparser.add_option("--nobuild",dest="nobuild",action="store_true",default=False,
                          help="Do not build when creating a release/package")
@@ -2327,6 +2344,9 @@ if __name__ == "__main__":
 
     optparser.add_option("--github",dest="github",action="store_true",default=False,
                          help="Treat repo as an \"Open Source Community\" repo for publishing")
+
+    optparser.add_option("--code",dest="install_code",action="store_true",default=False,
+                         help="Install code when doing an install_local")
 
 
     if len(sys.argv) > 1 and sys.argv[1] == 'git':

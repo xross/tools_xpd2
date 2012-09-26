@@ -842,7 +842,8 @@ class Repo(XmlObject):
 
         for proj, (repo, deps) in projs.iteritems():
             for x in get_project_immediate_deps(repo, proj):
-                deps.add(x)
+                if x != '':
+                    deps.add(x)
 
         something_changed = True
         while (something_changed):
