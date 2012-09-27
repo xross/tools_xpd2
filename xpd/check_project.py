@@ -633,8 +633,7 @@ def check_toplevel_makefile(repo, force_creation=False):
                    found_include = True
 
          if not found_include:
-              print "Toplevel Makefile incorrect"
-              updates_required = True
+              print "WARNING: toplevel Makefile not standard"
 
     if updates_required:
         if force_creation:
