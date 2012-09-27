@@ -473,20 +473,18 @@ def xpd_create_release(repo, options, args):
 
     print "Created release %s" % str(release.version)
 
-    if confirm("Do you want to update the README.rst file (Y/n)?",
-               default=True):
-        xpd_update_readme(repo,options,[])
-        call(["git","add","README.rst"],
-             cwd=repo.path,
-             stdout=subprocess.PIPE,
-             stderr=subprocess.PIPE)
+    xpd_update_readme(repo,options,[])
+    call(["git","add","README.rst"],
+         cwd=repo.path,
+         stdout=subprocess.PIPE,
+         stderr=subprocess.PIPE)
 
     repo.save_and_commit_release(release)
 
     release.githash = repo.get_child_hash(release.parenthash)
 
-    if confirm("Do you want to make a zipfile (Y/n)? ",default=True):
-        xpd_make_zip(repo,options,[])
+    #if confirm("Do you want to make a zipfile (Y/n)? ",default=True):
+    #    xpd_make_zip(repo,options,[])
 
     return False
 
@@ -1843,6 +1841,7 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
 
         xdoc_config = {}
         xdoc_config['AUTO_CREATE'] = "1"
+        xdoc_config['FORCE_UPLOAD'] = '1'
         xdoc_config['COGNIDOX_PATH'] = "/Projects/Apps"
         xdoc_config['BASE_VERSION'] = repo.current_version_or_githash()
         if repo.is_xmos_repo():
