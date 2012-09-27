@@ -808,7 +808,7 @@ class Repo(XmlObject):
         package.latestversion = version_str
         package.version = version_str
         package.name = package.id + "(" + package.version + ").zip"
-        package.packagename = package.id + "(" + package.version + ")"
+        package.packagename = package.id + "(" + package.version + ").zip"
         package.project = self.name
         package.description = self.description
         package.components = [copy(c) for c in self.components]

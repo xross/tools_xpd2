@@ -433,6 +433,16 @@ def xpd_create_release(repo, options, args):
         print "Update files (or commit automatic changes) and try again."
         return True
 
+    print "Checking xSOFTip block information"
+    ok = xpd_check_swblocks(repo, options, args, return_valid = True)
+
+    if not ok:
+        print "---------------------------"
+        print "Problem with xSOFTip Blocks"
+        print "Either update README.rst files and metainfo files"
+        print "... or add a <xsoftip_exclude> element to xpd.xml for the offending dir"
+        return True
+
     print "Creating sandbox and checking build"
     repo.move_to_temp_sandbox()
     xpd_build_sw(repo, options)
@@ -1210,6 +1220,7 @@ def xpd_update_readme(repo, options, args,
     return False
 
 def check_swblock(repo, options, args, comp, verbose = True):
+   valid = True
    if verbose:
        print comp.id
        print "   Name: %s" % comp.name
@@ -1262,6 +1273,8 @@ def check_swblock(repo, options, args, comp, verbose = True):
 
        comp.local = "false"
 
+   return valid
+
 def xpd_check_swblocks(repo, options, args, return_valid = False, verbose=True):
     valid = True
     def find(f,xs):
@@ -1278,12 +1291,17 @@ def xpd_check_swblocks(repo, options, args, return_valid = False, verbose=True):
 
     deps = repo.get_project_deps()
 
+    to_remove = set()
     for comp in repo.components:
         if comp.id in deps:
             comp.dependencies = deps[comp.id][1]
-        check_swblock(repo,options,args,comp,verbose=verbose)
+        comp_valid = check_swblock(repo,options,args,comp,verbose=verbose)
+        if not comp_valid:
+            to_remove.add(comp)
+            valid = False
 
-
+    for comp in to_remove:
+        repo.components.remove(comp)
 
     if return_valid:
         return valid
