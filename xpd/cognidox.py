@@ -512,7 +512,6 @@ def assign_license_agreement(partnum, agreements):
     headers = {'Content-Type':  "multipart/form-data; boundary=----WebKitFormBoundaryiJAMNwLBAIscEsPU"}
     req = urllib2.Request(assign_license_agreement_url + '?partnum=%s'%partnum, multipart_text, headers)
     response = urllib2.urlopen(req)
-    print response.read()
     return
 
 def set_approval_notification(partnum):
