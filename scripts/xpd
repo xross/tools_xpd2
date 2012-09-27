@@ -1643,6 +1643,23 @@ def xpd_check_infr(repo, options, args, return_ok=False):
     ok = ok and cproject_ok
     makefiles_ok = xpd.check_project.check_makefiles(repo, force_creation = True)
     ok = ok and makefiles_ok
+
+    changelog_path = os.path.join(repo.path,'CHANGELOG.rst')
+    if not os.path.exists(changelog_path):
+        print "Cannot find CHANGELOG.rst"
+        print "Adding template version..."
+        ok = False
+        f = open(changelog_path,"w")
+        f.write(templates.changelog)
+        f.close()
+        repo.git_add('CHANGELOG.rst')
+    else:
+        f = open(changelog_path)
+        line = f.readline()
+        if line and len(line)>1 and line[0]=='<':
+            print "CHANGELOG.rst is still empty template"
+            ok = False
+
     if return_ok:
         return ok
     else:
