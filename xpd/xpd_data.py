@@ -807,7 +807,7 @@ class Repo(XmlObject):
         package.hash = "DUMMY-HASH"
         package.latestversion = version_str
         package.version = version_str
-        package.name = package.id + "(" + package.version + ").zip"
+        package.name = package.id + "(" + package.version + ")"
         package.packagename = package.id + "(" + package.version + ").zip"
         package.project = self.name
         package.description = self.description
@@ -852,7 +852,6 @@ class Repo(XmlObject):
         def find_untracked_deps(sub):
             parent_dir = os.path.join(self.path,'..')
             possible_repos = [d for d in os.listdir(parent_dir) if os.path.isdir(os.path.join(parent_dir,d))]
-            print possible_repos
             for d in possible_repos:
                 for x in os.listdir(os.path.join(parent_dir,d)):
                     if x==sub:
