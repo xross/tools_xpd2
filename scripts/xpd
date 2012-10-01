@@ -2080,7 +2080,14 @@ def xpd_build_results(repo,options,args):
             comp.init_from_path(repo,comp.path)
             check_swblock(repo, options, args, comp)
             if comp.metainfo_path:
-                call_xsoftip("buildresults",comp,repo)
+                if comp.scope == "Roadmap":
+                    buildinfo_name = "."+comp.id+".buildinfo"
+                    buildinfo_path = os.path.join(repo.path,comp.path,buildinfo_name)
+                    f = open(buildinfo_path,"w")
+                    f.write("<buildresults></buildresults>");
+                    f.close()
+                else:
+                    call_xsoftip("buildresults",comp,repo)
             else:
                 print "Cannot find metadata file"
 
@@ -2132,7 +2139,8 @@ def xpd_install_local_xml(repo,cache_path,github=False):
             shutil.copy(os.path.join(repo.path,c.buildresults_path),
                         os.path.join(cache_path,package.name + "-" + c.id + ".buildresults"))
         elif c.buildresults_path:
-            print "WARNING: %s has no buildresults!!" % c.name
+            if c.scope != "Roadmap":
+                print "WARNING: %s has no buildresults!!" % c.name
             f = open(os.path.join(cache_path,package.name + "-" + c.id + ".buildresults"),"w")
             f.write("<buildresults></buildresults>");
             f.close()
