@@ -378,6 +378,11 @@ dotproject = '''
 	</projects>
 	<buildSpec>
 		<buildCommand>
+			<name>com.xmos.cdt.core.IncludePathBuilder</name>
+			<arguments>
+			</arguments>
+		</buildCommand>
+		<buildCommand>
 			<name>com.xmos.cdt.core.ModulePathBuilder</name>
 			<arguments>
 			</arguments>

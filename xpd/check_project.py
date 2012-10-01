@@ -58,6 +58,10 @@ def _check_project(repo,path=None, force_creation=False):
              print ".project file is invalid (no module path builder)"
              project_ok = False
 
+        if not '<name>com.xmos.cdt.core.IncludePathBuilder</name>' in names:
+             print ".project file is invalid (no module path builder)"
+             project_ok = False
+
         if project_ok:
 
 
@@ -90,7 +94,7 @@ def _check_project(repo,path=None, force_creation=False):
             f = open(os.path.join(path,'.project'),'w')
             for line in project_lines:
                 line = line.replace('%PROJECT%',name)
-                f.write(line)
+                f.write(line+"\n")
             f.close()
             print "New .project created"
             project_ok = True
