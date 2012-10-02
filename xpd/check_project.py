@@ -42,13 +42,14 @@ def _check_project(repo,path=None, force_creation=False):
     else:
         try:
             dom = xml.dom.minidom.parse(project_path)
+            root = getFirstChild(dom, 'projectDescription')
+            names = [x.toxml() for x in dom.getElementsByTagName('name')]
         except:
             print ".project file is invalid"
             project_ok = False
+            root = None
+            names = []
 
-        root = getFirstChild(dom, 'projectDescription')
-
-        names = [x.toxml() for x in dom.getElementsByTagName('name')]
 
         if not root:
             print ".project file is invalid"

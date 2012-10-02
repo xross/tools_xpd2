@@ -369,8 +369,7 @@ targetID="org.eclipse.cdt.build.MakeTargetBuilder">
         </cconfiguration>
 '''
 
-dotproject = '''
-<?xml version="1.0" encoding="UTF-8"?>
+dotproject = '''<?xml version="1.0" encoding="UTF-8"?>
 <projectDescription>
 	<name>%PROJECT%</name>
 	<comment></comment>
