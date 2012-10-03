@@ -535,6 +535,9 @@ def xpd_make_zip(repo, options, args, dest = None):
     if rel:
         vstr = str(rel.version)
     else:
+        if options.upload:
+            print "Repository not at specific version point in git. Cannot publish."
+            sys.exit(1)
         vstr = repo.current_githash()[:8]
 
     if alternate_name and not dest:
