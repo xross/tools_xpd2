@@ -770,6 +770,8 @@ class Repo(XmlObject):
                continue
           if x in self.exclude_dirs:
               continue
+          if x in self.docdirs:
+              continue
           if x in self.xsoftip_excludes:
               continue
           if x.startswith('__'):
