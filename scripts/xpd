@@ -1888,7 +1888,7 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
         docinfo = xref.get_or_create_docinfo_from_dir(docdir, topdir = repo.name)
         if issue == None:
             issue = 'latest'
-        seealsos.append(('http://webdev.xmos.local/doc/%s/%s'%(docnum,issue),
+        seealsos.append(('https://test.xmos.com/doc/%s/%s'%(docnum,issue),
                          docinfo.title))
 
 
