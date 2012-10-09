@@ -304,6 +304,10 @@ def xpd_build_sw(repo, options):
 
 def xpd_create_release(repo, options, args):
 
+    print "===================="
+    print "RUNNING CHECKS FIRST"
+    print "===================="
+
     if repo.is_detached_head():
         sys.stderr.write("Cannot create release from detached head.\n")
         sys.exit(1)
@@ -322,6 +326,7 @@ def xpd_create_release(repo, options, args):
     repo.git_fetch()
     if repo.behind_upstream():
         print "Upstream changes not merged in. Cannot create release"
+        print "Try a 'git pull'"
         sys.exit(1)
 
     current_ok = xpd_check_dep(repo, options, args, return_current_ok=True)
@@ -332,6 +337,31 @@ def xpd_create_release(repo, options, args):
 
 
     xpd_check_info(repo, options, args)
+
+
+    ok = xpd.check_project.check_makefiles(repo)
+
+    if not ok:
+        print "Updates required to Makefiles."
+        print "Update files (or commit automatic changes) and try again."
+        return True
+
+    print "Checking xSOFTip block information"
+    ok = xpd_check_swblocks(repo, options, args, return_valid = True, validate=True)
+
+    if not ok:
+        print "---------------------------"
+        print "Problem with xSOFTip Blocks"
+        print "Either update README.rst files and metainfo files"
+        print "... or add a <xsoftip_exclude> element to xpd.xml for the offending dir"
+        return True
+
+    print "Creating sandbox and checking build"
+    repo.move_to_temp_sandbox()
+    xpd_build_sw(repo, options)
+    if not options.nobuild:
+        xpd_build_results(repo,options,['all'])
+    repo.delete_temp_sandbox()
 
     if hasattr(options,'release_branch') and options.release_branch:
         create_branch = True
@@ -430,29 +460,6 @@ def xpd_create_release(repo, options, args):
             print "Please update notes and try again"
             return True
 
-    ok = xpd.check_project.check_makefiles(repo)
-
-    if not ok:
-        print "Updates required to Makefiles."
-        print "Update files (or commit automatic changes) and try again."
-        return True
-
-    print "Checking xSOFTip block information"
-    ok = xpd_check_swblocks(repo, options, args, return_valid = True)
-
-    if not ok:
-        print "---------------------------"
-        print "Problem with xSOFTip Blocks"
-        print "Either update README.rst files and metainfo files"
-        print "... or add a <xsoftip_exclude> element to xpd.xml for the offending dir"
-        return True
-
-    print "Creating sandbox and checking build"
-    repo.move_to_temp_sandbox()
-    xpd_build_sw(repo, options)
-    if not options.nobuild:
-        xpd_build_results(repo,options,['all'])
-    repo.delete_temp_sandbox()
 
     release = Release()
     release.version = version
@@ -1285,7 +1292,7 @@ def check_swblock(repo, options, args, comp, verbose = True):
 
    return valid
 
-def xpd_check_swblocks(repo, options, args, return_valid = False, verbose=True):
+def xpd_check_swblocks(repo, options, args, return_valid = False, verbose=True, validate=False):
     valid = True
     def find(f,xs):
         for x in xs:
@@ -1313,8 +1320,15 @@ def xpd_check_swblocks(repo, options, args, return_valid = False, verbose=True):
     for comp in to_remove:
         repo.components.remove(comp)
 
+    if validate:
+        print "Running validate script on all swblocks"
+        ret = xpd_validate_swblock(repo,options,["all"],return_valid=True)
+        valid = valid and ret
+
     if return_valid:
         return valid
+
+
 
     return True
 
@@ -2081,7 +2095,7 @@ def call_xsoftip(command,comp,repo):
 
     cmd = ["xsoftip",command]+args
     print " ".join(cmd)
-    call(cmd, cwd=repo.path, shell=True)
+    return    call(cmd, cwd=repo.path, shell=True)
 
 
 
@@ -2104,7 +2118,8 @@ def xpd_build_results(repo,options,args):
                 print "Cannot find metadata file"
 
 
-def xpd_validate_swblock(repo, options, args):
+def xpd_validate_swblock(repo, options, args, return_valid=False):
+    valid = True
     swblock_id = args[0]
     xpd_check_swblocks(repo, options, args, verbose=False)
     for comp in repo.get_software_blocks():
@@ -2112,9 +2127,16 @@ def xpd_validate_swblock(repo, options, args):
             comp.init_from_path(repo,comp.path)
             check_swblock(repo, options, args, comp)
             if comp.metainfo_path:
-                call_xsoftip("validate",comp,repo)
+                ret = call_xsoftip("validate",comp,repo)
+                if ret!=0:
+                    return False
             else:
                 print "Cannot find metadata file"
+
+    if return_valid:
+        return valid
+
+    return False
 
 def get_tools_version():
     process = Popen(["xcc","--version"],
