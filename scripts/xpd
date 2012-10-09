@@ -308,6 +308,31 @@ def xpd_create_release(repo, options, args):
         sys.stderr.write("Cannot create release from detached head.\n")
         sys.exit(1)
 
+    # Do some checks
+    local_mod = False
+    for r in repo.all_repos():
+        if r.has_local_modifications():
+            print "%s has local modifications" % r
+            local_mod = True
+
+    if local_mod and not options.force:
+        print "Cannot create release: uncommitted modifications"
+        sys.exit(1)
+
+    repo.git_fetch()
+    if repo.behind_upstream():
+        print "Upstream changes not merged in. Cannot create release"
+        sys.exit(1)
+
+    current_ok = xpd_check_dep(repo, options, args, return_current_ok=True)
+
+    if not current_ok:
+        print "Cannot create release: dependencies not up to date"
+        sys.exit(1)
+
+
+    xpd_check_info(repo, options, args)
+
     if hasattr(options,'release_branch') and options.release_branch:
         create_branch = True
     else:
@@ -389,27 +414,6 @@ def xpd_create_release(repo, options, args):
         return False
 
 
-    # Do some checks
-
-    local_mod = False
-    for r in repo.all_repos():
-        if r.has_local_modifications():
-            print "%s has local modifications" % r
-            local_mod = True
-
-    if local_mod and not options.force:
-        print "Cannot create release: uncommitted modifications"
-        sys.exit(1)
-
-    current_ok = xpd_check_dep(repo, options, args, return_current_ok=True)
-
-    if not current_ok:
-        print "Cannot create release: dependencies not up to date"
-        sys.exit(1)
-
-
-    xpd_check_info(repo, options, args)
-
     notes = xpd_parse_release_notes(repo, options, args, return_notes = True)
 
     fstr = version.final_version_str()
@@ -485,6 +489,11 @@ def xpd_create_release(repo, options, args):
 
     #if confirm("Do you want to make a zipfile (Y/n)? ",default=True):
     #    xpd_make_zip(repo,options,[])
+
+    if confirm("Do you want to push the commit of this release upstream (Y/n)?",default=True):
+        repo.git_push()
+
+
 
     return False
 

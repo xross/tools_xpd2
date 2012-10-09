@@ -821,9 +821,34 @@ class Repo(XmlObject):
         call(["git","add",path],
              cwd=self.path)
 
+
+    def git_push(self):
+        call(["git","push"],
+             cwd=self.path)
+
+    def git_fetch(self):
+        call(["git","fetch"],
+             cwd=self.path)
+
     def git_remove(self, path):
         call(["git","rm","-f",path],
              cwd=self.path)
+
+    def behind_upstream(self):
+        process = Popen(["git","status","-uno"],
+                                   cwd=self.path,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE)
+
+        err_lines = process.stderr.readlines()
+        lines = process.stdout.readlines()
+        for line in lines:
+            if re.match('.*is behind*',line):
+                return True
+
+        return False
+
+
 
     def enter_github_mode(self):
         print "Github mode"
