@@ -845,6 +845,8 @@ class Repo(XmlObject):
         for line in lines:
             if re.match('.*is behind*',line):
                 return True
+            if re.match('.*diverged*',line):
+                return True
 
         return False
 
