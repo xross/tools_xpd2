@@ -360,7 +360,11 @@ def xpd_create_release(repo, options, args):
     repo.move_to_temp_sandbox()
     xpd_build_sw(repo, options)
     if not options.nobuild:
-        xpd_build_results(repo,options,['all'])
+        ok = xpd_build_results(repo,options,['all'])
+        if not ok:
+            print "xSOFTip Build Results Failed"
+            return True
+
     repo.delete_temp_sandbox()
 
     if hasattr(options,'release_branch') and options.release_branch:
@@ -2099,7 +2103,7 @@ def call_xsoftip(command,comp,repo):
 
 
 
-def xpd_build_results(repo,options,args):
+def xpd_build_results(repo,options,args, return_valid=False):
     swblock_id = args[0]
     for comp in repo.get_software_blocks():
         if comp.id == swblock_id or swblock_id=='all':
@@ -2113,10 +2117,16 @@ def xpd_build_results(repo,options,args):
                     f.write("<buildresults></buildresults>");
                     f.close()
                 else:
-                    call_xsoftip("buildresults",comp,repo)
+                    ret = call_xsoftip("buildresults",comp,repo)
+                    if ret != 0:
+                        return False
             else:
                 print "Cannot find metadata file"
 
+    if return_valid:
+        return True
+
+    return False
 
 def xpd_validate_swblock(repo, options, args, return_valid=False):
     valid = True
