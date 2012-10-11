@@ -460,11 +460,13 @@ def version_to_num(s):
 
 def num_to_version(x):
     l = []
-    while (x != 0):
+    x = int(x)
+    while (x > 0):
         l.append(chr(x%26+65))
         x = x/26
     l.reverse()
-    l[0] = chr(ord(l[0])-1)
+    if len(l)>0:
+        l[0] = chr(ord(l[0])-1)
     return ''.join(l)
 
 def increment_version(v):

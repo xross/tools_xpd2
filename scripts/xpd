@@ -360,7 +360,7 @@ def xpd_create_release(repo, options, args):
     repo.move_to_temp_sandbox()
     xpd_build_sw(repo, options)
     if not options.nobuild:
-        ok = xpd_build_results(repo,options,['all'])
+        ok = xpd_build_results(repo,options,['all'],return_valid=True)
         if not ok:
             print "xSOFTip Build Results Failed"
             return True
@@ -615,7 +615,7 @@ def xpd_make_zip(repo, options, args, dest = None):
     if not options.nodocs:
         for docdir in repo.docdirs:
             insert_doc(repo.name, os.path.join(repo.path,docdir), f, is_xmos_repo = repo.is_xmos_repo(),
-                   repo=repo)
+                   repo=repo,base=docdir)
 
         for block in repo.components:
             src = os.path.join(repo.path,block.path,'_build','text','README.txt')
@@ -1850,6 +1850,43 @@ def xpd_build_topdoc(repo,options=None,args=None):
 
     repo.topdoc_path = topdoc_path
 
+def xpd_create_doc_xrefs(repo, options, args):
+    import_xdoc()
+    rstonlysuffix = '.__rstonlythisone__'
+    if not options.github:
+     for docdir in repo.docdirs:
+        docdir = os.path.join(repo.path,docdir)
+        curdir = os.path.abspath(os.curdir)
+        os.chdir(docdir)
+        xdoc_config = {}
+        xdoc_config['AUTO_CREATE'] = "1"
+        xdoc_config['FORCE_UPLOAD'] = '1'
+        xdoc_config['COGNIDOX_PATH'] = "/Projects/Apps"
+        xdoc.main('xref_all', config=xdoc_config)
+        build_dir = os.path.join(docdir,'_build')
+        if os.path.exists(build_dir):
+            shutil.rmtree(build_dir)
+
+    for swblock in repo.components:
+        docdir = os.path.join(repo.path,swblock.path)
+        curdir = os.path.abspath(os.curdir)
+        os.chdir(docdir)
+        xdoc_config = {}
+        xdoc_config['SOURCE_SUFFIX'] = rstonlysuffix
+        xdoc_config['ALT_TITLE'] = "%s README" % swblock.id
+        xdoc_config['FORCE_UPLOAD'] = '1'
+        xdoc_config['AUTO_CREATE'] = "1"
+        xdoc_config['COGNIDOX_PATH'] = "/Projects/Apps"
+        readme = os.path.join(docdir,'README.rst')
+        shutil.copy(readme,readme.replace('.rst',rstonlysuffix))
+
+        if repo.is_xmos_repo() or options.github:
+            xdoc.main('xref_all', config=xdoc_config)
+        build_dir = os.path.join(docdir,'_build')
+        if os.path.exists(build_dir):
+            shutil.rmtree(build_dir)
+
+
 def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
                    local_only=False):
     if options.nodocs:
@@ -1915,6 +1952,12 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
         docinfo = xref.get_or_create_docinfo_from_dir(docdir, topdir = repo.name)
         if issue == None:
             issue = 'latest'
+
+        if docinfo.title == None:
+            print "ERROR: Problem with seealso cross reference."
+            print "ERROR: Cannot determine title of %s" % docnum
+            sys.exit(1)
+
         seealsos.append(('https://test.xmos.com/doc/%s/%s'%(docnum,issue),
                          docinfo.title))
 
@@ -2337,7 +2380,8 @@ common_commands =  [("init","Initialize the xpd meta-information file"),
             ("upgrade_rc","Upgrade an RC to a final release"),
             ("publish","Publish the current version to cognidox"),
             ("publish_github","Publish the current version to cognidox as a github open source stub"),
-            ("list","List releases")]
+            ("list","List releases"),
+                    ("create_doc_xrefs","Create document xrefs for testing")]
 
 other_commands =     [("info","Same as status"),
             ("show","Same as status"),
