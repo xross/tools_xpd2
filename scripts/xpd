@@ -2147,6 +2147,8 @@ def call_xsoftip(command,comp,repo):
 
 
 def xpd_build_results(repo,options,args, return_valid=False):
+    if args == []:
+        args=["all"]
     swblock_id = args[0]
     for comp in repo.get_software_blocks():
         if comp.id == swblock_id or swblock_id=='all':
