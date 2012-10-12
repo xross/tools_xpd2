@@ -1877,6 +1877,7 @@ def xpd_create_doc_xrefs(repo, options, args):
         xdoc_config['FORCE_UPLOAD'] = '1'
         xdoc_config['AUTO_CREATE'] = "1"
         xdoc_config['COGNIDOX_PATH'] = "/Projects/Apps"
+        xdoc_config['SW_VERSION'] = repo.current_version_or_githash()
         readme = os.path.join(docdir,'README.rst')
         shutil.copy(readme,readme.replace('.rst',rstonlysuffix))
 
@@ -1974,6 +1975,7 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
         xdoc_config['COGNIDOX_PATH'] = "/Projects/Apps"
         xdoc_config['BASE_VERSION'] = repo.current_version_or_githash()
         xdoc_config['EXTRA_SEEALSOS'] = seealsos
+        xdoc_config['SW_VERSION'] = repo.current_version_or_githash()
         readme = os.path.join(docdir,'README.rst')
         shutil.copy(readme,readme.replace('.rst',rstonlysuffix))
 
