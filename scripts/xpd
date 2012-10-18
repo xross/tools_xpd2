@@ -780,8 +780,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
                 ok = False
 
         if no_app_projects:
-            if re.match('.*\.project$|.*\.cproject|.*\.xproject$',f) and \
-               re.match('.*app_.*',f):
+            if re.match('app_.*',f):
                ok = False
 
 
