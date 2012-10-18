@@ -304,69 +304,6 @@ def xpd_build_sw(repo, options):
 
 def xpd_create_release(repo, options, args):
 
-    print "===================="
-    print "RUNNING CHECKS FIRST"
-    print "===================="
-
-    if repo.is_detached_head():
-        sys.stderr.write("Cannot create release from detached head.\n")
-        sys.exit(1)
-
-    # Do some checks
-    local_mod = False
-    for r in repo.all_repos():
-        if r.has_local_modifications():
-            print "%s has local modifications" % r
-            local_mod = True
-
-    if local_mod and not options.force:
-        print "Cannot create release: uncommitted modifications"
-        sys.exit(1)
-
-    repo.git_fetch()
-    if repo.behind_upstream():
-        print "Upstream changes not merged in. Cannot create release"
-        print "Try a 'git pull'"
-        sys.exit(1)
-
-    current_ok = xpd_check_dep(repo, options, args, return_current_ok=True)
-
-    if not current_ok:
-        print "Cannot create release: dependencies not up to date"
-        sys.exit(1)
-
-
-    xpd_check_info(repo, options, args)
-
-
-    ok = xpd.check_project.check_makefiles(repo)
-
-    if not ok:
-        print "Updates required to Makefiles."
-        print "Update files (or commit automatic changes) and try again."
-        return True
-
-    print "Checking xSOFTip block information"
-    ok = xpd_check_swblocks(repo, options, args, return_valid = True, validate=True)
-
-    if not ok:
-        print "---------------------------"
-        print "Problem with xSOFTip Blocks"
-        print "Either update README.rst files and metainfo files"
-        print "... or add a <xsoftip_exclude> element to xpd.xml for the offending dir"
-        return True
-
-    print "Creating sandbox and checking build"
-    repo.move_to_temp_sandbox()
-    xpd_build_sw(repo, options)
-    if not options.nobuild:
-        ok = xpd_build_results(repo,options,['all'],return_valid=True)
-        if not ok:
-            print "xSOFTip Build Results Failed"
-            return True
-
-    repo.delete_temp_sandbox()
-
     if hasattr(options,'release_branch') and options.release_branch:
         create_branch = True
     else:
@@ -467,6 +404,71 @@ def xpd_create_release(repo, options, args):
 
     release = Release()
     release.version = version
+
+
+    print "=============="
+    print "RUNNING CHECKS"
+    print "=============="
+
+    if repo.is_detached_head():
+        sys.stderr.write("Cannot create release from detached head.\n")
+        sys.exit(1)
+
+    # Do some checks
+    local_mod = False
+    for r in repo.all_repos():
+        if r.has_local_modifications():
+            print "%s has local modifications" % r
+            local_mod = True
+
+    if local_mod and not options.force:
+        print "Cannot create release: uncommitted modifications"
+        sys.exit(1)
+
+    repo.git_fetch()
+    if repo.behind_upstream():
+        print "Upstream changes not merged in. Cannot create release"
+        print "Try a 'git pull'"
+        sys.exit(1)
+
+    current_ok = xpd_check_dep(repo, options, args, return_current_ok=True)
+
+    if not current_ok:
+        print "Cannot create release: dependencies not up to date"
+        sys.exit(1)
+
+
+    xpd_check_info(repo, options, args)
+
+
+    ok = xpd.check_project.check_makefiles(repo)
+
+    if not ok:
+        print "Updates required to Makefiles."
+        print "Update files (or commit automatic changes) and try again."
+        return True
+
+    print "Checking xSOFTip block information"
+    ok = xpd_check_swblocks(repo, options, args, return_valid = True, validate=True)
+
+    if not ok:
+        print "---------------------------"
+        print "Problem with xSOFTip Blocks"
+        print "Either update README.rst files and metainfo files"
+        print "... or add a <xsoftip_exclude> element to xpd.xml for the offending dir"
+        return True
+
+    print "Creating sandbox and checking build"
+    repo.move_to_temp_sandbox()
+    xpd_build_sw(repo, options)
+    if not options.nobuild:
+        ok = xpd_build_results(repo,options,['all'],return_valid=True)
+        if not ok:
+            print "xSOFTip Build Results Failed"
+            return True
+
+    repo.delete_temp_sandbox()
+
 
     # deps = []
 
