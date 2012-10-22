@@ -2339,7 +2339,7 @@ def xpd_install_local(repo, options, args):
         options.force = True
         zfile = tempfile.mktemp()
         xpd_make_zip(repo,options,args, dest = zfile)
-        installed_zip = os.path.join(cache_path,package.id + "(" + package.version + ").zip")
+        installed_zip = os.path.join(cache_path,package.name)
         shutil.copy(zfile,installed_zip)
         print "Installed " + installed_zip
 
