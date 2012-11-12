@@ -149,7 +149,7 @@ Content-Type: application/octet-stream; name="%(path)s"
     req = urllib2.Request(url, body, headers)
     try:
         response = urllib2.urlopen(req)
-    except TypeError:
+    except:
         print >>sys.stderr, "Error connecting to cognidox"
         sys.exit(1)
 
@@ -171,7 +171,11 @@ def doCognidox(reqtype, args):
     url = 'http://cognidox.xmos.local/cgi-perl/soap/soapservice'
     data = buildRequest(reqtype, args)
     req = urllib2.Request(url, data, headers)
-    response = urllib2.urlopen(req)
+    try:
+        response = urllib2.urlopen(req)
+    except:
+        print >>sys.stderr, "Error connecting to cognidox"
+        sys.exit(1)
     resp_xml = response.read()
     return resp_xml
 
