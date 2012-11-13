@@ -743,8 +743,8 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
     excludes.append('*module_description')
     excludes.append('.zipinfo')
     excludes.append('*issue.zip')
-    excludes.append('*\.build_*')
-    excludes.append('*\.build/*')
+    excludes.append('*.build_*')
+    excludes.append('*.build/*')
 
     for c in repo.components:
         excludes.append('*'+c.path+'/README.rst')
