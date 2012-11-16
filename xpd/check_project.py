@@ -105,13 +105,15 @@ def _check_project(repo,path=None, force_creation=False):
     return project_ok
 
 
-def find_all_subprojects(repo):
+def find_all_subprojects(repo,exclude_apps=False):
      path = repo.path
      subs = set([])
      for x in os.listdir(path):
           if x == 'doc':
                continue
           if x.startswith('__'):
+               continue
+          if exclude_apps and x.startswith('app_'):
                continue
           mkfile = os.path.join(path,x,'Makefile')
           modinfo = os.path.join(path,x,'module_build_info')
@@ -480,11 +482,11 @@ def _check_cproject(repo,makefiles,project_deps,path=None, force_creation=False)
 
     return cproject_ok
 
-def check_cproject(repo, force_creation=False):
+def check_cproject(repo, force_creation=False,exclude_apps=False):
      ok = True
      project_deps = repo.get_project_deps()
      if flat_projects:
-          for sub in find_all_subprojects(repo):
+          for sub in find_all_subprojects(repo,exclude_apps):
                mkfile = os.path.join(repo.path,sub,'Makefile')
                makefiles = set([])
                if os.path.exists(mkfile):

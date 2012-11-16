@@ -587,7 +587,7 @@ def xpd_make_zip(repo, options, args, dest = None):
     xpd.check_project.check_cproject(repo, force_creation=True)
     for dep in repo.dependencies:
         xpd.check_project.check_project(dep.repo, force_creation=True)
-        xpd.check_project.check_cproject(dep.repo, force_creation=True)
+        xpd.check_project.check_cproject(dep.repo, force_creation=True, exclude_apps=True)
 
     print "Building docs"
     xpd_build_docs(repo, options)
