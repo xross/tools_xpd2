@@ -912,13 +912,15 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
 def insert_dep_docs_to_zip(main_zipfile, sub_zipfile, repo_name):
     print "Extracting docs from %s zipfile" % repo_name
     dep_zip = zipfile.ZipFile(sub_zipfile,mode='r')
+    existing = main_zipfile.namelist()
     for name in dep_zip.namelist():
         m = re.match('%s/doc/.*'%repo_name,name)
         if m or name == '%s/README.html'%repo_name:
             zfile = dep_zip.open(name)
             s = zfile.read()
             zfile.close()
-            main_zipfile.writestr(name,s)
+            if not name in existing:
+                main_zipfile.writestr(name,s)
     dep_zip.close()
 
 def insert_topdoc(repo,zipfile):
@@ -1464,6 +1466,9 @@ def xpd_checkout(repo, options, args):
             return False
 
     rel = repo.get_release(version)
+    if not rel:
+        print "Error with dependency: " + str(repo)
+
     githash = repo.get_child_hash(rel.parenthash)
     if not githash:
         print >>sys.stderr, "ERROR: cannot find githash for version %s, maybe the git history has been modified" % str(version)
