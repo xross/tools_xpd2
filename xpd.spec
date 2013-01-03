@@ -8,8 +8,8 @@ tools_xdoc_path = os.path.join(cwd,'..','tools_xdoc')
 
 sys.path.insert(0,tools_xdoc_path)
 
-a = Analysis([os.path.join(HOMEPATH,'support/_mountzlib.py'), os.path.join(HOMEPATH,'support/useUnicode.py'), 'scripts/xpd', '../tools_xdoc/xdoc/xsphinx/conf.py','../infr_docs/xmossphinx/xmosconf.py'],
-             hiddenimports=['sphinx.builders.text'],
+a = Analysis([os.path.join(HOMEPATH,'support/_mountzlib.py'), os.path.join(HOMEPATH,'support/useUnicode.py'), 'scripts/xpd', '../tools_xdoc/xdoc/xsphinx/conf.py','../tools_xdoc/xdoc/xsphinx/breathe/breathe/__init__.py','../infr_docs/xmossphinx/xmosconf.py'],
+
              pathex=[cwd,
                      os.path.join(cwd,'xpd'),
                      os.path.join(cwd,'..','tools_python_hashlib','install','lib','python'),
@@ -19,7 +19,9 @@ a = Analysis([os.path.join(HOMEPATH,'support/_mountzlib.py'), os.path.join(HOMEP
                      os.path.join(tools_xdoc_path,'xdoc','xsphinx'),
                      os.path.join(tools_xdoc_path,'xdoc','xsphinx','breathe'),
                      os.path.abspath(os.path.join(cwd,'..','infr_docs')),
-                     os.path.abspath(os.path.join(cwd,'..','infr_docs','xmossphinx','builders'))                     ])
+                     os.path.abspath(os.path.join(cwd,'..','infr_docs','xmossphinx','builders'))                     ],
+             hiddenimports=['sphinx.builders.text','breathe','breathe.builder','breathe.finder',
+                            'breathe.parser','breathe.parser.doxygen','breathe.parser.doxygen.index','breathe.parser.doxygen.compound','compoundsuper'])
 
 
 def get_files(src, dst):
