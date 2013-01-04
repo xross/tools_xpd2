@@ -711,9 +711,12 @@ def xpd_make_zip(repo, options, args, dest = None):
                                    ".docholder.xml",
                                    version = vstr,
                                    draft=True)
+        os.remove(".docholder.xml")
 
-
-
+    print "Tidying up"
+    repo.delete_temp_sandbox()
+    if os.path.exists(os.path.join(repo.path,'_build')):
+        shutil.rmtree(os.path.join(repo.path,'_build'))
 
     return update
 
