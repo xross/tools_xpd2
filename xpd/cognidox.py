@@ -234,7 +234,12 @@ def create_docnumber(partnum):
     args = urllib.urlencode({'partnum':partnum,
                              'actions':actions})
     req = urllib2.Request(form_url, args)
-    response = urllib2.urlopen(req)
+    try:
+        response = urllib2.urlopen(req)
+    except:
+        print >>sys.stderr, "Error connecting to cognidox"
+        sys.exit(1)
+
     return get_docnumber(partnum)
 
 def create_document(title, doctype, path):
@@ -413,7 +418,11 @@ def fetch_revision(partnum, revision):
     if not elem:
         return None
     else:
-        return urllib2.urlopen(docs_url+'/'+get_subinfo(elem,'file'))
+        try:
+            return urllib2.urlopen(docs_url+'/'+get_subinfo(elem,'file'))
+        except:
+            print >>sys.stderr, "Error connecting to cognidox"
+            sys.exit(1)
 
 
 def fetch_latest(partnum,exclude_drafts=False):
@@ -422,7 +431,11 @@ def fetch_latest(partnum,exclude_drafts=False):
 
     info = {'revision':get_revision(elem),
             'version_tag':get_version_tag(elem)}
-    return urllib2.urlopen(docs_url+'/'+get_subinfo(elem,'file')),info
+    try:
+        return urllib2.urlopen(docs_url+'/'+get_subinfo(elem,'file')),info
+    except:
+        print >>sys.stderr, "Error connecting to cognidox"
+        sys.exit(1)
 
 
 def fetch_version(partnum, version):
@@ -440,7 +453,12 @@ def fetch_version(partnum, version):
     if version == None:
         return None
     print "Fetching %s" % (docs_url+'/'+get_subinfo(elem,'file'))
-    return urllib2.urlopen(docs_url+'/'+get_subinfo(elem,'file'))
+    try:
+        return urllib2.urlopen(docs_url+'/'+get_subinfo(elem,'file'))
+    except:
+        print >>sys.stderr, "Error connecting to cognidox"
+        sys.exit(1)
+
 
 
 def get_all_version_tags(partnum, exclude_drafts=False):
@@ -509,7 +527,12 @@ def assign_license(partnum, licenses):
     initCognidox()
     headers = {'Content-Type':  "multipart/form-data; boundary=----WebKitFormBoundaryscKAMSWdzM66YOPx"}
     req = urllib2.Request(assign_license_url + '?partnum=%s'%partnum, multipart_text, headers)
-    response = urllib2.urlopen(req)
+    try:
+        response = urllib2.urlopen(req)
+    except:
+        print >>sys.stderr, "Error connecting to cognidox"
+        sys.exit(1)
+
     return
 
 def assign_license_agreement(partnum, agreements):
@@ -517,7 +540,12 @@ def assign_license_agreement(partnum, agreements):
     initCognidox()
     headers = {'Content-Type':  "multipart/form-data; boundary=----WebKitFormBoundaryiJAMNwLBAIscEsPU"}
     req = urllib2.Request(assign_license_agreement_url + '?partnum=%s'%partnum, multipart_text, headers)
-    response = urllib2.urlopen(req)
+    try:
+        response = urllib2.urlopen(req)
+    except:
+        print >>sys.stderr, "Error connecting to cognidox"
+        sys.exit(1)
+
     return
 
 def set_approval_notification(partnum):
@@ -525,7 +553,12 @@ def set_approval_notification(partnum):
     multipart_text = "------WebKitFormBoundaryXQaTZBcOhOSF4dnE\r\nContent-Disposition: form-data; name=\"input-notifiers\"\r\n\r\n%(user)s\r\n------WebKitFormBoundaryXQaTZBcOhOSF4dnE\r\nContent-Disposition: form-data; name=\"notifiers\"\r\n\r\n%(user)s\r\n------WebKitFormBoundaryXQaTZBcOhOSF4dnE\r\nContent-Disposition: form-data; name=\"type\"\r\n\r\napproval\r\n------WebKitFormBoundaryXQaTZBcOhOSF4dnE\r\nContent-Disposition: form-data; name=\"action\"\r\n\r\nadd\r\n------WebKitFormBoundaryXQaTZBcOhOSF4dnE\r\nContent-Disposition: form-data; name=\"partnum\"\r\n\r\n%(partnum)s\r\n------WebKitFormBoundaryXQaTZBcOhOSF4dnE\r\nContent-Disposition: form-data; name=\".submit\"\r\n\r\nAdd Notifiers\r\n------WebKitFormBoundaryXQaTZBcOhOSF4dnE--\r\n"  % {'user':saved_user.replace('XMOS\\',''),'partnum':partnum}
     headers = {'Content-Type':  "multipart/form-data; boundary=----WebKitFormBoundaryXQaTZBcOhOSF4dnE"}
     req = urllib2.Request(set_document_notifiers_url + '?partnum=%s'%partnum, multipart_text, headers)
-    response = urllib2.urlopen(req)
+    try:
+        response = urllib2.urlopen(req)
+    except:
+        print >>sys.stderr, "Error connecting to cognidox"
+        sys.exit(1)
+
     return
 
 
