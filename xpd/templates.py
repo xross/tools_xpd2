@@ -40,11 +40,7 @@ VERBOSE = 0
 # for compiling XMOS applications. You should not need to edit below here.
 
 XMOS_MAKE_PATH ?= ../..
-ifneq ($(wildcard $(XMOS_MAKE_PATH)/xcommon/module_xcommon/build/Makefile.common),)
 include $(XMOS_MAKE_PATH)/xcommon/module_xcommon/build/Makefile.common
-else
-include ../module_xcommon/build/Makefile.common
-endif
 """
 
 module_build_info = '''

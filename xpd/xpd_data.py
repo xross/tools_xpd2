@@ -429,7 +429,7 @@ class Repo(XmlObject):
     boards = XmlValueList()
     extra_eclipse_projects = XmlValueList()
     components = XmlNodeList(Component, wrapper="components")
-
+    snippets = XmlValue(default=False)
     path = None
 
 

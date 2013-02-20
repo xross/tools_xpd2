@@ -1302,6 +1302,10 @@ def check_swblock(repo, options, args, comp, verbose = True):
 
        comp.local = "false"
 
+       if repo.snippets and not comp.description.startswith("How to"):
+           print "  ERROR: Snippet example title should start with 'How to'"
+           valid = False
+
    return valid
 
 def xpd_check_swblocks(repo, options, args, return_valid = False, verbose=True, validate=False):
