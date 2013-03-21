@@ -300,6 +300,8 @@ class Component(XmlObject):
     docPartNumber = XmlAttribute()
     docVersion = XmlAttribute()
     dependencies = XmlValueList(tagname="componentDependency")
+    zip_partnumber = XmlAttribute()
+
 
     def init_from_path(self, repo, path):
         self.id = os.path.basename(path)
@@ -430,6 +432,7 @@ class Repo(XmlObject):
     extra_eclipse_projects = XmlValueList()
     components = XmlNodeList(Component, wrapper="components")
     snippets = XmlValue(default=False)
+    docmap_partnumber = XmlValue()
     path = None
 
 
@@ -925,6 +928,11 @@ class Repo(XmlObject):
 
         return projs
 
+    def find_swblock(self, id):
+        for swblock in self.components:
+            if swblock.id == id:
+                return swblock
+        return None
 
 class Package(XmlObject):
     name = XmlAttribute()
@@ -949,4 +957,13 @@ class SoftwareDescriptor(XmlObject):
     project = XmlAttribute()
     name = XmlAttribute()
 
+class Doc(XmlObject):
+    category = XmlAttribute()
+    subcategory = XmlAttribute()
+    partnumber = XmlAttribute()
+    appname = XmlAttribute()
+    related = XmlValueList()
+    title = XmlAttribute()
 
+class DocMap(XmlObject):
+    docs = XmlNodeList(Doc)
