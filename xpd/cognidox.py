@@ -9,6 +9,21 @@ import time
 import sys
 import os
 import re
+
+def urlopen(req):
+    count = 0
+    while True:
+        try:
+            return urllib2.urlopen(req);
+        except:
+            print >>sys.stderr, "Error connecting to cognidox"
+            count = count + 1
+            if count > 10:
+                print >>sys.stderr, "Too many attempts to connect - giving up"
+                sys.exit(1)
+            else:
+                print >>sys.stderr, "Retrying..."
+
 #url = "http://cognidox/cgi-perl/part-details?partnum=XM-000571-PC"
 url = 'http://cognidox.xmos.local/cgi-perl/soap/soapservice'
 form_url = 'http://cognidox.xmos.local/cgi-perl/do-action'
@@ -147,11 +162,7 @@ Content-Type: application/octet-stream; name="%(path)s"
     lines = body.split("\n")
     body = "\r\n".join(lines)
     req = urllib2.Request(url, body, headers)
-    try:
-        response = urllib2.urlopen(req)
-    except:
-        print >>sys.stderr, "Error connecting to cognidox"
-        sys.exit(1)
+    response = urlopen(req)
 
     resp_xml = response.read()
 
@@ -171,11 +182,7 @@ def doCognidox(reqtype, args):
     url = 'http://cognidox.xmos.local/cgi-perl/soap/soapservice'
     data = buildRequest(reqtype, args)
     req = urllib2.Request(url, data, headers)
-    try:
-        response = urllib2.urlopen(req)
-    except:
-        print >>sys.stderr, "Error connecting to cognidox"
-        sys.exit(1)
+    response = urlopen(req)
     resp_xml = response.read()
     return resp_xml
 
@@ -234,11 +241,7 @@ def create_docnumber(partnum):
     args = urllib.urlencode({'partnum':partnum,
                              'actions':actions})
     req = urllib2.Request(form_url, args)
-    try:
-        response = urllib2.urlopen(req)
-    except:
-        print >>sys.stderr, "Error connecting to cognidox"
-        sys.exit(1)
+    response = urlopen(req)
 
     return get_docnumber(partnum)
 
@@ -418,11 +421,7 @@ def fetch_revision(partnum, revision):
     if not elem:
         return None
     else:
-        try:
-            return urllib2.urlopen(docs_url+'/'+get_subinfo(elem,'file'))
-        except:
-            print >>sys.stderr, "Error connecting to cognidox"
-            sys.exit(1)
+        return urlopen(docs_url+'/'+get_subinfo(elem,'file'))
 
 
 def fetch_latest(partnum,exclude_drafts=False):
@@ -431,11 +430,8 @@ def fetch_latest(partnum,exclude_drafts=False):
 
     info = {'revision':get_revision(elem),
             'version_tag':get_version_tag(elem)}
-    try:
-        return urllib2.urlopen(docs_url+'/'+get_subinfo(elem,'file')),info
-    except:
-        print >>sys.stderr, "Error connecting to cognidox"
-        sys.exit(1)
+
+    return urlopen(docs_url+'/'+get_subinfo(elem,'file')),info
 
 
 def fetch_version(partnum, version):
@@ -453,11 +449,7 @@ def fetch_version(partnum, version):
     if version == None:
         return None
     print "Fetching %s" % (docs_url+'/'+get_subinfo(elem,'file'))
-    try:
-        return urllib2.urlopen(docs_url+'/'+get_subinfo(elem,'file'))
-    except:
-        print >>sys.stderr, "Error connecting to cognidox"
-        sys.exit(1)
+    return urlopen(docs_url+'/'+get_subinfo(elem,'file'))
 
 
 
@@ -527,11 +519,7 @@ def assign_license(partnum, licenses):
     initCognidox()
     headers = {'Content-Type':  "multipart/form-data; boundary=----WebKitFormBoundaryscKAMSWdzM66YOPx"}
     req = urllib2.Request(assign_license_url + '?partnum=%s'%partnum, multipart_text, headers)
-    try:
-        response = urllib2.urlopen(req)
-    except:
-        print >>sys.stderr, "Error connecting to cognidox"
-        sys.exit(1)
+    response = urlopen(req)
 
     return
 
@@ -540,11 +528,7 @@ def assign_license_agreement(partnum, agreements):
     initCognidox()
     headers = {'Content-Type':  "multipart/form-data; boundary=----WebKitFormBoundaryiJAMNwLBAIscEsPU"}
     req = urllib2.Request(assign_license_agreement_url + '?partnum=%s'%partnum, multipart_text, headers)
-    try:
-        response = urllib2.urlopen(req)
-    except:
-        print >>sys.stderr, "Error connecting to cognidox"
-        sys.exit(1)
+    response = urlopen(req)
 
     return
 
@@ -553,11 +537,7 @@ def set_approval_notification(partnum):
     multipart_text = "------WebKitFormBoundaryXQaTZBcOhOSF4dnE\r\nContent-Disposition: form-data; name=\"input-notifiers\"\r\n\r\n%(user)s\r\n------WebKitFormBoundaryXQaTZBcOhOSF4dnE\r\nContent-Disposition: form-data; name=\"notifiers\"\r\n\r\n%(user)s\r\n------WebKitFormBoundaryXQaTZBcOhOSF4dnE\r\nContent-Disposition: form-data; name=\"type\"\r\n\r\napproval\r\n------WebKitFormBoundaryXQaTZBcOhOSF4dnE\r\nContent-Disposition: form-data; name=\"action\"\r\n\r\nadd\r\n------WebKitFormBoundaryXQaTZBcOhOSF4dnE\r\nContent-Disposition: form-data; name=\"partnum\"\r\n\r\n%(partnum)s\r\n------WebKitFormBoundaryXQaTZBcOhOSF4dnE\r\nContent-Disposition: form-data; name=\".submit\"\r\n\r\nAdd Notifiers\r\n------WebKitFormBoundaryXQaTZBcOhOSF4dnE--\r\n"  % {'user':saved_user.replace('XMOS\\',''),'partnum':partnum}
     headers = {'Content-Type':  "multipart/form-data; boundary=----WebKitFormBoundaryXQaTZBcOhOSF4dnE"}
     req = urllib2.Request(set_document_notifiers_url + '?partnum=%s'%partnum, multipart_text, headers)
-    try:
-        response = urllib2.urlopen(req)
-    except:
-        print >>sys.stderr, "Error connecting to cognidox"
-        sys.exit(1)
+    response = urlopen(req)
 
     return
 
