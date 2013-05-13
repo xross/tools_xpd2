@@ -489,7 +489,7 @@ def check_cproject(repo, force_creation=False,exclude_apps=False):
           for sub in find_all_subprojects(repo,exclude_apps):
                mkfile = os.path.join(repo.path,sub,'Makefile')
                makefiles = set([])
-               if os.path.exists(mkfile):
+               if os.path.exists(mkfile) and not sub in repo.exports:
                     makefiles.add(mkfile)
                proj_ok = _check_cproject(repo, makefiles, project_deps, path=os.path.join(repo.path,sub),
                                force_creation=force_creation)
