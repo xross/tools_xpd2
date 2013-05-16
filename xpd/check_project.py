@@ -370,6 +370,9 @@ def valid_include_path(relpath):
      if re.match('.*/__.*',relpath):
           return False
 
+     if re.match('(^|.*/)_build.*',relpath):
+          return False
+
      return True
 
 def _check_cproject(repo,makefiles,project_deps,path=None, force_creation=False):
