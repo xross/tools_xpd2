@@ -411,6 +411,8 @@ def xpd_create_release(repo, options, args):
     print "RUNNING CHECKS"
     print "=============="
 
+    xpd_check_all(repo, options, [])
+
     if repo.is_detached_head():
         sys.stderr.write("Cannot create release from detached head.\n")
         sys.exit(1)
@@ -2153,7 +2155,7 @@ def xpd_check_all(repo, options, args):
     if not ok:
         print ""
         print "================================================================="
-        print "ERRORS/REPOSITORY UPDATED"
+        print "REPOSITORY UPDATED"
         print "================================================================="
         print "Either there are errors in your repository structure or the"
         print "repository structure/meta-information has been updated (see previous output for details"
