@@ -1353,41 +1353,41 @@ def check_swblock(repo, options, args, comp, verbose = True):
        repo.git_add(comp.readme_path())
    else:
        if comp.name=='' or comp.name[0] == '<':
-           print "  ERROR: software block title not specified, update README.rst"
+           print "  ERROR: software block %s title not specified, update README.rst" % comp.path
            valid = False
        if comp.description[0]=='<' or re.match('Software Block:',comp.description):
-           print "  ERROR: software block description not specified, update README.rst"
+           print "  ERROR: software block %s description not specified, update README.rst" % comp.path
            valid = False
 
        if comp.scope not in ALLOWED_SCOPES:
-           print "  ERROR: invalid scope"
+           print "  ERROR: software block %s invalid scope" % comp.path
            print "  Update README to set scope to one of:"
            for scope in ALLOWED_SCOPES:
                print "         " + scope
            print ""
            valid = False
 
-       if not comp.metainfo_path and comp.scope != "Example":
+       if not comp.id.startswith('app_') and not comp.metainfo_path and comp.scope != "Example":
 
            if comp.scope == "Roadmap":
-               print "  ERROR: roadmap software block must have metainfo"
+               print "  ERROR: roadmap software block %s must have metainfo" % comp.path
            else:
-               print "  ERROR: software block without metainfo must have scope 'Example'"
+               print "  ERROR: software block %s without metainfo must have scope 'Example'" % comp.path
            valid = False
 
 
        if comp.keywords_text and comp.keywords_text[0]=='<':
-           print "  ERROR: keywords field as template, update README.rst to specify keywords or delete the line"
+           print "  ERROR: %s keywords field as template, update README.rst to specify keywords or delete the line" % comp.path
            valid = False
 
        if comp.boards_text and comp.boards_text[0]=='<':
-           print "  ERROR: boards field as template, update README.rst to specify keywords or delete the line"
+           print "  ERROR: %s boards field as template, update README.rst to specify keywords or delete the line" % comp.path
            valid = False
 
        comp.local = "false"
 
        if repo.snippets and not comp.description.startswith("How to"):
-           print "  ERROR: Snippet example title should start with 'How to'"
+           print "  ERROR: %s Snippet example title should start with 'How to'" % comp.path
            valid = False
 
    return valid
@@ -1428,13 +1428,10 @@ def xpd_check_swblocks(repo, options, args, return_valid = False, verbose=True, 
     if return_valid:
         return valid
 
-
-
     return True
 
 
 def xpd_gen_readme(repo, options, args):
-
     sep = '.. seperator'
     latest = repo.latest_release(release_filter=lambda r: r.version.rtype=='rc')
     if latest:
