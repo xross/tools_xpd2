@@ -28,7 +28,7 @@ def get_project_name(repo,path):
      else:
           return "%s" % (os.path.basename(path))
 
-def _check_project(repo,path=None, force_creation=False):
+def _check_project(repo, path=None, force_creation=False):
     print "Checking .project file [%s]"%os.path.basename(path)
     if not path:
          path = repo.path
@@ -50,7 +50,6 @@ def _check_project(repo,path=None, force_creation=False):
             root = None
             names = []
 
-
         if not root:
             print ".project file is invalid"
             project_ok = False
@@ -64,8 +63,6 @@ def _check_project(repo,path=None, force_creation=False):
              project_ok = False
 
         if project_ok:
-
-
             name_node = getFirstChild(root, 'name')
 
             try:

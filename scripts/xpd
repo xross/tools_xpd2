@@ -105,11 +105,13 @@ def get_current_modules(repo):
     makefiles = []
     for root, dirs, files in os.walk(repo.path, topdown=False):
         for f in files:
-            if re.match(root,'.*\.source.*'):
+            if re.match('.*\.source.*', root):
                 continue
-            if re.match(root,'.*\.doxygen.*'):
+            if re.match('.*\.doxygen.*', root):
                 continue
-            if f=="Makefile":
+            if re.search('%s__' % os.path.sep, root):
+                continue
+            if f == "Makefile":
                 makefiles.append(os.path.join(root,f))
 
     modules = set([])
@@ -117,7 +119,7 @@ def get_current_modules(repo):
         f = open(path)
         while True:
             line = f.readline()
-            if line=="":
+            if line == "":
                 break
             m = re.match(r'\s*USED_MODULES\s*\+?=(.*)', line)
             if m:
@@ -176,7 +178,7 @@ def xpd_add_dep(repo, options, args):
 
 
 def xpd_check_dep(repo, options, args, return_current_ok=False,
-                   allow_updates=True, force_changes = True):
+                   allow_updates=True, force_changes=True):
     deps = [d.repo_name for d in repo.dependencies]
 
     current_ok = True
@@ -187,7 +189,7 @@ def xpd_check_dep(repo, options, args, return_current_ok=False,
     for dep_repo in repos:
 
         if allow_updates and \
-           (force_changes or confirm("Add %s to dependencies (Y/n)?"%dep_repo,default=True)):
+           (force_changes or confirm("Add %s to dependencies (Y/n)?" % dep_repo, default=True)):
             dep = Dependency(parent=repo)
             dep.repo_name = dep_repo
             dep.repo = Repo(dep.get_local_path())
@@ -210,7 +212,7 @@ def xpd_check_dep(repo, options, args, return_current_ok=False,
         if dep.githash != dep.repo.current_githash() or \
            (rel and dep.version_str != str(rel.version)):
             if allow_updates and \
-                    (force_changes or confirm("%s has new local version. Update metainformation (Y/n)?"%dep.repo_name,default=True)):
+                    (force_changes or confirm("%s has new local version. Update metainformation (Y/n)?" % dep.repo_name, default=True)):
                 dep.githash = dep.repo.current_githash()
                 if rel:
                     dep.version_str = str(rel.version)
@@ -221,7 +223,6 @@ def xpd_check_dep(repo, options, args, return_current_ok=False,
                 if not allow_updates:
                     print "Dependency %s is not up to date" % dep.repo_name
                 current_ok = False
-
 
     if len(repos) == 0 and current_ok and not update:
         print "Dependencies OK"
@@ -2133,7 +2134,7 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
 def xpd_check_all(repo, options, args):
     ok = True
     if not (options.nocheckdep):
-        res = xpd_check_dep(repo, options,args,return_current_ok=True)
+        res = xpd_check_dep(repo, options, args, return_current_ok=True)
         ok = ok and res
         if res:
             print "DEPENDENCIES OK"

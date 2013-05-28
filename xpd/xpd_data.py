@@ -512,8 +512,6 @@ class Repo(XmlObject):
                 rel.merge(rel_other)
             else:
                 self.releases.append(rel_other)
-                
-            
 
     def get_release(self, version):
         found = None
@@ -530,7 +528,6 @@ class Repo(XmlObject):
         return Repo(path=self.path, 
                     parenthash = rel.parenthash)
 
-
     def checkout(self, githash, silent=False):
         if silent:
             call(["git","checkout",githash],
@@ -540,8 +537,6 @@ class Repo(XmlObject):
         else:
             call(["git","checkout",githash],
                             cwd=self.path)
-
-
             
     def save(self):
         f = open(self.xpd_file,"w")
@@ -565,7 +560,6 @@ class Repo(XmlObject):
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)                
                 self.checkout(ref,silent=True)
-            
 
     def save_and_commit_release(self, release):        
         self.save()
@@ -713,7 +707,6 @@ class Repo(XmlObject):
         (_,name) = os.path.split(self.path)
         return name
 
-
     def _prune_dirs(self):
         all_dirs = [x for x in os.listdir(self.path) if
                                    os.path.isdir(os.path.join(self.path,x))]
@@ -727,11 +720,11 @@ class Repo(XmlObject):
 
     def _move_to_temp_sandbox(self, path, git_only=True):
         if git_only:
-            p = Popen(["git","clone",self.path],
+            p = Popen(["git", "clone", self.path],
                       cwd=path,
                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             p.communicate()
-            p=Popen(["git","checkout",self.current_githash()],
+            p=Popen(["git", "checkout", self.current_githash()],
                     cwd=path,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.STDOUT)
@@ -742,7 +735,6 @@ class Repo(XmlObject):
         self._path = self.path
         self.path = os.path.join(path,self.name)
         self._prune_dirs()
-
 
     def orig_path(self):
         return self._path
@@ -770,7 +762,7 @@ class Repo(XmlObject):
         components = []
         for x in os.listdir(path):
           if x == 'doc':
-               continue
+              continue
           if x in self.exclude_dirs:
               continue
           if x in self.docdirs:
