@@ -37,15 +37,19 @@ def samefile(fileA, fileB):
     except AttributeError:
         return os.path.abspath(fileA).lower() == os.path.abspath(fileB).lower()
 
-
 def confirm(msg, default=False):
-    x = raw_input(msg)
-    if (x in ["n","N","no","No","NO"]):
-        return False
-    if (x in ["y","Y","yes","Yes","YES"]):
-        return True
-    return default
-
+    """ Prompt the user and expect as yes/no answer. Return the default
+        specified if no input is given, or the response given by the user.
+        If no sensible response is found, prompt again.
+    """
+    while True:
+        x = raw_input(msg + " (y/n) [%s]? " % ("y" if default else "n"))
+        if not x:
+            return default
+        if x.upper() in ["N","NO"]:
+            return False
+        if x.upper() in ["Y","YES"]:
+            return True
 
 def xpd_dep_iter(repo, command, output_repo_names=True):
     deps = repo.dependencies
@@ -83,8 +87,6 @@ def xpd_show_dep(repo, options, args):
             else:
                 print "%20s: %s"%(dep.repo_name, dep.githash)
 
-
-
 def xpd_remove_dep(repo, options, args):
     if len(args) < 1:
         return False
@@ -99,7 +101,6 @@ def xpd_remove_dep(repo, options, args):
 
     sys.stderr.write("%s is not a current dependency\n" % to_remove)
     return False
-
 
 def get_current_modules(repo):
     makefiles = []
@@ -176,7 +177,6 @@ def xpd_add_dep(repo, options, args):
     print "Added"
     return True
 
-
 def xpd_check_dep(repo, options, args, return_current_ok=False,
                    allow_updates=True, force_changes=True):
     deps = [d.repo_name for d in repo.dependencies]
@@ -189,7 +189,7 @@ def xpd_check_dep(repo, options, args, return_current_ok=False,
     for dep_repo in repos:
 
         if allow_updates and \
-           (force_changes or confirm("Add %s to dependencies (Y/n)?" % dep_repo, default=True)):
+           (force_changes or confirm("Add %s to dependencies" % dep_repo, default=True)):
             dep = Dependency(parent=repo)
             dep.repo_name = dep_repo
             dep.repo = Repo(dep.get_local_path())
@@ -212,7 +212,7 @@ def xpd_check_dep(repo, options, args, return_current_ok=False,
         if dep.githash != dep.repo.current_githash() or \
            (rel and dep.version_str != str(rel.version)):
             if allow_updates and \
-                    (force_changes or confirm("%s has new local version. Update metainformation (Y/n)?" % dep.repo_name, default=True)):
+                    (force_changes or confirm("%s has new local version. Update metainformation" % dep.repo_name, default=True)):
                 dep.githash = dep.repo.current_githash()
                 if rel:
                     dep.version_str = str(rel.version)
@@ -257,15 +257,13 @@ def xpd_upgrade_rc(repo, options, args):
         sys.stderr.write("Version already exists.\n")
         sys.exit(1)
 
-
     rc = repo.latest_release(release_filter=lambda r: r.version.match_modulo_rtype(version) and r.version.rtype=='rc')
 
     if not rc:
         sys.stderr.write("Cannot find rc.\n")
         sys.exit(1)
 
-
-    if not confirm("Upgrade %s to %s. Are you sure (Y/n)?"%(rc.version,version),default=True):
+    if not confirm("Upgrade %s to %s. Are you sure"%(rc.version,version), default=True):
         return False
 
     release = copy(rc)
@@ -274,7 +272,6 @@ def xpd_upgrade_rc(repo, options, args):
     repo.releases.append(release)
     repo.save()
     repo.record_release(release)
-
 
     ref = repo.current_gitref()
 
@@ -303,9 +300,7 @@ def xpd_build_sw(repo, options):
         print "Error building"
         sys.exit(1)
 
-
 def xpd_create_release(repo, options, args):
-
     if hasattr(options,'release_branch') and options.release_branch:
         create_branch = True
     else:
@@ -323,7 +318,7 @@ def xpd_create_release(repo, options, args):
             for i in range(len(candidates)):
                 print "   " + str(i) + ": " + str(candidates[i].version)
             print ""
-            x = raw_input("Choose candidate [%d..%d]:"%(0,len(candidates)-1))
+            x = raw_input("Choose candidate (%d..%d):" % (0, len(candidates)-1))
             try:
                 base_release = candidates[int(x)]
             except:
@@ -373,8 +368,6 @@ def xpd_create_release(repo, options, args):
         x = raw_input("Enter version number: ")
         version = Version(version_str=x)
 
-
-
     if create_branch:
         version = base_release.version
         version.branch = options.release_branch
@@ -383,7 +376,7 @@ def xpd_create_release(repo, options, args):
         version.rtype = rtype
         version.set_rnumber(repo.releases)
 
-    if not confirm("Create release %s. Are you sure (Y/n)?"%version,default=True):
+    if not confirm("Create release %s. Are you sure"%version, default=True):
         return False
 
 
@@ -399,7 +392,7 @@ def xpd_create_release(repo, options, args):
         for item in notes[fstr]:
             print item
             print "----"
-        if not confirm("Are these notes up to date? (Y/n)", default=True):
+        if not confirm("Are these notes up to date", default=True):
             print "Please update notes and try again"
             return True
 
@@ -473,7 +466,6 @@ def xpd_create_release(repo, options, args):
 
     repo.delete_temp_sandbox()
 
-
     # deps = []
 
     # for head_dep in repo.dependencies:
@@ -504,17 +496,13 @@ def xpd_create_release(repo, options, args):
 
     release.githash = repo.get_child_hash(release.parenthash)
 
-    #if confirm("Do you want to make a zipfile (Y/n)? ",default=True):
+    #if confirm("Do you want to make a zipfile ", default=True):
     #    xpd_make_zip(repo,options,[])
 
-    if confirm("Do you want to push the commit of this release upstream (Y/n)?",default=True):
+    if confirm("Do you want to push the commit of this release upstream", default=True):
         repo.git_push()
 
-
-
     return False
-
-
 
 def do_exports(repo):
     for export in repo.exports:
@@ -523,9 +511,7 @@ def do_exports(repo):
     return repo.exports
 
 def xpd_make_zip(repo, options, args, dest = None):
-
     # Do some checks
-
     old_style = options.old_style
 
     if old_style:
@@ -613,15 +599,16 @@ def xpd_make_zip(repo, options, args, dest = None):
 
     f = zipfile.ZipFile(fname,"w")
 
-    zip_repo(repo, f, exports, old_style,oldstyle_includes,oldstyle_root,include_binaries=repo.include_binaries, force=options.force)
+    zip_repo(repo, f, exports, old_style, oldstyle_includes, oldstyle_root,
+            include_binaries=repo.include_binaries, force=options.force)
     for dep in repo.dependencies:
-        zip_repo(dep.repo, f, exports, old_style,oldstyle_includes,oldstyle_root, force=options.force, no_app_projects=True)
-
+        zip_repo(dep.repo, f, exports, old_style, oldstyle_includes,oldstyle_root,
+                force=options.force, no_app_projects=True)
 
     if not options.nodocs:
         for docdir in repo.docdirs:
-            insert_doc(repo.name, os.path.join(repo.path,docdir), f, is_xmos_repo = repo.is_xmos_repo(),
-                   repo=repo,base=docdir)
+            insert_doc(repo.name, os.path.join(repo.path,docdir), f, is_xmos_repo=repo.is_xmos_repo(),
+                   repo=repo, base=docdir)
 
         for block in repo.components:
             src = os.path.join(repo.path,block.path,'_build','text','README.txt')
@@ -632,7 +619,6 @@ def xpd_make_zip(repo, options, args, dest = None):
             (dotproject, xproject) = xpd.check_project.create_doc_project(repo)
             f.writestr(os.path.join(repo.name,'doc','.project'),dotproject)
             f.writestr(os.path.join(repo.name,'doc','.xproject'),xproject)
-
 
         if not options.github:
             insert_topdoc(repo,f)
@@ -681,15 +667,14 @@ def xpd_make_zip(repo, options, args, dest = None):
                 else:
                     print "WARNING: Cannot find relevant version of %s is cognidox. DEPENDENCIES SHOULD BE OFF RELEASED VERSIONS OF COMPONENTS" % dep.repo.name
 
-
     info_string = "<zipinfo>\n"
-    info_string += "   <main>%s</main>\n"%repo.name
+    info_string += "   <main>%s</main>\n" % repo.name
     if not alternate_name:
         info_string += "   <version>%s</version>\n"%vstr
     info_string += "</zipinfo>"
 
     if not old_style:
-        f.writestr('.zipinfo',info_string)
+        f.writestr('.zipinfo', info_string)
 
     f.close()
     print "Created %s" % fname
@@ -707,7 +692,7 @@ def xpd_make_zip(repo, options, args, dest = None):
             swblock_zips[block.id] = \
                 zipfile.ZipFile(os.path.join(zips_path,block.id+".zip"),"w")
 
-        f = zipfile.ZipFile(fname,"r")
+        f = zipfile.ZipFile(fname, "r")
         for name in f.namelist():
             m = re.match("[^/]*/([^/]*)/(.*)$",name)
             if not m:
@@ -767,8 +752,7 @@ def xpd_make_zip(repo, options, args, dest = None):
                 update = True
 
             repo.docmap_partnumber = partnum
-            version = cognidox.get_next_doc_version_tag(partnum,
-                                                        vstr)
+            version = cognidox.get_next_doc_version_tag(partnum, vstr)
             cognidox.doCognidoxCheckIn(partnum,
                                        os.path.join(repo.path,"docmap.xml"),
                                        version = version,
@@ -1573,20 +1557,20 @@ def xpd_check_info(repo, options, args,check_icon=True):
     update = False
     if repo.description==None or repo.description=="":
         print "The repo's description is one or two paragraphs description the contents of the repository."
-        if confirm("No description found. Add one (Y/n)?",default=True):
+        if confirm("No description found. Add one", default=True):
             print "Enter paragraph description:\n"
             repo.description = raw_input()
             update = True
 
     if False and check_icon and repo.icon==None:
         print "The repo's icon is a path relative to the repository pointing to a 16x16 png icon representing the repository."
-        if confirm("No icon found. Add one (Y/n)?",default=True):
+        if confirm("No icon found. Add one", default=True):
             print "Enter path to icon: "
             repo.icon = raw_input()
             update = True
 
     if False and repo.docdirs==[]:
-        if confirm("No documentation path found. Add one (Y/n)?",default=True):
+        if confirm("No documentation path found. Add one", default=True):
             print "Enter documentation path: "
             docdir = raw_input()
             repo.docdirs.append(docdir)
@@ -1594,23 +1578,21 @@ def xpd_check_info(repo, options, args,check_icon=True):
 
     if repo.vendor==None:
         print "If this repository is maintained by a organization or company that will package, release and support the code then the vendor field should be set with the organization's name."
-        if confirm("No vendor found. Add one (Y/n)?",default=True):
+        if confirm("No vendor found. Add one", default=True):
             print "Enter vendor name: "
             repo.vendor = raw_input()
             update = True
 
     if repo.maintainer==None:
         print "The repository's maintainer is a person who is reponsible for the repository. All repos should have a maintainer."
-        if confirm("No maintainer found. Add one (Y/n)?",default=True):
+        if confirm("No maintainer found. Add one", default=True):
             print "Enter maintainer github username: "
             repo.maintainer = raw_input()
             update = True
 
-
     if not repo.xcore_repo and re.match('.*github.com',repo.location):
         repo.xcore_repo = os.path.basename(repo.location)
         update = True
-
 
     update_partinfo = xpd_check_partinfo(repo, options, args)
     update = update or update_partinfo
@@ -1643,9 +1625,9 @@ def xpd_create_app(repo, options, args):
         if m:
             appname = m.groups(0)[1]
         appname = 'app_' + appname + '_example'
-        sys.stdout.write('Enter application name (%s): '%appname)
+        sys.stdout.write('Enter application name [%s]: ' % appname)
         x = raw_input()
-        if x != '':
+        if x:
             appname = x
 
     else:
@@ -1673,9 +1655,9 @@ def xpd_create_module(repo, options, args):
         if m:
             modulename = m.groups(0)[1]
         modulename = 'module_' + modulename
-        sys.stdout.write('Enter module name (%s): '%modulename)
+        sys.stdout.write('Enter module name [%s]: ' % modulename)
         x = raw_input()
-        if x != '':
+        if x:
             modulename = x
     else:
         modulename = args[0]
@@ -1707,7 +1689,7 @@ containing code modules for other projects it is usual to include a sample or
 test application within the repo.
 """
 
-        if confirm("Would you like to create an application within this project (Y/n)?",default=True):
+        if confirm("Would you like to create an application within this project", default=True):
             xpd_create_app(repo, options, [])
 
     modules = [x for x in os.listdir(repo.path) if x[0:7] == 'module_']
@@ -1717,7 +1699,7 @@ test application within the repo.
 A repository can contains modules that contain sets of source files than can be re-used across applications.
 """
 
-        if confirm("Would you like to create an module within this project (Y/n)?",default=True):
+        if confirm("Would you like to create an module within this project", default=True):
             xpd_create_module(repo, options, [])
 
     if not os.path.exists(os.path.join(repo.path,'Makefile')):
@@ -1729,7 +1711,7 @@ A repository can contains modules that contain sets of source files than can be 
         os.mkdir(os.path.join(repo.path,'doc'))
 
     if not os.path.exists(os.path.join(repo.path,'LICENSE.txt')):
-        if confirm("Would you like to license the code in this repository under the XCore Open Source License (Y/n)?",default=True):
+        if confirm("Would you like to license the code in this repository under the XCore Open Source License", default=True):
             holder = ''
             while holder == '':
                 sys.stdout.write('Enter copyright holder: ')
@@ -1762,11 +1744,11 @@ A repository can contains modules that contain sets of source files than can be 
 
 def xpd_check_infr(repo, options, args, return_ok=False):
     ok = True
-    project_ok = xpd.check_project.check_project(repo, force_creation = True)
+    project_ok = xpd.check_project.check_project(repo, force_creation=True)
     ok = ok and project_ok
-    cproject_ok = xpd.check_project.check_cproject(repo, force_creation = True)
+    cproject_ok = xpd.check_project.check_cproject(repo, force_creation=True)
     ok = ok and cproject_ok
-    makefiles_ok = xpd.check_project.check_makefiles(repo, force_creation = True)
+    makefiles_ok = xpd.check_project.check_makefiles(repo, force_creation=True)
     ok = ok and makefiles_ok
 
     changelog_path = os.path.join(repo.path,'CHANGELOG.rst')
@@ -1801,7 +1783,7 @@ def xpd_check_partinfo(repo, options, args):
     update = False
     if not repo.partnumber:
         print "If this is an XMOS package or a github repo showing to the xsoftipexplorer, there should be an associated part number for the repository."
-        if confirm("No part number found. Add one (Y/n)?",default=True):
+        if confirm("No part number found. Add one", default=True):
             repo.partnumber = \
                 cognidox.query_and_create_document('/Projects/Apps',
                                                    default_title=repo.longname,
@@ -2156,7 +2138,7 @@ def xpd_check_all(repo, options, args):
         print "REPOSITORY UPDATED"
         print "================================================================="
         print "Either there are errors in your repository structure or the"
-        print "repository structure/meta-information has been updated (see previous output for details"
+        print "repository structure/meta-information has been updated (see previous output for details)"
         print "Try 'git status' and 'git diff' to see changes that have been made to repository"
         print "================================================================="
     return True
@@ -2266,7 +2248,6 @@ def call_xsoftip(command,comp,repo):
     cmd = ["xsoftip",command]+args
     print " ".join(cmd)
     return    call(cmd, cwd=repo.path, shell=True)
-
 
 
 def xpd_build_results(repo,options,args, return_valid=False):
@@ -2469,7 +2450,7 @@ def xpd_install_local(repo, options, args):
 def xpd_approve_latest(repo, options, args):
     if not repo.partnumber:
         return
-    if not confirm("Approve latest version in cognidox. This may cause it to automatically appear on xmos.com? (y/N)?",default=False):
+    if not confirm("Approve latest version in cognidox. This may cause it to automatically appear on xmos.com", default=False):
         return
     f,_ = cognidox.fetch_latest(repo.partnumber)
     dom = xml.dom.minidom.parseString(f.read())

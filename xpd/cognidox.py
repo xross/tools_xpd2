@@ -277,12 +277,13 @@ def query_and_create_document(default_path,
 """
     print "Cannot find cognidox part number."
     initCognidox()
-    sys.stdout.write("Do you know an existing part number (Y/n)?")
     if auto_create:
         x = 'n'
     else:
+        sys.stdout.write("Do you know an existing part number (y/n) [y]? ")
         x = raw_input()
-    if not x.upper() in ['N','NO']:
+
+    if x.upper() not in ['N','NO']:
         sys.stdout.write("Enter part number: ")
         partnum = raw_input()
         info = get_docinfo(partnum)
@@ -290,53 +291,58 @@ def query_and_create_document(default_path,
             print "Invalid part number"
             sys.exit(1)
     else:
-        sys.stdout.write("Do you want to create a part (Y/n)?")
         if auto_create:
             x = 'y'
         else:
+            sys.stdout.write("Do you want to create a part (y/n) [y]? ")
             x = raw_input()
-        if not x.upper() in ['N','NO']:
+            
+        if x.upper() not in ['N','NO']:
             if not title:
-                sys.stdout.write("Please enter document title (%s): " % default_title)
                 if auto_create:
                     title = default_title
                 else:
+                    sys.stdout.write("Please enter document title [%s]: " % default_title)
                     title = raw_input()
-                if title == '':
-                    title = default_title
-                if title == '':
+                    if not title:
+                        title = default_title
+
+                if not title:
                     sys.stderr.write("Need title to proceed.\n")
                     sys.exit(1)
+
             if not doctype:
                 print "Possible document types:"
                 print doctypes
-                sys.stdout.write("Please enter doctype (%s): " % default_doctype)
                 if auto_create:
                     doctype = default_doctype
                 else:
+                    sys.stdout.write("Please enter doctype [%s]: " % default_doctype)
                     doctype = raw_input()
-                if doctype == '':
-                    doctype = default_doctype
+                    if not doctype:
+                        doctype = default_doctype
+
             print "Example paths:"
             print paths
-            sys.stdout.write("Please enter path (%s): " % default_path)
             if auto_create:
                 path = default_path
             else:
+                sys.stdout.write("Please enter path [%s]: " % default_path)
                 path = raw_input()
-            if path == '':
-                path = default_path
+                if not path:
+                    path = default_path
 
             print "Create document"
             print "   Title:%s" % title
             print "    Type:%s" % doctype
             print "    Path:%s" % path
-            sys.stdout.write("Are you sure (Y/n)?")
             if auto_create:
                 x = 'y'
             else:
+                sys.stdout.write("Are you sure (y/n) [y]?")
                 x = raw_input()
-            if not x.upper() in ['N','NO']:
+
+            if x.upper() not in ['N','NO']:
                 partnum = create_document(title,doctype,path)
                 error = False
                 if not partnum or not re.match('XM-.*',partnum):
