@@ -785,7 +785,8 @@ def xpd_make_zip(repo, options, args, dest = None):
     #repo.delete_temp_sandbox()
     if os.path.exists(os.path.join(repo.path,'_build')):
         shutil.rmtree(os.path.join(repo.path,'_build'))
-    xref.update()
+    if not options.nodocs:
+        xref.update()
     return update
 
 def find_files(path):
@@ -796,13 +797,10 @@ def find_files(path):
 
     return fs
 
-
-def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldstyle_root="",include_binaries=False, force = False, no_app_projects = False):
-
+def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldstyle_root="", include_binaries=False, force=False, no_app_projects=False):
 
     lines = find_files(repo.path)
     excludes = []
-
 
     for docdir in repo.docdirs:
         excludes.append(docdir+'/*')
