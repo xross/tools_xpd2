@@ -41,7 +41,7 @@ def num (s):
 
 class XmlValue(object):
     def __init__(self, tagname=None, default=None, attrs={}):
-        self.default=default
+        self.default = default
         self.tagname = tagname
         self.attrs = attrs
 

@@ -10,7 +10,6 @@ from docutils.core import publish_file
 import xml.dom.minidom
 from StringIO import StringIO
 
-
 xpd_version = "1.0"
     
 DEFAULT_SCOPE='Experimental'
@@ -36,16 +35,17 @@ def exec_and_match(command, regexp, cwd=None):
             return m.groups(0)[0]
     return None
 
+
 class VersionParseError(Exception):
     def __str__(self):
         return "VersionParseError"
 
+
 class Version(object):
-    
     def __init__(self, major=0, minor=0, point=0, 
-                 rtype="release",rnumber=0,
+                 rtype="release", rnumber=0,
                  branch=None, branch_rnumber=0,
-                 version_str = None):
+                 version_str=None):
 
         if version_str == None:
             if rtype == "":
@@ -90,7 +90,6 @@ class Version(object):
             else:
                 self.branch_rnumber = int(self.rnumber)
 
-
         else:
             raise VersionParseError
 
@@ -102,7 +101,6 @@ class Version(object):
 
     def point_increment(self):
         return Version(self.major,self.minor,self.point+1)
-
 
     def is_full(self):
         return (not self.branch and (self.rtype == 'release' or self.rtype==''))
@@ -167,7 +165,6 @@ class Version(object):
             self.rnumber = rels[-1].version.rnumber + 1
 
 
-
 class Dependency(XmlObject):
     repo_name = XmlAttribute(attrname="repo")
     uri = XmlValue()
@@ -191,31 +188,35 @@ class Dependency(XmlObject):
             self.repo = None
             print "WARNING: Cannot find dependency: %s"%self.repo_name
 
-
-
     def __str__(self):
         return self.repo_name
+
 
 class ToolVersion(XmlObject):
     pass
 
+
 class ToolChainSection(XmlObject):
     tools = XmlValueList(tagname="tools")
 
+
 class Board(XmlObject):
     is_schematic = False
-
     portmap = XmlAttribute()
+
 
 class Schematic(Board):
     is_schematic = True
+
 
 class HardwareSection(XmlObject):
     boards = XmlNodeList(Board)
     schematics = XmlNodeList(Schematic)
     
+
 class DeviceSection(XmlObject):
     devices = XmlValueList()
+
 
 class UseCase(XmlObject):
     name = XmlValue()
@@ -225,6 +226,7 @@ class UseCase(XmlObject):
     devices = XmlNode(DeviceSection, tagname="devices")
     description = XmlValue()
     
+
 class Release(XmlObject):
     version_str = XmlAttribute(attrname="version")
     parenthash = XmlAttribute()
@@ -261,6 +263,7 @@ class Release(XmlObject):
     def __str__(self):
         return "<release:" + str(self.version) + ">"
 
+
 class ReleaseNote(XmlObject):
     
     version_str = XmlAttribute(attrname="version")
@@ -273,6 +276,7 @@ class ReleaseNote(XmlObject):
 
     def __cmp__(self, other):
         return cmp(self.version, other.version)
+
 
 class ChangeLog(XmlObject):
     
@@ -301,7 +305,6 @@ class Component(XmlObject):
     docVersion = XmlAttribute()
     dependencies = XmlValueList(tagname="componentDependency")
     zip_partnumber = XmlAttribute()
-
 
     def init_from_path(self, repo, path):
         self.id = os.path.basename(path)
@@ -357,7 +360,6 @@ class Component(XmlObject):
             else:
                 self.type = "component"
 
-
     def readme_to_dict(self):
         if not self.has_readme():
             return {}
@@ -394,8 +396,6 @@ class Component(XmlObject):
 
     def has_readme(self):
         return os.path.exists(self.readme_path())
-
-    
 
 
 class Repo(XmlObject):
@@ -435,7 +435,6 @@ class Repo(XmlObject):
     docmap_partnumber = XmlValue()
     path = None
 
-
     def __init__(self,path,parenthash=None,master=False,**kwargs):
         path = os.path.abspath(path)
         self.path = path
@@ -461,7 +460,6 @@ class Repo(XmlObject):
         else:
             git_dir = os.path.abspath(os.path.join(path,lines[0][:-1]))
 
-
         read_file = True
 
         if parenthash:
@@ -476,7 +474,6 @@ class Repo(XmlObject):
                       read_file = False            
                       self.parseString(process.stdout.read(),
                                        src="%s:%s:xpd.xml"%(self.path,relhash))
-
 
         if master:
              process = Popen(["git","show","master:xpd.xml"],
@@ -594,7 +591,6 @@ class Repo(XmlObject):
                                    lambda r: not r.version.is_full() \
                                              and not r.version.branch)
 
-                
     def current_release(self):
         if not self.path:
             return None
@@ -634,7 +630,6 @@ class Repo(XmlObject):
 
     def pre_export(self):
         self.xpd_version = xpd_version
-
 
     def latest_version(self):
         rels = [r for r in self.releases \
@@ -793,14 +788,12 @@ class Repo(XmlObject):
     def get_apps(self):
         return [x for x in self.get_software_blocks() if not x.is_module()]
 
-
     def get_modules(self):
         return [x for x in self.get_software_blocks() if x.is_module()]
 
-
     def create_dummy_package(self, version_str):
         package = Package()
-        package.id = "xm-local-"+self.name
+        package.id = "xm-local-" + self.name
         package.hash = "DUMMY-HASH"
         package.latestversion = version_str
         package.version = version_str
@@ -815,7 +808,6 @@ class Repo(XmlObject):
     def git_add(self, path):
         call(["git","add",path],
              cwd=self.path)
-
 
     def git_push(self):
         call(["git","push"],
@@ -845,8 +837,6 @@ class Repo(XmlObject):
 
         return False
 
-
-
     def enter_github_mode(self):
         print "Github mode"
         self._partnumber = self.partnumber
@@ -859,7 +849,6 @@ class Repo(XmlObject):
         self.xcore_subpartnumber = self.subpartnumber
         self.partnumber = self._partnumber
         self.subpartnumber = self._subpartnumber
-
 
     def get_project_deps(self):
         projs = {}
@@ -887,11 +876,7 @@ class Repo(XmlObject):
 
                         return (repo,deps)
 
-
             return None,None
-
-
-
 
         something_changed = True
         while (something_changed):
@@ -926,6 +911,7 @@ class Repo(XmlObject):
                 return swblock
         return None
 
+
 class Package(XmlObject):
     name = XmlAttribute()
     id = XmlAttribute()
@@ -938,9 +924,11 @@ class Package(XmlObject):
     description = XmlValue()
     components = XmlNodeList(Component,wrapper="components")
 
+
 class AllSoftwareDescriptor(XmlObject):
     packages = XmlNodeList(Package)
     toolsVersion = XmlAttribute()
+
 
 class SoftwareDescriptor(XmlObject):
     packages = XmlNodeList(Package)
@@ -948,6 +936,7 @@ class SoftwareDescriptor(XmlObject):
     id = XmlAttribute()
     project = XmlAttribute()
     name = XmlAttribute()
+
 
 class Doc(XmlObject):
     category = XmlAttribute()
@@ -957,5 +946,7 @@ class Doc(XmlObject):
     related = XmlValueList()
     title = XmlAttribute()
 
+
 class DocMap(XmlObject):
     docs = XmlNodeList(Doc)
+

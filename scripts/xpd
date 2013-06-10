@@ -29,8 +29,6 @@ xdoc = None
 xmossphinx = None
 xmos_xref = None
 
-rst_title_regexp = r'[-=^~.][-=^~.]+'
-
 def samefile(fileA, fileB):
     try:
         return os.path.samefile(fileA, fileB)
@@ -134,20 +132,20 @@ def get_current_modules(repo):
 def find_current_dependencies(repo):
     modules = get_current_modules(repo)
 
-    root_dir = os.path.join(repo.path,"..")
+    root_dir = os.path.join(repo.path, "..")
 
     repos = set([])
     for dep_repo in os.listdir(root_dir):
-        repo_path = os.path.join(root_dir,dep_repo)
+        repo_path = os.path.join(root_dir, dep_repo)
         if os.path.isdir(repo_path):
             for module_dir in os.listdir(repo_path):
-                if os.path.isdir(os.path.join(repo_path,module_dir)):
+                if os.path.isdir(os.path.join(repo_path, module_dir)):
                     if module_dir in modules:
                         modules.remove(module_dir)
                         if not samefile(repo_path, repo.path):
                             repos.add(dep_repo)
 
-    if len(modules) != 0:
+    if modules:
         print "WARNING: Can't find repos for the following modules:"
         for m in modules:
             print "   " + m
@@ -163,7 +161,6 @@ def xpd_add_dep(repo, options, args):
         if dep.repo_name == args[0]:
             sys.stderr.write("ERROR: dependency already exists")
             sys.exit(1)
-
 
     dep = Dependency(parent=repo)
     dep.repo_name = args[0]
@@ -231,7 +228,6 @@ def xpd_check_dep(repo, options, args, return_current_ok=False,
         return current_ok
     else:
         return update
-
 
 def xpd_list(repo, options, args):
     rels = repo.releases
@@ -434,9 +430,7 @@ def xpd_create_release(repo, options, args):
         print "Cannot create release: dependencies not up to date"
         sys.exit(1)
 
-
     xpd_check_info(repo, options, args)
-
 
     ok = xpd.check_project.check_makefiles(repo)
 
@@ -575,6 +569,7 @@ def xpd_make_zip(repo, options, args, dest = None):
 
     xpd.check_project.check_project(repo, force_creation=True)
     xpd.check_project.check_cproject(repo, force_creation=True)
+    xpd.check_project.check_cproject(repo, force_creation=True)
     for dep in repo.dependencies:
         xpd.check_project.check_project(dep.repo, force_creation=True)
         xpd.check_project.check_cproject(dep.repo, force_creation=True, exclude_apps=True)
@@ -611,9 +606,13 @@ def xpd_make_zip(repo, options, args, dest = None):
                    repo=repo, base=docdir)
 
         for block in repo.components:
-            src = os.path.join(repo.path,block.path,'_build','text','README.txt')
-            arcname = os.path.join(repo.name, block.path, 'README.txt')
-            f.write(src, arcname = arcname)
+            src = os.path.join(repo.path, block.path, '_build', 'text', 'README.txt')
+            if not os.path.isfile(src):
+                print "  WARNING: repo %s vendor is not XMOS and does not come from github" % repo.path
+                print "           so there will be no README.txt for block %s" % block.path
+            else:
+                arcname = os.path.join(repo.name, block.path, 'README.txt')
+                f.write(src, arcname=arcname)
 
         if repo and xpd.check_project.flat_projects:
             (dotproject, xproject) = xpd.check_project.create_doc_project(repo)
@@ -823,7 +822,6 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
         excludes.append('.cproject')
         excludes.append('.project')
 
-
     for f in lines:
         f = f.rstrip()
         if oldstyle:
@@ -835,7 +833,6 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
         else:
             ok = True
 
-
         for i in exports:
             if not re.match('.*\.project$|.*\.cproject|.*\.xproject$',f):
                 if os.path.commonprefix([f,i])==i:
@@ -843,7 +840,6 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
 
         if re.match(".*\.git",f):
             ok = False
-
 
         for pattern in excludes:
             pattern = pattern.replace(".","\.")
@@ -855,7 +851,6 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
         if no_app_projects:
             if re.match('app_.*',f):
                ok = False
-
 
         if ok and f != "xpd.xml":
             if oldstyle:
@@ -895,7 +890,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
             elif f == 'README.rst':
                 lines = xpd_update_readme(repo,[],[],
                                           write_back=False,
-                                          xmos_package = repo.is_xmos_repo(),
+                                          xmos_package=repo.is_xmos_repo(),
                                           use_current_version=True)
                 new_readme = ''.join(lines)
                 zipfile.writestr(arcname, new_readme)
@@ -1030,8 +1025,6 @@ def insert_topdoc(repo,zipfile):
             else:
                 zipfile.write(src,arcname=dst)
 
-
-
 def insert_doc(repo_name, path, zipfile,base = None,insert_pdf = True,
                is_xmos_repo=True, repo=None):
     import_xdoc()
@@ -1056,7 +1049,6 @@ def insert_doc(repo_name, path, zipfile,base = None,insert_pdf = True,
         htmlpath=os.path.join(path,'_build','xdehtml')
     else:
         htmlpath=os.path.join(path,'_build','html')
-
 
     fs = find_files(htmlpath)
 
@@ -1143,12 +1135,10 @@ def rst_make_title(title, ch):
     return [title,underline,'']
 
 
-
-
 def xpd_update_readme(repo, options, args,
                       xmos_package=False, write_back=True,
                       use_current_version=False,
-                      doclinks = False):
+                      doclinks=False):
     print "Updating README in " + repo.name
     f = open(os.path.join(repo.path,'README.rst'))
     lines = f.readlines()
@@ -1159,7 +1149,6 @@ def xpd_update_readme(repo, options, args,
     remove_sections = ['Required Modules','Required Repositories','Required software (dependencies)']
     if xmos_package:
         remove_sections += ['Support','Documentation']
-
 
     delete_until_next_section = False
     found_sections = 0
@@ -1177,11 +1166,11 @@ def xpd_update_readme(repo, options, args,
                 line = '-DELETED-\n'
 
         if xmos_package:
-            if re.match(r'.*[D|d]ocumentation can be found.*',line):
+            if re.match(r'.*[D|d]ocumentation can be found.*', line):
                 line = '-DELETED-\n'
 
         if i < len(lines)-1:
-            m = re.match(rst_title_regexp,lines[i+1])
+            m = re.match(xpd.check_project.rst_title_regexp, lines[i+1])
         else:
             m = None
 
@@ -1200,7 +1189,7 @@ def xpd_update_readme(repo, options, args,
     if len(section_indices) < 1:
         return
 
-    heading  = lines[:section_indices[1]+1]
+    heading = lines[:section_indices[1]+1]
     if 2 in section_indices:
         prologue = lines[section_indices[1]+1:section_indices[2]-1]
         lines = lines[section_indices[2]-1:]
@@ -1209,7 +1198,6 @@ def xpd_update_readme(repo, options, args,
         lines = lines[section_indices[1]+1:]
 
     lines = [x for x in lines if x != '-DELETED-\n']
-
 
     new_header = "\n"
 
@@ -1235,7 +1223,6 @@ def xpd_update_readme(repo, options, args,
         new_header += ':Description: %s\n' % desc[0]
         for x in desc[1:]:
             new_header += '  %s' % x
-
 
     lines += ['\n','Required software (dependencies)\n','================================\n','\n']
 
@@ -1294,8 +1281,7 @@ def xpd_update_readme(repo, options, args,
     new_header = [x + '\n' for x in new_header.split('\n')]
     doc_header = [x + '\n' for x in doc_header.split('\n')]
 
-    lines = heading + new_header + prologue + doc_header+ lines
-
+    lines = heading + new_header + prologue + doc_header + lines
 
     for i in range(len(lines)-1):
         if lines[i] == '\n' and lines[i+1] == '\n':
@@ -1485,10 +1471,6 @@ def xpd_gen_readme(repo, options, args):
 
             release_details.extend(add_indent(4,usecase_details))
 
-
-
-
-
     changelog = []
 
     if repo.changelog != []:
@@ -1500,8 +1482,6 @@ def xpd_gen_readme(repo, options, args):
             log = x.wholeText.rstrip().split('\n')
 
             changelog.extend(log+[''])
-
-
 
     print '\n'.join(header)
     print '\n'.join(release_details)
@@ -1748,22 +1728,8 @@ def xpd_check_infr(repo, options, args, return_ok=False):
     ok = ok and cproject_ok
     makefiles_ok = xpd.check_project.check_makefiles(repo, force_creation=True)
     ok = ok and makefiles_ok
-
-    changelog_path = os.path.join(repo.path,'CHANGELOG.rst')
-    if not os.path.exists(changelog_path):
-        print "Cannot find CHANGELOG.rst"
-        print "Adding template version..."
-        ok = False
-        f = open(changelog_path,"w")
-        f.write(templates.changelog)
-        f.close()
-        repo.git_add('CHANGELOG.rst')
-    else:
-        f = open(changelog_path)
-        line = f.readline()
-        if line and len(line)>1 and line[0]=='<':
-            print "CHANGELOG.rst is still empty template"
-            ok = False
+    changelog_ok = xpd.check_project.check_changelog(repo, force_creation=True)
+    ok = ok and changelog_ok
 
     if return_ok:
         return ok
@@ -1919,9 +1885,9 @@ def xpd_build_topdoc(repo,options=None,args=None):
     doc_path = repo.path
     readme = xpd_update_readme(repo,[],[],
                                write_back=False,
-                               xmos_package = repo.is_xmos_repo(),
+                               xmos_package=repo.is_xmos_repo(),
                                use_current_version=True,
-                               doclinks = True)
+                               doclinks=True)
 
     if not readme:
         return
@@ -1932,21 +1898,21 @@ def xpd_build_topdoc(repo,options=None,args=None):
         '   changelog\n']
     import_xdoc()
 
-    topdoc_path = os.path.join(doc_path,'toplevel_doc')
+    topdoc_path = os.path.join(doc_path, 'toplevel_doc')
     if os.path.exists(topdoc_path):
         shutil.rmtree(topdoc_path)
     os.makedirs(topdoc_path)
-    f = open(os.path.join(topdoc_path,'index.rst'),'w')
+    f = open(os.path.join(topdoc_path, 'index.rst'),'w')
     f.write(''.join(readme))
     f.close()
-    changelog_path = os.path.join(repo.path,'CHANGELOG.rst')
+    changelog_path = os.path.join(repo.path, 'CHANGELOG.rst')
     if os.path.exists(changelog_path):
-        shutil.copy(changelog_path,os.path.join(topdoc_path,'changelog.rst'))
+        shutil.copy(changelog_path,os.path.join(topdoc_path, 'changelog.rst'))
     if repo.is_xmos_repo():
-        xdoc.main('xdehtml',path=topdoc_path,
+        xdoc.main('xdehtml', path=topdoc_path,
                   config={'XDEHTML_UNPAGED_OUTPUT':'1'})
     else:
-        xdoc.main('html',path=topdoc_path)
+        xdoc.main('html', path=topdoc_path)
     print "Top level document created in %s" % topdoc_path
 
     repo.topdoc_path = topdoc_path
@@ -2091,8 +2057,6 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
                     swblock.docVersion = "latest"
                 cognidox.assign_license(partnum,'General Public')
 
-
-
             else:
                 xdoc.main('xdehtml', config=xdoc_config)
         else:
@@ -2103,7 +2067,6 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
         readme = os.path.join(docdir,'README.rst')
         os.remove(readme.replace('.rst',rstonlysuffix))
         os.chdir(curdir)
-
 
     if not options.github:
         xpd_build_topdoc(repo)
@@ -2122,11 +2085,11 @@ def xpd_check_all(repo, options, args):
     if not res:
         print "METAINFORMATION OK"
     ok = ok and not res
-    res = xpd_check_swblocks(repo, options, args, return_valid = True)
+    res = xpd_check_swblocks(repo, options, args, return_valid=True)
     if res:
         print "SWBLOCK INFORMATION OK"
     ok = ok and res
-    res = xpd_check_infr(repo, options, args, return_ok = True)
+    res = xpd_check_infr(repo, options, args, return_ok=True)
     if res:
         print "MAKEFILE/ECLIPSE PROJECT INFORMATION OK"
     ok = ok and res
@@ -2182,14 +2145,13 @@ def xpd_parse_release_notes(repo, options, args, return_notes = False):
     new_item = False
     current_version = None
     notes = {}
-    for i in range(len(lines)):
-        line = lines[i]
+    for i, line in enumerate(lines):
         if i < len(lines)-1:
             next = lines[i+1]
         else:
             next = ''
 
-        if re.match(rst_title_regexp,line):
+        if re.match(xpd.check_project.rst_title_regexp, line):
             continue
 
         try:

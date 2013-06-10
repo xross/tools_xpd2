@@ -9,9 +9,23 @@ import hashlib
 from xpd.xpd_subprocess import call, Popen
 from xpd import templates
 
+rst_title_regexp = r'[-=^~.][-=^~.]+'
+
 rand = random.Random()
 
 flat_projects = True
+
+def prompt(force, prompt, default):
+    if force:
+        x = 'y' if default else 'n'
+    else:
+        print "%s (y/n) [%s]? " % ('y' if default else 'n')
+        x = raw_input()
+
+    if default:
+        return x.upper() not in ['N', 'NO']
+    else:
+        return x.upper() not in ['Y', 'YES']
 
 def new_id(m):
      return "id = \"" + m.groups(0)[0] + "." + str(rand.randint(0,100000000)) + "\""
@@ -80,15 +94,9 @@ def _check_project(repo, path=None, force_creation=False):
                 project_ok = False
 
     if force_creation or not project_ok:
-        if force_creation:
+        if prompt(force_creation, "There is a problem with the eclipse .project file.\n" +
+                                   "Do you want xpd to create a new one", True):
             sys.stdout.write("Creating new .project file\n")
-            x = 'y'
-        else:
-            sys.stdout.write("There is a problem with the eclipse .project file.\n")
-            sys.stdout.write("Do you want xpd to create a new one (y/n) [y]? ")
-            x = raw_input()
-
-        if x.upper() not in ['N','NO']:
             project_lines = templates.dotproject.split('\n')
             f = open(os.path.join(path,'.project'), 'w')
             for line in project_lines:
@@ -460,15 +468,9 @@ def _check_cproject(repo,makefiles,project_deps,path=None, force_creation=False)
             cproject_ok = False
 
     if force_creation or not cproject_ok:
-        if force_creation:
+        if prompt(force_creation, "There is a problem with the eclipse .cproject file.\n" + 
+                                  "Do you want xpd to create a new one", True):
             sys.stdout.write("Creating new .cproject file\n")
-            x = 'y'
-        else:
-            sys.stdout.write("There is a problem with the eclipse .cproject file.\n")
-            sys.stdout.write("Do you want xpd to create a new one (y/n) [y]? ")
-            x = raw_input()
-                
-        if x.upper() not in ['N','NO']:
             create_cproject(repo, path, name, configs, all_includes,is_module=is_module)
             print "New .cproject created."
 
@@ -611,8 +613,6 @@ def update_makefile(mkfile_path, all_configs):
     else:
          base_config = ''
 
-
-
     f = open(mkfile_path,"w")
     f.write(''.join(newlines) + include_section)
     f.close()
@@ -640,14 +640,8 @@ def check_toplevel_makefile(repo, force_creation=False):
               print "WARNING: toplevel Makefile not standard"
 
     if updates_required:
-        if force_creation:
-            x = 'y'
-        else:
-            sys.stdout.write("There is a problem with the toplevel Makefile.\n")
-            sys.stdout.write("Do you want xpd to create a new one (y/n) [y]? ")
-            x = raw_input()
-
-        if x.upper() not in ['N','NO']:
+        if prompt(force_creation, "There is a problem with the toplevel Makefile.\n" +
+                                  "Do you want xpd to create a new one", True):
              f = open(os.path.join(repo.path,'Makefile'),'w')
              f.write(templates.toplevel_makefile)
              f.close()
@@ -655,9 +649,8 @@ def check_toplevel_makefile(repo, force_creation=False):
 
     return updates_required
 
-def check_makefiles(repo, force_creation = False):
-    updates_required = check_toplevel_makefile(repo,
-                                               force_creation = force_creation)
+def check_makefiles(repo, force_creation=False):
+    updates_required = check_toplevel_makefile(repo, force_creation=force_creation)
     makefiles = find_all_app_makefiles(repo.path)
     all_configs = get_all_configs(makefiles)
     for mkfile in makefiles:
@@ -669,13 +662,7 @@ def check_makefiles(repo, force_creation = False):
         dirname = os.path.dirname(os.path.relpath(mkfile, repo.path))
         updates_required |= check_makefile(mkfile, repo, configs)
     if updates_required:
-        if force_creation:
-            x = 'y'
-        else:
-            print "Makefiles need updating. Do updates (y/n) [y]? "
-            x = raw_input()
-
-        if x.upper() not in ['N','NO']:
+        if prompt(force_creation, "Makefiles need updating. Do updates", True):
             for mkfile in makefiles:
                 if flat_projects:
                        configs = get_all_configs(set([mkfile]))
@@ -684,7 +671,65 @@ def check_makefiles(repo, force_creation = False):
                 update_makefile(mkfile, configs)
                 print "Updated %s" % os.path.relpath(mkfile, repo.path)
 
-    return  (not updates_required)
+    return (not updates_required)
+
+def check_changelog(repo, force_creation=False):
+    ok = True
+    changelog_path = os.path.join(repo.path, 'CHANGELOG.rst')
+    if not os.path.exists(changelog_path):
+        print "Cannot find CHANGELOG.rst"
+        if prompt(force_creation, "Create template CHANGELOG.rst ", True):
+            print "Adding template CHANGELOG.rst"
+            f = open(changelog_path,"w")
+            f.write(templates.changelog)
+            f.close()
+            repo.git_add('CHANGELOG.rst')
+            ok = False
+
+    else:
+        f = open(changelog_path)
+        lines = f.readlines()
+        f.close()
+
+        title_error = False
+        for i, line in enumerate(lines):
+            line = line.strip()
+
+            # Ignore blank lines at the start of the file
+            if not line:
+                continue
+                
+            if line[0] == '<':
+                print >>sys.stderr, "ERROR: CHANGELOG.rst is still empty template - please update it"
+                sys.exit(1)
+
+            if not re.search("change log", line, re.IGNORECASE):
+                title_error = True
+                break
+
+            # The title must have a section line after it
+            if i < (len(lines) - 1):
+                if re.match(rst_title_regexp,lines[i+1]):
+                    break
+
+            # Otherwise it is an error
+            title_error = True
+            break
+
+        if title_error:
+            print 'ERROR: title section in %s CHANGELOG.rst not valid' % repo.name
+            ok = False
+            if prompt(force_creation, "Add valid title section", True):
+                title = "%s Change Log" % repo.name 
+                f = open(changelog_path, 'w')
+                f.write(title + '\n')
+                f.write(('=' * len(title)) + '\n')
+                for line in lines:
+                    f.write(line)
+                f.close()
+                print "Updated %s" % changelog_path
+
+    return ok
 
 def check_docdir(repo):
      pass
@@ -707,3 +752,4 @@ def patch_makefile(makefile_str):
      makefile_str = '\n'.join(new_lines)
      makefile_str += templates.makefile_include_str
      return makefile_str
+
