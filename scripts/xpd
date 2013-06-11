@@ -323,18 +323,22 @@ def xpd_create_release(repo, options, args):
     elif hasattr(options,'release_type') and options.release_type:
         rtype = options.release_type
     else:
-        x = raw_input("Enter release type (a=alpha,b=beta,r=rc): ")
-        if x in ['a','alpha']:
-            rtype='alpha'
-        elif x in ['b','beta']:
-            rtype='beta'
-        elif x in ['r','rc']:
-            rtype='rc'
-        elif x in ['release']:
-            rtype='release'
-        else:
-            sys.stderr.write("Unknown release type\n")
-            sys.exit(1)
+        rtype = None
+        while True:
+            x = raw_input("Enter release type (a=alpha,b=beta,r=rc): ")
+            if x in ['a','alpha']:
+                rtype = 'alpha'
+            elif x in ['b','beta']:
+                rtype = 'beta'
+            elif x in ['r','rc']:
+                rtype = 'rc'
+            elif x in ['release']:
+                rtype = 'release'
+
+            if rtype:
+                break
+            else:
+                sys.stderr.write("Unknown release type '%s'\n" % x)
 
         if rtype in ['release','']:
             sys.stderr.write("Cannot create release directly - must upgrade an rc\n")
@@ -361,8 +365,14 @@ def xpd_create_release(repo, options, args):
         if latest_pre and (not latest or latest_pre > latest):
             print "Latest pre-release: %s" % latest_pre.version
 
-        x = raw_input("Enter version number: ")
-        version = Version(version_str=x)
+        version = None
+        while True:
+            x = raw_input("Enter version number: ")
+            try:
+                version = Version(version_str=x)
+                break
+            except:
+                sys.stderr.write("Invalid version number '%s'\n" % x)
 
     if create_branch:
         version = base_release.version
@@ -374,7 +384,6 @@ def xpd_create_release(repo, options, args):
 
     if not confirm("Create release %s. Are you sure"%version, default=True):
         return False
-
 
     notes = xpd_parse_release_notes(repo, options, args, return_notes = True)
 
@@ -766,7 +775,7 @@ def xpd_make_zip(repo, options, args, dest = None):
             zip_vstr = vstr
         cognidox.doCognidoxCheckIn(repo.subpartnumber,
                                    fname,
-                                   version = zip_vstr,
+                                   version=zip_vstr,
                                    draft=False)
         print "Assigning License Info"
         cognidox.assign_license(repo.subpartnumber,'General Public')
@@ -776,7 +785,7 @@ def xpd_make_zip(repo, options, args, dest = None):
         print "Uploading document holder"
         cognidox.doCognidoxCheckIn(repo.partnumber,
                                    ".docholder.xml",
-                                   version = vstr,
+                                   version=vstr,
                                    draft=True)
         os.remove(".docholder.xml")
 
@@ -965,7 +974,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
             for f in files:
                 if re.match('.*\.xe$',f):
                     fullpath = os.path.join(root, f)
-                    arcname=os.path.relpath(root, repo.path)
+                    arcname = os.path.relpath(root, repo.path)
                     if oldstyle:
                         arcname = os.path.join(oldstyle_root, arcname)
                     else:
@@ -1008,7 +1017,7 @@ def insert_topdoc(repo,zipfile):
                 if f == 'index.html':
                     rel = repo.current_release()
                     if repo.is_xmos_repo() and repo.subpartnumber and rel:
-                        xde_comment = '\n<!--XDE partnum="%s" version="%s"-->\n'%(repo.subpartnumber,str(rel.version))
+                        xde_comment = '\n<!--XDE partnum="%s" version="%s"-->\n' % (repo.subpartnumber,str(rel.version))
                         index_str = index_str.replace('<html','%s<html'%xde_comment)
 
                 zipfile.writestr(dst,index_str)
@@ -1017,13 +1026,11 @@ def insert_topdoc(repo,zipfile):
                 readme = readme.replace('"_static','"doc/.static')
                 readme = readme.replace('"././','"doc/')
                 if f == 'index.html':
-                    zipfile.writestr(os.path.join(repo.name,'README.html'),
-                                     readme)
+                    zipfile.writestr(os.path.join(repo.name,'README.html'), readme)
                 else:
-                    zipfile.writestr(os.path.join(repo.name,f),
-                                     readme)
+                    zipfile.writestr(os.path.join(repo.name,f), readme)
             else:
-                zipfile.write(src,arcname=dst)
+                zipfile.write(src, arcname=dst)
 
 def insert_doc(repo_name, path, zipfile,base = None,insert_pdf = True,
                is_xmos_repo=True, repo=None):
@@ -1996,14 +2003,14 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
 
         if repo.is_xmos_repo() and repo.partnumber:
             print "Adding link from document to software package"
-            docinfo = xref.get_or_create_docinfo_from_dir(docdir, topdir = repo.name)
+            docinfo = xref.get_or_create_docinfo_from_dir(docdir, topdir=repo.name)
             swlink = docinfo.get_swlink(repo.partnumber)
 
             base = os.path.basename(docdir)
             if base == 'doc':
                 base = repo.name
 
-            swlink.path = '%s/doc/%s' % (repo.name,base)
+            swlink.path = '%s/doc/%s' % (repo.name, base)
             swlink.version = repo.current_version_or_githash()
             swlink.title = repo.longname
             swlink.repo_name = repo.name
