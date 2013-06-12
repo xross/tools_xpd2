@@ -23,7 +23,7 @@ import xmossphinx
 import xmos_xref
 import xml.dom.minidom
 
-ALLOWED_SCOPES=["Roadmap","Example","Early Development","General Use"]
+ALLOWED_SCOPES=["Roadmap", "Example", "Early Development", "General Use"]
 
 xdoc = None
 xmossphinx = None
@@ -44,9 +44,9 @@ def confirm(msg, default=False):
         x = raw_input(msg + " (y/n) [%s]? " % ("y" if default else "n"))
         if not x:
             return default
-        if x.upper() in ["N","NO"]:
+        if x.upper() in ["N", "NO"]:
             return False
-        if x.upper() in ["Y","YES"]:
+        if x.upper() in ["Y", "YES"]:
             return True
 
 def xpd_dep_iter(repo, command, output_repo_names=True):
@@ -76,7 +76,7 @@ def xpd_show_dep(repo, options, args):
                 if rel:
                     print "%20s: %s %s"%(dep.repo, rel.version, local_mod)
                 else:
-                    print "%20s: %s %s"%(dep.repo, dep.repo.current_githash(),local_mod)
+                    print "%20s: %s %s"%(dep.repo, dep.repo.current_githash(), local_mod)
 
         print "\nExpected:"
         for dep in repo.dependencies:
@@ -111,7 +111,7 @@ def get_current_modules(repo):
             if re.search('%s__' % os.path.sep, root):
                 continue
             if f == "Makefile":
-                makefiles.append(os.path.join(root,f))
+                makefiles.append(os.path.join(root, f))
 
     modules = set([])
     for path in makefiles:
@@ -175,7 +175,8 @@ def xpd_add_dep(repo, options, args):
     return True
 
 def xpd_check_dep(repo, options, args, return_current_ok=False,
-                   allow_updates=True, force_changes=True):
+        allow_updates=True, force_changes=True):
+
     deps = [d.repo_name for d in repo.dependencies]
 
     current_ok = True
@@ -259,7 +260,7 @@ def xpd_upgrade_rc(repo, options, args):
         sys.stderr.write("Cannot find rc.\n")
         sys.exit(1)
 
-    if not confirm("Upgrade %s to %s. Are you sure"%(rc.version,version), default=True):
+    if not confirm("Upgrade %s to %s. Are you sure" % (rc.version, version), default=True):
         return False
 
     release = copy(rc)
@@ -291,13 +292,13 @@ def xpd_build_sw(repo, options):
     print "Building repo"
     if options.nobuild:
         return
-    ret = call(["xmake","CONFIG=All","NO_IGNORE_ERRORS=1","all"], cwd=repo.path, shell=True)
+    ret = call(["xmake", "CONFIG=All", "NO_IGNORE_ERRORS=1", "all"], cwd=repo.path, shell=True)
     if ret != 0 and not options.force:
         print "Error building"
         sys.exit(1)
 
 def xpd_create_release(repo, options, args):
-    if hasattr(options,'release_branch') and options.release_branch:
+    if hasattr(options, 'release_branch') and options.release_branch:
         create_branch = True
     else:
         create_branch = False
@@ -320,17 +321,17 @@ def xpd_create_release(repo, options, args):
             except:
                 print "Invalid choice"
                 sys.exit(1)
-    elif hasattr(options,'release_type') and options.release_type:
+    elif hasattr(options, 'release_type') and options.release_type:
         rtype = options.release_type
     else:
         rtype = None
         while True:
             x = raw_input("Enter release type (a=alpha,b=beta,r=rc): ")
-            if x in ['a','alpha']:
+            if x in ['a', 'alpha']:
                 rtype = 'alpha'
-            elif x in ['b','beta']:
+            elif x in ['b', 'beta']:
                 rtype = 'beta'
-            elif x in ['r','rc']:
+            elif x in ['r', 'rc']:
                 rtype = 'rc'
             elif x in ['release']:
                 rtype = 'release'
@@ -340,13 +341,13 @@ def xpd_create_release(repo, options, args):
             else:
                 sys.stderr.write("Unknown release type '%s'\n" % x)
 
-        if rtype in ['release','']:
+        if rtype in ['release', '']:
             sys.stderr.write("Cannot create release directly - must upgrade an rc\n")
             sys.exit(1)
 
     if create_branch:
         pass
-    elif hasattr(options,'release_version') and options.release_version:
+    elif hasattr(options, 'release_version') and options.release_version:
         version = Version(version_str=options.release_version)
     else:
         latest = repo.latest_full_release()
@@ -355,7 +356,7 @@ def xpd_create_release(repo, options, args):
             latest_version = latest.version
         else:
             print "There is no full release yet"
-            latest_version = Version(0,0,0,0)
+            latest_version = Version(0, 0, 0, 0)
 
         print "    Next major: %s" % latest_version.major_increment()
         print "    Next minor: %s" % latest_version.minor_increment()
@@ -462,7 +463,7 @@ def xpd_create_release(repo, options, args):
     repo.move_to_temp_sandbox()
     xpd_build_sw(repo, options)
     if not options.nobuild:
-        ok = xpd_build_results(repo,options,['all'],return_valid=True)
+        ok = xpd_build_results(repo, options, ['all'], return_valid=True)
         if not ok:
             print "xSOFTip Build Results Failed"
             return True
@@ -489,8 +490,8 @@ def xpd_create_release(repo, options, args):
 
     print "Created release %s" % str(release.version)
 
-    xpd_update_readme(repo,options,[])
-    call(["git","add","README.rst"],
+    xpd_update_readme(repo, options, [])
+    call(["git", "add", "README.rst"],
          cwd=repo.path,
          stdout=subprocess.PIPE,
          stderr=subprocess.PIPE)
@@ -510,17 +511,17 @@ def xpd_create_release(repo, options, args):
 def do_exports(repo):
     for export in repo.exports:
         print "Exporting %s" % export
-        call(["xmake","export"],cwd = os.path.join(repo.path,export))
+        call(["xmake","export"], cwd=os.path.join(repo.path,export))
     return repo.exports
 
-def xpd_make_zip(repo, options, args, dest = None):
+def xpd_make_zip(repo, options, args, dest=None):
     # Do some checks
     old_style = options.old_style
 
     if old_style:
         oldstyle_includes = get_current_modules(repo)
         for x in os.listdir(repo.path):
-            if re.match('app_.*',x):
+            if re.match('app_.*', x):
                 oldstyle_includes.add(x)
         oldstyle_root = repo.name
     else:
@@ -543,25 +544,25 @@ def xpd_make_zip(repo, options, args, dest = None):
                                 allow_updates=False)
 
     if not current_ok:
-        print "warning: Current dependency versions do not match meta-data"
+        print "WARNING: Current dependency versions do not match meta-data"
         alternate_name = True
 
-    rel = repo.current_release()
-    if rel:
-        vstr = str(rel.version)
+    release = repo.current_release()
+    if release:
+        version_string = str(release.version)
     else:
         if options.upload:
             print "Repository not at specific version point in git. Cannot publish."
             sys.exit(1)
-        vstr = repo.current_githash()[:8]
+        version_string = repo.current_githash()[:8]
 
     if alternate_name and not dest:
-        vstr = raw_input("Please give a name for this snapshot: ")
+        version_string = raw_input("Please give a name for this snapshot: ")
 
     if old_style:
-        vstr += "_flat"
+        version_string += "_flat"
 
-    name = repo.name + "_" + vstr
+    name = repo.name + "_" + version_string
 
     update = False
     if options.upload:
@@ -601,17 +602,17 @@ def xpd_make_zip(repo, options, args, dest = None):
 
     print "Creating %s" % fname
 
-    f = zipfile.ZipFile(fname,"w")
+    f = zipfile.ZipFile(fname, "w")
 
     zip_repo(repo, f, exports, old_style, oldstyle_includes, oldstyle_root,
             include_binaries=repo.include_binaries, force=options.force)
     for dep in repo.dependencies:
-        zip_repo(dep.repo, f, exports, old_style, oldstyle_includes,oldstyle_root,
+        zip_repo(dep.repo, f, exports, old_style, oldstyle_includes, oldstyle_root,
                 force=options.force, no_app_projects=True)
 
     if not options.nodocs:
         for docdir in repo.docdirs:
-            insert_doc(repo.name, os.path.join(repo.path,docdir), f, is_xmos_repo=repo.is_xmos_repo(),
+            insert_doc(repo.name, os.path.join(repo.path, docdir), f, is_xmos_repo=repo.is_xmos_repo(),
                    repo=repo, base=docdir)
 
         for block in repo.components:
@@ -625,11 +626,11 @@ def xpd_make_zip(repo, options, args, dest = None):
 
         if repo and xpd.check_project.flat_projects:
             (dotproject, xproject) = xpd.check_project.create_doc_project(repo)
-            f.writestr(os.path.join(repo.name,'doc','.project'),dotproject)
-            f.writestr(os.path.join(repo.name,'doc','.xproject'),xproject)
+            f.writestr(os.path.join(repo.name, 'doc', '.project'), dotproject)
+            f.writestr(os.path.join(repo.name, 'doc', '.xproject'), xproject)
 
         if not options.github:
-            insert_topdoc(repo,f)
+            insert_topdoc(repo, f)
 
         xref = xmos_xref.XRefInfo('xpd')
 
@@ -641,7 +642,7 @@ def xpd_make_zip(repo, options, args, dest = None):
 
                 version = dep.repo.current_version_or_githash()
                 print "Trying to find version %s of %s in cognidox" % (version, dep.repo.name)
-                m = re.match('(.*)(rc|beta|alpha)\d*$',version)
+                m = re.match('(.*)(rc|beta|alpha)\d*$', version)
                 if m:
                     version = m.groups(0)[0]
                 try:
@@ -655,14 +656,14 @@ def xpd_make_zip(repo, options, args, dest = None):
                     tmpfile.write(cogfile.read())
                     insert_dep_docs_to_zip(f, tmpfile, dep.repo.name)
                     for docdir in dep.repo.docdirs:
-                        docdir = os.path.join(dep.repo.path,docdir)
+                        docdir = os.path.join(dep.repo.path, docdir)
                         docinfo = xref.get_or_create_docinfo_from_dir(docdir,
                                                                       topdir = dep.repo.name)
                         swlink = docinfo.get_swlink(repo.partnumber)
                         base = os.path.basename(docdir)
                         if base == 'doc':
                             base = dep.repo.name
-                        swlink.path = '%s/doc/%s' % (dep.repo.name,base)
+                        swlink.path = '%s/doc/%s' % (dep.repo.name, base)
                         swlink.version = repo.current_version_or_githash()
                         swlink.subversion = dep.repo.current_version_or_githash()
                         swlink.title = repo.longname
@@ -678,7 +679,7 @@ def xpd_make_zip(repo, options, args, dest = None):
     info_string = "<zipinfo>\n"
     info_string += "   <main>%s</main>\n" % repo.name
     if not alternate_name:
-        info_string += "   <version>%s</version>\n"%vstr
+        info_string += "   <version>%s</version>\n" % version_string
     info_string += "</zipinfo>"
 
     if not old_style:
@@ -696,13 +697,13 @@ def xpd_make_zip(repo, options, args, dest = None):
         swblock_zips = {}
         swblock_zip_paths = {}
         for block in repo.components:
-            swblock_zip_paths[block.id] = os.path.join(zips_path,block.id+".zip")
+            swblock_zip_paths[block.id] = os.path.join(zips_path, block.id + ".zip")
             swblock_zips[block.id] = \
-                zipfile.ZipFile(os.path.join(zips_path,block.id+".zip"),"w")
+                zipfile.ZipFile(os.path.join(zips_path, block.id + ".zip"), "w")
 
         f = zipfile.ZipFile(fname, "r")
         for name in f.namelist():
-            m = re.match("[^/]*/([^/]*)/(.*)$",name)
+            m = re.match("[^/]*/([^/]*)/(.*)$", name)
             if not m:
                 continue
             id = m.groups(0)[0]
@@ -719,8 +720,7 @@ def xpd_make_zip(repo, options, args, dest = None):
                 docinfo = xref.get_or_create_docinfo(os.path.join(repo.name, block.path, "zip"))
                 partnum = docinfo.partnum
                 if not partnum:
-                    partnum = \
-                     cognidox.query_and_create_document('/Projects/Tools',
+                    partnum = cognidox.query_and_create_document('/Projects/Tools',
                                                    default_title=block.id,
                                                    doctype='SM',
                                                    auto_create=True)
@@ -731,25 +731,23 @@ def xpd_make_zip(repo, options, args, dest = None):
                     update = True
 
                 block.zip_partnumber = partnum
-                version = cognidox.get_next_doc_version_tag(partnum,
-                                                            vstr)
+                version = cognidox.get_next_doc_version_tag(partnum, version_string)
                 cognidox.doCognidoxCheckIn(partnum,
                                    swblock_zip_paths[block.id],
                                    version = version,
                                    draft=False)
-                cognidox.assign_license(partnum,'General Public')
-                cognidox.assign_license_agreement(partnum,6)
+                cognidox.assign_license(partnum, 'General Public')
+                cognidox.assign_license_agreement(partnum, 6)
 
         if options.upload:
-            f = open(os.path.join(repo.path,"docmap.xml"),"w")
-            f.write(xpd_make_docmap(repo,[],[],return_str = True))
+            f = open(os.path.join(repo.path, "docmap.xml"), "w")
+            f.write(xpd_make_docmap(repo, [], [], return_str = True))
             f.close()
 
             docinfo = xref.get_or_create_docinfo(os.path.join(repo.name, block.path, "docmap"))
             partnum = docinfo.partnum
             if not partnum:
-                partnum = \
-                    cognidox.query_and_create_document('/Projects/Tools',
+                partnum = cognidox.query_and_create_document('/Projects/Tools',
                                                    default_title="%s document info" % repo.name,
                                                    doctype='UN',
                                                    auto_create=True)
@@ -760,39 +758,39 @@ def xpd_make_zip(repo, options, args, dest = None):
                 update = True
 
             repo.docmap_partnumber = partnum
-            version = cognidox.get_next_doc_version_tag(partnum, vstr)
+            version = cognidox.get_next_doc_version_tag(partnum, version_string)
             cognidox.doCognidoxCheckIn(partnum,
-                                       os.path.join(repo.path,"docmap.xml"),
+                                       os.path.join(repo.path, "docmap.xml"),
                                        version = version,
                                        draft=False)
 
     if options.upload:
         print "Uploading zip file"
-        m = re.match('(.*)rc(\d+)$',vstr)
+        m = re.match('(.*)rc(\d+)$', version_string)
         if m:
             zip_vstr = m.groups(0)[0]
         else:
-            zip_vstr = vstr
+            zip_vstr = version_string
         cognidox.doCognidoxCheckIn(repo.subpartnumber,
                                    fname,
                                    version=zip_vstr,
                                    draft=False)
         print "Assigning License Info"
-        cognidox.assign_license(repo.subpartnumber,'General Public')
-        cognidox.assign_license_agreement(repo.subpartnumber,6)
+        cognidox.assign_license(repo.subpartnumber, 'General Public')
+        cognidox.assign_license_agreement(repo.subpartnumber, 6)
         print "Creating document holder"
         xpd_make_docholder(repo, options, args, to_file = ".docholder.xml")
         print "Uploading document holder"
         cognidox.doCognidoxCheckIn(repo.partnumber,
                                    ".docholder.xml",
-                                   version=vstr,
+                                   version=version_string,
                                    draft=True)
         os.remove(".docholder.xml")
 
     print "Tidying up"
     #repo.delete_temp_sandbox()
-    if os.path.exists(os.path.join(repo.path,'_build')):
-        shutil.rmtree(os.path.join(repo.path,'_build'))
+    if os.path.exists(os.path.join(repo.path, '_build')):
+        shutil.rmtree(os.path.join(repo.path, '_build'))
     if not options.nodocs:
         xref.update()
     return update
@@ -801,17 +799,18 @@ def find_files(path):
     fs = []
     for root, dirs, files in os.walk(path):
         for f in files:
-            fs.append(os.path.relpath(os.path.join(root, f),path))
+            fs.append(os.path.relpath(os.path.join(root, f), path))
 
     return fs
 
-def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldstyle_root="", include_binaries=False, force=False, no_app_projects=False):
+def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[],
+             oldstyle_root="", include_binaries=False, force=False, no_app_projects=False):
 
-    lines = find_files(repo.path)
+    repo_files = find_files(repo.path)
     excludes = []
 
     for docdir in repo.docdirs:
-        excludes.append(docdir+'/*')
+        excludes.append(docdir + '/*')
 
     excludes.append('toplevel_doc/*')
     excludes.append('*_build/*')
@@ -825,40 +824,44 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
     excludes.append('input_doc_map.xml')
 
     for c in repo.components:
-        excludes.append('*'+c.path+'/README.rst')
+        excludes.append('*' + c.path + '/README.rst')
 
     if xpd.check_project.flat_projects:
         excludes.append('.cproject')
         excludes.append('.project')
 
-    for f in lines:
+    for f in repo_files:
         f = f.rstrip()
         if oldstyle:
             ok = False
             for i in oldstyle_includes:
-                if os.path.commonprefix([f,i])==i:
+                if os.path.commonprefix([f, i]) == i:
                     ok = True
                     prefix = i
         else:
             ok = True
 
-        for i in exports:
-            if not re.match('.*\.project$|.*\.cproject|.*\.xproject$',f):
-                if os.path.commonprefix([f,i])==i:
+        for export in exports:
+            # Need to test against the export with trailing separator to prevent
+            # modules that are simply longer folder names being affected
+            # (e.g. module_usbhost and module_usbhost_epmanager)
+            i = export + os.path.sep
+            if not re.match('.*\.project|.*\.cproject|.*\.xproject', f):
+                if os.path.commonprefix([f, i]) == i:
                     ok = False
 
-        if re.match(".*\.git",f):
+        if re.match(".*\.git", f):
             ok = False
 
         for pattern in excludes:
-            pattern = pattern.replace(".","\.")
-            pattern = pattern.replace("*",".*")
+            pattern = pattern.replace(".", "\.")
+            pattern = pattern.replace("*", ".*")
             pattern = pattern + "$"
             if re.match(pattern, f):
                 ok = False
 
         if no_app_projects:
-            if re.match('app_.*',f):
+            if re.match('app_.*', f):
                ok = False
 
         if ok and f != "xpd.xml":
@@ -867,26 +870,26 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
             else:
                 arcname = os.path.join(repo.name, f)
 
-            if oldstyle and re.match('.*Makefile$',f):
-                fh = open(os.path.join(repo.path,f))
+            if oldstyle and re.match('.*Makefile$', f):
+                fh = open(os.path.join(repo.path, f))
                 lines = fh.readlines()
                 for i in range(len(lines)):
-                    lines[i] = lines[i].replace('xcommon/module_xcommon','module_xcommon')
-                    lines[i] = lines[i].replace('../..','..')
+                    lines[i] = lines[i].replace('xcommon/module_xcommon', 'module_xcommon')
+                    lines[i] = lines[i].replace('../..', '..')
                 fh.close()
                 new_makefile = ''.join(lines)
                 zipfile.writestr(arcname, new_makefile)
-            elif re.match('.*Makefile$',f):
-                if os.path.exists(os.path.join(repo.path,f)):
-                    fh = open(os.path.join(repo.path,f))
+            elif re.match('.*Makefile$', f):
+                if os.path.exists(os.path.join(repo.path, f)):
+                    fh = open(os.path.join(repo.path, f))
                     makefile_str = fh.read()
                     fh.close()
                     makefile_str = xpd.check_project.patch_makefile(makefile_str)
-                    zipfile.writestr(arcname,makefile_str)
-            elif re.match('(.*)/\.xproject$',f):
-                m = re.match('(.*)/\.xproject$',f)
+                    zipfile.writestr(arcname, makefile_str)
+            elif re.match('(.*)/\.xproject$', f):
+                m = re.match('(.*)/\.xproject$', f)
                 dirname = os.path.basename(m.groups(0)[0])
-                lines = open(os.path.join(repo.path,f)).readlines()
+                lines = open(os.path.join(repo.path, f)).readlines()
                 new_xproject = ''.join(lines)
                 for comp in repo.components:
                     if comp.id == dirname:
@@ -894,10 +897,10 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
                             xml = "\n<docPartNumber>%s</docPartNumber>\n" % comp.docPartNumber
                             xml += "<docVersion>%s</docVersion>\n" % comp.docVersion
                             new_xproject = new_xproject.replace("<xproject>",
-                                                                "<xproject>"+xml)
+                                                                "<xproject>" + xml)
                 zipfile.writestr(arcname, new_xproject)
             elif f == 'README.rst':
-                lines = xpd_update_readme(repo,[],[],
+                lines = xpd_update_readme(repo, [], [],
                                           write_back=False,
                                           xmos_package=repo.is_xmos_repo(),
                                           use_current_version=True)
@@ -910,7 +913,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
                     pass
 
     for export in exports:
-        export_path = os.path.join(repo.path,export)
+        export_path = os.path.join(repo.path, export)
         export_path = os.path.join(export_path, "export")
         for root, dirs, files in os.walk(export_path):
             for f in files:
@@ -921,18 +924,17 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
                 else:
                     arcname = os.path.join(repo.name, arcname)
 
-                zipfile.write(fullpath,arcname=arcname)
+                zipfile.write(fullpath, arcname=arcname)
 
-    if not oldstyle and repo.git_export == True:
+    if not oldstyle and repo.git_export:
         print "exporting git"
         print repo
-        for root, dirs, files in os.walk(os.path.join(repo.path,".git")):
+        for root, dirs, files in os.walk(os.path.join(repo.path, ".git")):
             for f in files:
                 fullpath = os.path.join(root, f)
-                arcname=os.path.join(repo.name,os.path.relpath(root, repo.path))
+                arcname=os.path.join(repo.name, os.path.relpath(root, repo.path))
                 arcname=os.path.join(arcname, f)
-                zipfile.write(fullpath,arcname=arcname)
-
+                zipfile.write(fullpath, arcname=arcname)
 
     if repo.partnumber and repo.current_release():
         publishinfo = \
@@ -940,8 +942,8 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
     <partnum>%s</partnum>
     <version>%s</version>
 </publishinfo>
-""" % (repo.partnumber,str(repo.current_release().version))
-        zipfile.writestr(os.path.join(repo.name,".publishinfo"), publishinfo)
+""" % (repo.partnumber, str(repo.current_release().version))
+        zipfile.writestr(os.path.join(repo.name, ".publishinfo"), publishinfo)
 
     xpd_dom = repo.todom("xpd")
 
@@ -961,31 +963,30 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[], oldst
     if options.github:
         comp_elems = xpd_dom.getElementsByTagName("component")
         for comp in comp_elems:
-            comp.setAttribute("scope","Open Source")
-            comp.setAttribute("type","communityCode")
+            comp.setAttribute("scope", "Open Source")
+            comp.setAttribute("type", "communityCode")
 
     rootelem = xpd_dom.getElementsByTagName("xpd")[0]
     xpd_str = '<?xml version=\"1.0\" ?>\n' + xpd.xmlobject.pp_xml(xpd_dom, rootelem).strip()
 
-    zipfile.writestr(os.path.join(repo.name,"xpd.xml"), xpd_str)
+    zipfile.writestr(os.path.join(repo.name, "xpd.xml"), xpd_str)
 
     if include_binaries:
         for root, dirs, files in os.walk(os.path.join(repo.path)):
             for f in files:
-                if re.match('.*\.xe$',f):
+                if re.match('.*\.xe$', f):
                     fullpath = os.path.join(root, f)
                     arcname = os.path.relpath(root, repo.path)
                     if oldstyle:
                         arcname = os.path.join(oldstyle_root, arcname)
                     else:
-                        arcname=os.path.join(repo.name,arcname)
-                    arcname=os.path.join(arcname, f)
-                    zipfile.write(fullpath,arcname=arcname)
-
+                        arcname = os.path.join(repo.name, arcname)
+                    arcname = os.path.join(arcname, f)
+                    zipfile.write(fullpath, arcname=arcname)
 
 def insert_dep_docs_to_zip(main_zipfile, sub_zipfile, repo_name):
     print "Extracting docs from %s zipfile" % repo_name
-    dep_zip = zipfile.ZipFile(sub_zipfile,mode='r')
+    dep_zip = zipfile.ZipFile(sub_zipfile, mode='r')
     existing = main_zipfile.namelist()
     for name in dep_zip.namelist():
         m = re.match('%s/doc/.*'%repo_name,name)
@@ -1032,12 +1033,13 @@ def insert_topdoc(repo,zipfile):
             else:
                 zipfile.write(src, arcname=dst)
 
-def insert_doc(repo_name, path, zipfile,base = None,insert_pdf = True,
+def insert_doc(repo_name, path, zipfile, base=None, insert_pdf=True,
                is_xmos_repo=True, repo=None):
+
     import_xdoc()
     print path
     config = xdoc.get_config(path)
-    pdfname = config['SPHINX_MASTER_DOC']+'.pdf'
+    pdfname = config['SPHINX_MASTER_DOC'] + '.pdf'
 
     pdfpath = os.path.join(path,'_build','xlatex',pdfname)
     if not base:
@@ -1144,8 +1146,7 @@ def rst_make_title(title, ch):
 
 def xpd_update_readme(repo, options, args,
                       xmos_package=False, write_back=True,
-                      use_current_version=False,
-                      doclinks=False):
+                      use_current_version=False, doclinks=False):
     print "Updating README in " + repo.name
     f = open(os.path.join(repo.path,'README.rst'))
     lines = f.readlines()
@@ -1208,15 +1209,15 @@ def xpd_update_readme(repo, options, args,
 
     new_header = "\n"
 
-    vstr = None
+    version_string = None
     rel = repo.current_release()
     if rel:
-        vstr = str(rel.version)
+        version_string = str(rel.version)
     else:
-        vstr = repo.current_githash()
+        version_string = repo.current_githash()
 
-    if vstr and use_current_version:
-        new_header += ":Version: %s\n" % vstr
+    if version_string and use_current_version:
+        new_header += ":Version: %s\n" % version_string
     elif repo.latest_release():
         new_header += ":Latest release: %s\n" % repo.latest_release().version
 
@@ -1308,7 +1309,7 @@ def xpd_update_readme(repo, options, args,
         f.close()
     return False
 
-def check_swblock(repo, options, args, comp, verbose = True):
+def check_swblock(repo, options, args, comp, verbose=True):
    valid = True
    if verbose:
        print comp.id
@@ -1368,7 +1369,7 @@ def check_swblock(repo, options, args, comp, verbose = True):
 
    return valid
 
-def xpd_check_swblocks(repo, options, args, return_valid = False, verbose=True, validate=False):
+def xpd_check_swblocks(repo, options, args, return_valid=False, verbose=True, validate=False):
     valid = True
     def find(f,xs):
         for x in xs:
@@ -1784,7 +1785,7 @@ def xpd_check_partinfo(repo, options, args):
     print "Zipfile part number = %s" % repo.subpartnumber
     return update
 
-def xpd_make_docholder(repo, options, args, to_file = None):
+def xpd_make_docholder(repo, options, args, to_file=None):
     import_xdoc()
     dh = DocumentHolder()
     if repo.tools:
@@ -1888,7 +1889,7 @@ def import_xdoc():
 def xpd_build_dep_docs(dep):
     pass
 
-def xpd_build_topdoc(repo,options=None,args=None):
+def xpd_build_topdoc(repo, options=None, args=None):
     doc_path = repo.path
     readme = xpd_update_readme(repo,[],[],
                                write_back=False,
@@ -2114,7 +2115,7 @@ def xpd_check_all(repo, options, args):
 def xpd_update(repo, options, args):
     return xpd_check_all(repo, options, args)
 
-def xpd_create_warnings(repo, options, args, return_warnings = False):
+def xpd_create_warnings(repo, options, args, return_warnings=False):
     warnings = []
     rel = repo.current_release()
     if not rel:
@@ -2140,7 +2141,7 @@ def xpd_create_warnings(repo, options, args, return_warnings = False):
         return warnings
 
 
-def xpd_parse_release_notes(repo, options, args, return_notes = False):
+def xpd_parse_release_notes(repo, options, args, return_notes=False):
     changelog_path = os.path.join(repo.path,'CHANGELOG.rst')
     if not os.path.exists(changelog_path):
         print >>sys.stderr, "ERROR: cannot find CHANGELOG.rst"
@@ -2201,8 +2202,7 @@ def xpd_parse_release_notes(repo, options, args, return_notes = False):
         return False
     return notes
 
-
-def call_xsoftip(command,comp,repo):
+def call_xsoftip(command, comp, repo):
     args = ['','','','']
     tmp = tempfile.mkdtemp()
     package = xpd_install_local_xml(repo,tmp)
@@ -2212,12 +2212,11 @@ def call_xsoftip(command,comp,repo):
     args[2] = os.path.join(tmp,package.id+".xml")
     args[3] = repo.path
 
-    cmd = ["xsoftip",command]+args
+    cmd = ["xsoftip", command] + args
     print " ".join(cmd)
-    return    call(cmd, cwd=repo.path, shell=True)
+    return call(cmd, cwd=repo.path, shell=True)
 
-
-def xpd_build_results(repo,options,args, return_valid=False):
+def xpd_build_results(repo, options, args, return_valid=False):
     if args == []:
         args=["all"]
     swblock_id = args[0]
@@ -2227,13 +2226,13 @@ def xpd_build_results(repo,options,args, return_valid=False):
             check_swblock(repo, options, args, comp)
             if comp.metainfo_path:
                 if comp.scope == "Roadmap":
-                    buildinfo_name = "."+comp.id+".buildinfo"
+                    buildinfo_name = "." + comp.id + ".buildinfo"
                     buildinfo_path = os.path.join(repo.path,comp.path,buildinfo_name)
                     f = open(buildinfo_path,"w")
                     f.write("<buildresults></buildresults>");
                     f.close()
                 else:
-                    ret = call_xsoftip("buildresults",comp,repo)
+                    ret = call_xsoftip("buildresults", comp, repo)
                     if ret != 0:
                         return False
             else:
@@ -2449,7 +2448,7 @@ def xpd_show_project_deps(repo, options, args):
 
 
 
-def xpd_make_docmap(repo, options, args, return_str = False):
+def xpd_make_docmap(repo, options, args, return_str=False):
     import_xdoc()
     xref = xmos_xref.XRefInfo('xpd')
     dmap = DocMap()
