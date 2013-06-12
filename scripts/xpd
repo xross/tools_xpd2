@@ -1399,7 +1399,7 @@ def xpd_check_swblocks(repo, options, args, return_valid=False, verbose=True, va
 
     if validate:
         print "Running validate script on all swblocks"
-        ret = xpd_validate_swblock(repo,options,["all"],return_valid=True)
+        ret = xpd_validate_swblock(repo, options, ["all"], return_valid=True)
         valid = valid and ret
 
     if return_valid:
@@ -2245,15 +2245,18 @@ def xpd_build_results(repo, options, args, return_valid=False):
 
 def xpd_validate_swblock(repo, options, args, return_valid=False):
     valid = True
-    swblock_id = args[0]
+
+    # Allow the user to have tab-completed - strip the path.sep
+    swblock_id = args[0].rstrip(os.path.sep)
+
     xpd_check_swblocks(repo, options, args, verbose=False)
     for comp in repo.get_software_blocks():
-        if comp.id == swblock_id or swblock_id=='all':
-            comp.init_from_path(repo,comp.path)
+        if comp.id == swblock_id or swblock_id == 'all':
+            comp.init_from_path(repo, comp.path)
             check_swblock(repo, options, args, comp)
             if comp.metainfo_path:
-                ret = call_xsoftip("validate",comp,repo)
-                if ret!=0:
+                ret = call_xsoftip("validate", comp, repo)
+                if ret != 0:
                     return False
             else:
                 print "Cannot find metadata file"
