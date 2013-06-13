@@ -2250,8 +2250,14 @@ def xpd_validate_swblock(repo, options, args, return_valid=False):
     swblock_id = args[0].rstrip(os.path.sep)
 
     xpd_check_swblocks(repo, options, args, verbose=False)
+
+    component_names = [comp.name for comp in repo.components]
     for comp in repo.get_software_blocks():
         if comp.id == swblock_id or swblock_id == 'all':
+            if not comp.name in component_names:
+                print "Can't check metadata until error found by check_swblocks are fixed"
+                return False
+
             comp.init_from_path(repo, comp.path)
             check_swblock(repo, options, args, comp)
             if comp.metainfo_path:
