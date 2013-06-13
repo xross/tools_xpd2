@@ -812,9 +812,9 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[],
     for docdir in repo.docdirs:
         excludes.append(docdir + '/*')
 
-    excludes.append('toplevel_doc/*')
-    excludes.append('*_build/*')
-    excludes.append('__gen*')
+    excludes.append('toplevel_doc' + os.path.sep + '*')
+    excludes.append('*_build' + os.path.sep + '*')
+    excludes.append('__*')
     excludes.append('*app_description')
     excludes.append('*module_description')
     excludes.append('.zipinfo')
@@ -822,6 +822,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[],
     excludes.append('*.build_*')
     excludes.append('*.build/*')
     excludes.append('input_doc_map.xml')
+    excludes.append('*' + os.path.sep + '__MAC*')
 
     for c in repo.components:
         excludes.append('*' + c.path + '/README.rst')
