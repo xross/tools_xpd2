@@ -592,8 +592,8 @@ def xpd_make_zip(repo, options, args, dest=None):
     for dep in repo.dependencies:
         exports += do_exports(dep.repo)
 
-    for c in repo.components:
-        c.local = "false"
+    for component in repo.components:
+        component.local = "false"
 
     if dest:
         fname = dest
@@ -1372,10 +1372,11 @@ def check_swblock(repo, options, args, comp, verbose=True):
 
 def xpd_check_swblocks(repo, options, args, return_valid=False, verbose=True, validate=False):
     valid = True
-    def find(f,xs):
+    def find(f, xs):
         for x in xs:
             if f(x):
                 return x
+
     current_blocks = repo.components
     actual_blocks = repo.get_software_blocks()
     for comp in repo.components:
@@ -1390,7 +1391,7 @@ def xpd_check_swblocks(repo, options, args, return_valid=False, verbose=True, va
     for comp in repo.components:
         if comp.id in deps:
             comp.dependencies = deps[comp.id][1]
-        comp_valid = check_swblock(repo,options,args,comp,verbose=verbose)
+        comp_valid = check_swblock(repo, options, args, comp, verbose=verbose)
         if not comp_valid:
             to_remove.add(comp)
             valid = False
@@ -1918,8 +1919,7 @@ def xpd_build_topdoc(repo, options=None, args=None):
     if os.path.exists(changelog_path):
         shutil.copy(changelog_path,os.path.join(topdoc_path, 'changelog.rst'))
     if repo.is_xmos_repo():
-        xdoc.main('xdehtml', path=topdoc_path,
-                  config={'XDEHTML_UNPAGED_OUTPUT':'1'})
+        xdoc.main('xdehtml', path=topdoc_path, config={'XDEHTML_UNPAGED_OUTPUT':'1'})
     else:
         xdoc.main('html', path=topdoc_path)
     print "Top level document created in %s" % topdoc_path
@@ -2143,7 +2143,7 @@ def xpd_create_warnings(repo, options, args, return_warnings=False):
 
 
 def xpd_parse_release_notes(repo, options, args, return_notes=False):
-    changelog_path = os.path.join(repo.path,'CHANGELOG.rst')
+    changelog_path = os.path.join(repo.path, 'CHANGELOG.rst')
     if not os.path.exists(changelog_path):
         print >>sys.stderr, "ERROR: cannot find CHANGELOG.rst"
         sys.exit(1)
@@ -2178,7 +2178,7 @@ def xpd_parse_release_notes(repo, options, args, return_notes=False):
             item = ''
             line = ''
 
-        m = re.match('\s*[-*] (.*)',line)
+        m = re.match('\s*[-*] (.*)', line)
         if m:
             new_item = True
             line = m.groups(0)[0]
@@ -2204,13 +2204,13 @@ def xpd_parse_release_notes(repo, options, args, return_notes=False):
     return notes
 
 def call_xsoftip(command, comp, repo):
-    args = ['','','','']
+    args = ['', '', '', '']
     tmp = tempfile.mkdtemp()
-    package = xpd_install_local_xml(repo,tmp)
+    package = xpd_install_local_xml(repo, tmp)
 
     args[0] = comp.id
-    args[1] = os.path.join(repo.path,comp.metainfo_path)
-    args[2] = os.path.join(tmp,package.id+".xml")
+    args[1] = os.path.join(repo.path, comp.metainfo_path)
+    args[2] = os.path.join(tmp, package.id + ".xml")
     args[3] = repo.path
 
     cmd = ["xsoftip", command] + args
@@ -2223,13 +2223,13 @@ def xpd_build_results(repo, options, args, return_valid=False):
     swblock_id = args[0]
     for comp in repo.get_software_blocks():
         if comp.id == swblock_id or swblock_id=='all':
-            comp.init_from_path(repo,comp.path)
+            comp.init_from_path(repo, comp.path)
             check_swblock(repo, options, args, comp)
             if comp.metainfo_path:
                 if comp.scope == "Roadmap":
                     buildinfo_name = "." + comp.id + ".buildinfo"
-                    buildinfo_path = os.path.join(repo.path,comp.path,buildinfo_name)
-                    f = open(buildinfo_path,"w")
+                    buildinfo_path = os.path.join(repo.path, comp.path, buildinfo_name)
+                    f = open(buildinfo_path, "w")
                     f.write("<buildresults></buildresults>");
                     f.close()
                 else:
@@ -2274,7 +2274,7 @@ def xpd_validate_swblock(repo, options, args, return_valid=False):
     return False
 
 def get_tools_version():
-    process = Popen(["xcc","--version"],
+    process = Popen(["xcc", "--version"],
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE)
 
@@ -2282,7 +2282,7 @@ def get_tools_version():
     lines = process.stdout.readlines()
 
     try:
-        m = re.match("(\d+\.\d+\.\d+).*",lines[0])
+        m = re.match("(\d+\.\d+\.\d+).*", lines[0])
         if m:
             print "VERSION:" + m.groups(1)[0]
             return m.groups(1)[0]
@@ -2291,26 +2291,26 @@ def get_tools_version():
 
     return "development"
 
-def xpd_install_local_xml(repo,cache_path,github=False):
+def xpd_install_local_xml(repo, cache_path, github=False):
     package = repo.create_dummy_package(repo.current_version_or_githash(short=True))
-    for c in package.components:
-        c.local = "true"
-        c.docPartNumber = package.name + ".doc-" + c.id
-        c.docVersion = "latest"
+    for component in package.components:
+        component.local = "true"
+        component.docPartNumber = package.name + ".doc-" + component.id
+        component.docVersion = "latest"
         if github:
-            c.type="communityCode"
-            c.scope="Open Source"
-        if c.metainfo_path:
-            shutil.copy(os.path.join(repo.path,c.metainfo_path),
-                        os.path.join(cache_path,package.name + "-" + c.id + ".metainfo"))
+            component.type = "communityCode"
+            component.scope = "Open Source"
+        if component.metainfo_path:
+            shutil.copy(os.path.join(repo.path, component.metainfo_path),
+                        os.path.join(cache_path, package.name + "-" + component.id + ".metainfo"))
 
-        if c.buildresults_path and os.path.exists(os.path.join(repo.path,c.buildresults_path)):
-            shutil.copy(os.path.join(repo.path,c.buildresults_path),
-                        os.path.join(cache_path,package.name + "-" + c.id + ".buildresults"))
-        elif c.buildresults_path:
-            if c.scope != "Roadmap":
-                print "WARNING: %s has no buildresults!!" % c.name
-            f = open(os.path.join(cache_path,package.name + "-" + c.id + ".buildresults"),"w")
+        if component.buildresults_path and os.path.exists(os.path.join(repo.path, component.buildresults_path)):
+            shutil.copy(os.path.join(repo.path, component.buildresults_path),
+                        os.path.join(cache_path, package.name + "-" + component.id + ".buildresults"))
+        elif component.buildresults_path:
+            if component.scope != "Roadmap":
+                print "WARNING: %s has no buildresults!!" % component.name
+            f = open(os.path.join(cache_path, package.name + "-" + component.id + ".buildresults"), "w")
             f.write("<buildresults></buildresults>");
             f.close()
 
@@ -2320,12 +2320,12 @@ def xpd_install_local_xml(repo,cache_path,github=False):
     sw.name = repo.longname
     sw.project = package.project
     sw.packages.append(package)
-    f = open(os.path.join(cache_path,package.id + ".xml"),"w")
+    f = open(os.path.join(cache_path, package.id + ".xml"), "w")
     f.write(sw.toxml("software"))
     f.close()
 
     all_software = AllSoftwareDescriptor()
-    fpath = os.path.join(cache_path,'OfflineOnlySoftware.xml')
+    fpath = os.path.join(cache_path, 'OfflineOnlySoftware.xml')
     if os.path.exists(fpath):
         all_software.parse(fpath)
     for p in all_software.packages:
@@ -2334,19 +2334,19 @@ def xpd_install_local_xml(repo,cache_path,github=False):
     all_software.toolsVersion = sw.toolsVersion
     all_software.packages.append(package)
 
-    f = open(fpath,"w")
+    f = open(fpath, "w")
     f.write(all_software.toxml("software"))
     f.close()
 
-    f = open(os.path.join(cache_path,package.name),"w")
+    f = open(os.path.join(cache_path, package.name), "w")
     f.write("dummyzip")
     f.close()
     return package
 
 def xpd_install_local(repo, options, args):
-    xpd_check_swblocks(repo, [],[])
+    xpd_check_swblocks(repo, [], [])
     cache_path = os.environ['XMOS_CACHE_PATH']
-    package = xpd_install_local_xml(repo,cache_path,github=options.github)
+    package = xpd_install_local_xml(repo, cache_path, github=options.github)
     print "Package installed in local cache"
     if not options.nodocs:
         print "Building documentation"
@@ -2359,13 +2359,13 @@ def xpd_install_local(repo, options, args):
         for doc_dir in repo.docdirs:
             i = i + 1
             local_name = package.name + "-local-doc-%d" % i
-            title = xdoc.get_title(os.path.join(repo.path,doc_dir))
+            title = xdoc.get_title(os.path.join(repo.path, doc_dir))
             dst = os.path.join(cache_path, local_name)
             if os.path.exists(dst):
                 shutil.rmtree(dst)
-            shutil.copytree(os.path.join(repo.path,doc_dir,'_build','xdehtml'),
+            shutil.copytree(os.path.join(repo.path, doc_dir, '_build', 'xdehtml'),
                             dst)
-            seealsos += '<li><a href="../../%s/index.html">%s</a></li>'%(local_name,title)
+            seealsos += '<li><a href="../../%s/index.html">%s</a></li>'%(local_name, title)
             print "Installed documentation from %s" % doc_dir
 
         seealsos = """
@@ -2382,22 +2382,20 @@ def xpd_install_local(repo, options, args):
         for comp in package.components:
             zipfilepath=os.path.join(cache_path,
                                      comp.docPartNumber+"("+comp.docVersion+").zip")
-            doc_dir = os.path.join(repo.path,comp.path,"_build","xdehtml")
+            doc_dir = os.path.join(repo.path, comp.path, "_build", "xdehtml")
 
-
-
-            f = open(os.path.join(doc_dir,'README.html'))
+            f = open(os.path.join(doc_dir, 'README.html'))
             readme_str = f.read()
             f.close()
-            readme_str = readme_str.replace("<!--seealsos-->",seealsos)
-            index = open(os.path.join(doc_dir,'index.html'),'w')
+            readme_str = readme_str.replace("<!--seealsos-->", seealsos)
+            index = open(os.path.join(doc_dir, 'index.html'), 'w')
             index.write(readme_str)
             index.close()
             zfile = zipfile.ZipFile(zipfilepath, 'w')
             for root, dirs, files in os.walk(doc_dir):
                 for f in files:
                     fpath = os.path.join(root, f)
-                    arcname = os.path.join('html',os.path.relpath(fpath, doc_dir))
+                    arcname = os.path.join('html', os.path.relpath(fpath, doc_dir))
                     zfile.write(fpath, arcname)
             zfile.close()
             if os.path.exists(os.path.join(cache_path,
@@ -2413,13 +2411,12 @@ def xpd_install_local(repo, options, args):
         options.nodocs = True
         options.force = True
         zfile = tempfile.mktemp()
-        xpd_make_zip(repo,options,args, dest = zfile)
-        installed_zip = os.path.join(cache_path,package.name)
-        shutil.copy(zfile,installed_zip)
-        installed_zip = os.path.join(cache_path,package.name+".zip")
-        shutil.copy(zfile,installed_zip)
+        xpd_make_zip(repo, options, args, dest=zfile)
+        installed_zip = os.path.join(cache_path, package.name)
+        shutil.copy(zfile, installed_zip)
+        installed_zip = os.path.join(cache_path, package.name+".zip")
+        shutil.copy(zfile, installed_zip)
         print "Installed " + installed_zip
-
 
     return False
 
@@ -2439,7 +2436,6 @@ def xpd_approve_latest(repo, options, args):
         cognidox.publish_doc(partnum, comment="Publish to extranet via xpd")
         cognidox.approve_doc(partnum, issue, comment="Bulk approve from xpd")
 
-
 def xpd_publish(repo, options, args):
     options.upload = True
     return xpd_make_zip(repo, options, args)
@@ -2449,14 +2445,11 @@ def xpd_publish_github(repo, options, args):
     options.github = True
     xpd_make_zip(repo, options, args)
 
-
 def xpd_show_project_deps(repo, options, args):
     deps = repo.get_project_deps()
     for proj, (repo, deps) in deps.iteritems():
         print proj
         print deps
-
-
 
 def xpd_make_docmap(repo, options, args, return_str=False):
     import_xdoc()

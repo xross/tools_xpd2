@@ -392,7 +392,7 @@ class Component(XmlObject):
         return True
 
     def readme_path(self):
-        return os.path.join(self.repo.path,self.path,'README.rst')
+        return os.path.join(self.repo.path, self.path, 'README.rst')
 
     def has_readme(self):
         return os.path.exists(self.readme_path())
@@ -556,7 +556,7 @@ class Repo(XmlObject):
                                 cwd=self.path,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)                
-                self.checkout(ref,silent=True)
+                self.checkout(ref, silent=True)
 
     def save_and_commit_release(self, release):        
         self.save()
@@ -620,7 +620,6 @@ class Repo(XmlObject):
         return vstr
 
     def post_import(self):
-        
         if self.longname == None:
             self.longname = self.name
         if self.location == None:
@@ -922,7 +921,7 @@ class Package(XmlObject):
     latestversion = XmlAttribute()
     version = XmlAttribute()
     description = XmlValue()
-    components = XmlNodeList(Component,wrapper="components")
+    components = XmlNodeList(Component, wrapper="components")
 
 
 class AllSoftwareDescriptor(XmlObject):
