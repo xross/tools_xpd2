@@ -1518,7 +1518,7 @@ def xpd_checkout(repo, options, args):
             sys.exit(1)
         else:
             print "Checking out %s" % str(rel.version)
-            version=rel.version
+            version = rel.version
     else:
         try:
             version = Version(version_str=args[0])
