@@ -1345,7 +1345,7 @@ def check_swblock(repo, options, args, comp, verbose=True):
            print ""
            valid = False
 
-       if not comp.id.startswith('app_') and not comp.metainfo_path and comp.scope != "Example":
+       if comp.type == "component" and not comp.metainfo_path and comp.scope != "Example":
 
            if comp.scope == "Roadmap":
                print "  ERROR: roadmap software block %s must have metainfo" % comp.path
