@@ -186,7 +186,6 @@ class Dependency(XmlObject):
                 self.parent._repo_cache[path] = self.repo
         else:
             self.repo = None
-            print "WARNING: Cannot find dependency: %s"%self.repo_name
 
     def __str__(self):
         return self.repo_name

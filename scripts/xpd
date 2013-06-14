@@ -1540,6 +1540,15 @@ def xpd_checkout(repo, options, args):
     for dep in vrepo.dependencies:
         dep.repo.checkout(dep.githash)
 
+def xpd_getdeps(repo, options, args):
+    for dep in repo.dependencies:
+        dep_path = os.path.join(repo.path, "..", dep.repo_name)
+        if os.path.exists(dep_path):
+            print "Dependency %s already exists" % dep_path
+
+        else:
+            print "Cloning " + dep.repo_name
+            call(["git", "clone", dep.uri, dep_path])
 
 def xpd_check_info(repo, options, args,check_icon=True):
     update = False
@@ -2480,7 +2489,8 @@ def xpd_make_docmap(repo, options, args, return_str=False):
         print new_dmap.toxml("docs")
         return False
 
-common_commands =  [("init","Initialize the xpd meta-information file"),
+common_commands =  [
+            ("init","Initialize the xpd meta-information file"),
             ("status","Show current status (can also use show or info)"),
             ("update","Check and update metainformation for repository"),
             ("create_release","Create a release"),
@@ -2489,11 +2499,13 @@ common_commands =  [("init","Initialize the xpd meta-information file"),
             ("publish","Publish the current version to cognidox"),
             ("publish_github","Publish the current version to cognidox as a github open source stub"),
             ("list","List releases"),
-                    ("create_doc_xrefs","Create document xrefs for testing")]
+            ("create_doc_xrefs","Create document xrefs for testing")]
 
-other_commands =     [("info","Same as status"),
+other_commands =[
+            ("info","Same as status"),
             ("show","Same as status"),
             ("checkout","Checkout release"),
+            ("getdeps","Clone the dependencies of this repository"),
             ("check_all","Check all meta information and infrastructure"),
             ("check_info","Check related information"),
             ("check_swblocks","Check swblocks"),
@@ -2608,6 +2620,12 @@ if __name__ == "__main__":
     repo = Repo(".")
 
     command = args[0]
+
+    # Do not expect dependencies to exist if running getdeps
+    if command != "getdeps":
+        for dep in repo.dependencies:
+            if not os.path.exists(dep.get_local_path()):
+                print "WARNING: Cannot find dependency: %s" % dep.repo_name
 
     if command == "help":
         optparser.print_help()
