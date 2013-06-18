@@ -434,7 +434,7 @@ class Repo(XmlObject):
     docmap_partnumber = XmlValue()
     path = None
 
-    def __init__(self,path,parenthash=None,master=False,**kwargs):
+    def __init__(self, path, parenthash=None, master=False, **kwargs):
         path = os.path.abspath(path)
         self.path = path
         self.name = os.path.split(self.path)[-1]
@@ -470,9 +470,9 @@ class Repo(XmlObject):
             
              err_lines = process.stderr.readlines()
              if err_lines == []:
-                      read_file = False            
-                      self.parseString(process.stdout.read(),
-                                       src="%s:%s:xpd.xml"%(self.path,relhash))
+                  read_file = False            
+                  self.parseString(process.stdout.read(),
+                                   src="%s:%s:xpd.xml"%(self.path,relhash))
 
         if master:
              process = Popen(["git","show","master:xpd.xml"],
@@ -482,9 +482,9 @@ class Repo(XmlObject):
             
              err_lines = process.stderr.readlines()
              if err_lines == []:
-                      read_file = False
-                      self.parseString(process.stdout.read(),
-                                       src = "%s:master:xpd.xml"%self.path)
+                  read_file = False
+                  self.parseString(process.stdout.read(),
+                                   src="%s:master:xpd.xml"%self.path)
 
         self.xpd_file = os.path.join(git_dir,'xpd.xml')
 
@@ -495,7 +495,7 @@ class Repo(XmlObject):
                 self.parseString("<xpd></xpd>")
             
         if not master and not parenthash:
-            master_repo = Repo(self.path,master=True)
+            master_repo = Repo(self.path, master=True)
             self.merge_releases(master_repo)
 
     def merge_releases(self, other):
@@ -521,8 +521,7 @@ class Repo(XmlObject):
         if not rel or not rel.parenthash:
             return None
 
-        return Repo(path=self.path, 
-                    parenthash = rel.parenthash)
+        return Repo(path=self.path, parenthash=rel.parenthash)
 
     def checkout(self, githash, silent=False):
         if silent:
@@ -571,7 +570,7 @@ class Repo(XmlObject):
 
         self.record_release(release)
 
-    def latest_release(self, release_filter = None):
+    def latest_release(self, release_filter=None):
         if release_filter:
             rels = [r for r in self.releases if release_filter(r)]
         else:
@@ -683,7 +682,7 @@ class Repo(XmlObject):
 
     def get_child_hash(self, parenthash):
         return exec_and_match(["git","rev-list","--parents","--all"],
-                              r'(.*) %s'%parenthash,
+                              r'(.*) %s' % parenthash,
                               cwd=self.path)
 
     def get_release_notes(self, version):
