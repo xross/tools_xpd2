@@ -626,6 +626,9 @@ class Repo(XmlObject):
         for comp in self.components:
             comp.repo = self
 
+        # Prune out releases which are not valid - can't determine a version number or githash
+        self.releases = [r for r in self.releases if r.version or r.githash]
+
     def pre_export(self):
         self.xpd_version = xpd_version
 
