@@ -21,7 +21,8 @@ a = Analysis([os.path.join(HOMEPATH,'support/_mountzlib.py'), os.path.join(HOMEP
                      os.path.abspath(os.path.join(cwd,'..','infr_docs')),
                      os.path.abspath(os.path.join(cwd,'..','infr_docs','xmossphinx','builders'))                     ],
              hiddenimports=['sphinx.builders.text','breathe','breathe.builder','breathe.finder',
-                            'breathe.parser','breathe.parser.doxygen','breathe.parser.doxygen.index','breathe.parser.doxygen.compound','compoundsuper','xmosconf'])
+                            'breathe.parser','breathe.parser.doxygen','breathe.parser.doxygen.index','breathe.parser.doxygen.compound',
+                            'breathe.parser.doxygen.compoundsuper','xmosconf'])
 
 
 def get_files(src, dst):
