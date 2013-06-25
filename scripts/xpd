@@ -2512,6 +2512,7 @@ other_commands =[
             ("validate_swblock","Validate swblock"),
             ("build_results","Build results for swblock"),
             ("tag","Tag the repo with a version"),
+            ("show_dep","Show dependencies"),
             ("add_dep","Add dependency"),
             ("remove_dep","Remove dependency"),
             ("check_dep","Check dependencies of the current repository"),
