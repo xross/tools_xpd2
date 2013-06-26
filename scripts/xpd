@@ -103,13 +103,16 @@ def xpd_remove_dep(repo, options, args):
 def get_current_modules(repo):
     makefiles = []
     for root, dirs, files in os.walk(repo.path, topdown=False):
+        if re.match('.*\.source.*', root):
+            continue
+        if re.match('.*\.doxygen.*', root):
+            continue
+        if re.search('%s__' % os.path.sep, root):
+            continue
+        if repo.excluded(root):
+            continue
+
         for f in files:
-            if re.match('.*\.source.*', root):
-                continue
-            if re.match('.*\.doxygen.*', root):
-                continue
-            if re.search('%s__' % os.path.sep, root):
-                continue
             if f == "Makefile":
                 makefiles.append(os.path.join(root, f))
 

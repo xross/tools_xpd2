@@ -911,6 +911,21 @@ class Repo(XmlObject):
                 return swblock
         return None
 
+    def excluded(self, path):
+        # If there are any include_dirs then they take preference
+        if self.include_dirs:
+            for include in self.include_dirs:
+                match_path = os.path.join(self.path, exclude, '.*')
+                if re.match(match_path, path):
+                    return False
+            return True
+
+        for exclude in self.exclude_dirs:
+            match_path = os.path.join(self.path, exclude, '.*')
+            if re.match(match_path, path):
+                return True
+        return False
+
 
 class Package(XmlObject):
     name = XmlAttribute()
