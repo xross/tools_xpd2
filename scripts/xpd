@@ -1615,28 +1615,32 @@ def xpd_tag(repo, options, args):
 
     print "Tagged"
 
-def xpd_create_app(repo, options, args):
-    if len(args) < 1:
-        appname = repo.name
-        m = re.match(r'(sc_|proj_|sw_)(.*)', appname)
+def construct_name(repo, args, type_of_name):
+    prefix = type_of_name + '_'
+    if not args:
+        name = repo.name
+        m = re.match(r'(sc_|proj_|sw_)(.*)', name)
         if m:
-            appname = m.groups(0)[1]
-        appname = 'app_' + appname + '_example'
-        sys.stdout.write('Enter application name [%s]: ' % appname)
+            name = m.groups(0)[1]
+        name = prefix + name + '_example'
+        sys.stdout.write('Enter %s name [%s]: ' % (type_of_name, name))
         x = raw_input()
         if x:
-            appname = x
-
+            name = x
     else:
-        appname = args[0]
-        if appname[:4] != 'app_':
-            appname = 'app_' + appname
+        name = args[0]
 
-    print "Creating %s." % appname
+    if not name.startswith(prefix):
+        name = prefix + name
+
+    return name
+
+def xpd_create_app(repo, options, args):
+    appname = construct_name(repo, args, 'app')
+
+    print "Creating %s" % appname
     os.mkdir(os.path.join(repo.path,appname))
     os.mkdir(os.path.join(repo.path,appname,'src'))
-    os.mkdir(os.path.join(repo.path,appname,'docs'))
-    os.mkdir(os.path.join(repo.path,appname,'docs','src'))
     f = open(os.path.join(repo.path,appname,'Makefile'),'w')
     f.write(templates.app_makefile)
     f.close()
@@ -1646,22 +1650,9 @@ def xpd_create_app(repo, options, args):
     return False
 
 def xpd_create_module(repo, options, args):
-    if len(args) < 1:
-        modulename = repo.name
-        m = re.match(r'(sc_|proj_|sw_)(.*)', modulename)
-        if m:
-            modulename = m.groups(0)[1]
-        modulename = 'module_' + modulename
-        sys.stdout.write('Enter module name [%s]: ' % modulename)
-        x = raw_input()
-        if x:
-            modulename = x
-    else:
-        modulename = args[0]
-        if modulename[:4] != 'module_':
-            modulename = 'module_' + modulename
+    modulename = construct_name(repo, args, 'module')
 
-    print "Creating %s." % modulename
+    print "Creating %s" % modulename
     os.mkdir(os.path.join(repo.path,modulename))
     os.mkdir(os.path.join(repo.path,modulename,'src'))
     f = open(os.path.join(repo.path,modulename,'module_build_info'),'w')
