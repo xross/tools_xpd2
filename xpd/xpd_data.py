@@ -751,7 +751,6 @@ class Repo(XmlObject):
                 dep.repo._restore_path()
         shutil.rmtree(self.sb)
 
-
     def get_software_blocks(self):
         path = self.path
         components = []

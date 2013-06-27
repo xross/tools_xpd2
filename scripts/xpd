@@ -386,7 +386,7 @@ def xpd_create_release(repo, options, args):
         version.rtype = rtype
         version.set_rnumber(repo.releases)
 
-    if not confirm("Create release %s. Are you sure"%version, default=True):
+    if not confirm("Create release %s. Are you sure" % version, default=True):
         return False
 
     notes = xpd_parse_release_notes(repo, options, args, return_notes = True)
@@ -405,10 +405,8 @@ def xpd_create_release(repo, options, args):
             print "Please update notes and try again"
             return True
 
-
     release = Release()
     release.version = version
-
 
     print "=============="
     print "RUNNING CHECKS"
@@ -453,7 +451,7 @@ def xpd_create_release(repo, options, args):
         return True
 
     print "Checking xSOFTip block information"
-    ok = xpd_check_swblocks(repo, options, args, return_valid = True, validate=True)
+    ok = xpd_check_swblocks(repo, options, args, return_valid=True, validate=True)
 
     if not ok:
         print "---------------------------"
@@ -1083,7 +1081,6 @@ def xpd_info(repo, options, args):
     xpd_show(repo, options, args)
 
 def xpd_show(repo, options, args):
-
     rel = repo.current_release()
     if rel:
         version = str(rel.version)
@@ -1126,7 +1123,6 @@ def xpd_show(repo, options, args):
     for module in repo.get_modules():
         print_software_block_details(module)
 
-
     print "\nDEPENDENCIES:\n"
     xpd_show_dep(repo, options, args)
 
@@ -1134,7 +1130,6 @@ def xpd_show(repo, options, args):
         print "\nEXPORTS:\n"
         for export in repo.exports:
             print "     %s" % export
-
 
 def remove_indent(xs):
     return [re.match(' *(.*)',x).groups(0)[0] for x in xs]
@@ -1412,7 +1407,6 @@ def xpd_check_swblocks(repo, options, args, return_valid=False, verbose=True, va
 
     return True
 
-
 def xpd_gen_readme(repo, options, args):
     sep = '.. seperator'
     latest = repo.latest_release(release_filter=lambda r: r.version.rtype=='rc')
@@ -1553,7 +1547,7 @@ def xpd_getdeps(repo, options, args):
             print "Cloning " + dep.repo_name
             call(["git", "clone", dep.uri, dep_path])
 
-def xpd_check_info(repo, options, args,check_icon=True):
+def xpd_check_info(repo, options, args, check_icon=True):
     update = False
     if repo.description==None or repo.description=="":
         print "The repo's description is one or two paragraphs description the contents of the repository."
@@ -2130,10 +2124,10 @@ def xpd_create_warnings(repo, options, args, return_warnings=False):
         print "Checking dependency %s" % dep.repo.name
         rel = dep.repo.current_release()
         if not rel:
-            warning = "Dependency '%s' is not on a specified version"%dep.repo.name
+            warning = "Dependency '%s' is not on a specified version" % dep.repo.name
             warnings.append(warning)
         elif not dep.repo.partnumber:
-            warning = "Dependency '%s' is not a published component"%dep.repo.name
+            warning = "Dependency '%s' is not a published component" % dep.repo.name
             warnings.append(warning)
 
     if not return_warnings:
@@ -2143,7 +2137,6 @@ def xpd_create_warnings(repo, options, args, return_warnings=False):
         return False
     else:
         return warnings
-
 
 def xpd_parse_release_notes(repo, options, args, return_notes=False):
     changelog_path = os.path.join(repo.path, 'CHANGELOG.rst')
