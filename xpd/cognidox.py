@@ -47,7 +47,8 @@ def initCognidox(user=None,password=None):
         if not saved_user:
             sys.stdout.write('Please enter cognidox username: ')
             saved_user = raw_input()
-            saved_user = 'XMOS\\'+saved_user
+            if not saved_user.startswith('XMOS\\'):
+                saved_user = 'XMOS\\'+saved_user
             if not saved_password:
                 saved_password = getpass.getpass()
         user = saved_user
