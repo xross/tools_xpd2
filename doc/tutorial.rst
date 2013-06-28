@@ -1,43 +1,70 @@
 Tutorial
 ========
 
-For this tutorial, we will take the example of the sc_xtcp
-repository. Not that the actual sc_xtcp repository on xcore may not
-have the same versions or githashes as in the tutorial.
+For this tutorial, we will take the example of the ``sc_xtcp`` repository.
+Clone it using git::
 
-The basics
-----------
+    git clone git://github.com/xcore/sc_xtcp
+    cd sc_xtcp
 
-The sc_xtcp repository depends on other repositories for its code. In
-particular it uses modules from the sc_ethernet repository and its
-build structure is taken from the xcommon repository. So a local
-sandbox will look something like this::
+Dependencies
+------------
+
+The ``sc_xtcp`` repository depends on other repositories for its code. In
+particular it uses modules from the ``sc_ethernet`` repository. In order to
+get the dependent repositories use::
+
+    xpd getdeps
+
+This will clone repositories that are required by this repository leaving a
+sandbox that looks something like this::
 
    sc_xtcp/
    sc_ethernet/
-   xcommon/
+   sc_otp/
 
 You local sandbox or working directory will contain certain versions
 of each of these repositories and each will be under version control
 using git.
 
-The ``show`` command will give you information about the current state
+The basics
+----------
+
+The ``status`` command will give you information about the current state
 of a repository including its meta-information and dependencies::
 
-
-   $ cd sc_xtcp
-   $ xpd show
+   $ xpd status
    INFO:
+
+              Name: sc_xtcp
+           Version: c6f4dfadfffd9ad49e6870d9c3447f7f0a634637
+          Location: ssh://git@github.com/davelxmos/sc_xtcp
+       Description: Implementation of uIP TCP/IP stack for XMOS devices. Runs in a single thread.
+     Documentation: doc/xtcp_guide
+                    doc/slicekit_quickstart
     
-                 Name: sc_xtcp
-              Version: da8fc727e3d3543bdbe56bdd15bfde4b9c7acb52
-                 Icon: icon/sc_xtcp.png
-             Location: ssh://git@github.com/davelxmos/sc_xtcp
-        Documentation: http://xcore.github.com/sc_xtcp
-          Description: A TCP/IP stack component. This component is a
-                       port of the uIP stack. 
-                       It requires sc_ethernet to function.
+    SOFTWARE BLOCKS
     
+    Apps:
+    
+    Simple HTTP Demo
+           Name: Simple HTTP Demo
+          Scope: Example
+    Description: A demo of the TCP/IP stack that provides a simple webserver
+       Keywords: ethernet,tcp/ip,webserver,http
+      Published: True
+    
+    
+    Modules:
+    
+    Ethernet/TCP Module
+           Name: Ethernet/TCP Module
+          Scope: General Use
+    Description: An ethernet stack with TCP/IP
+       Keywords: ethernet,TCP/IP,mac,mii,IP,UDP,ICMP,UDP
+      Published: True
+
+
    DEPENDENCIES:
     
    Actual:
@@ -50,12 +77,18 @@ of a repository including its meta-information and dependencies::
 
 The tool has shown us several things. Firstly, some meta information
 is shown about the repository and along with the current version the
-repo is at. There is also some dependency information shown. The
-actual section shows what versions the local working directory copies
-of the repositories are at. The expected section shows what the meta
+repo is at.
+
+There is information about the software blocks within this repository.
+These are divided into applications and modules as classified within
+the ``xpd.xml`` file.
+
+There is also some dependency information shown. The ``Actual``
+section shows what versions the local working directory copies
+of the repositories are at. The ``Expected`` section shows what the meta
 information has recorded as being working dependencies. These are the
 versions of the dependencies that were set when the last release was
-created (or when the dependencies were last updated and commited back
+created (or when the dependencies were last updated and committed back
 to the repository).
 
 .. note::
@@ -63,57 +96,58 @@ to the repository).
    All the information that the tool uses is stored in a file called
    ``xpd.xml`` which is at the top-level of the repository.
 
-
 In this example, we can see that all three repositories are at
 versions in git that do not correspond to a particular release (hence
 the versions are given as git hashes). This is quite common if you are
-working at the develpment head of the repositories. 
+working at the development head of the repositories. 
+
+Release versions
+----------------
 
 The ``list`` command can show you what releases have been created in
 the past for this repository::
 
    $ xpd list
-   2.1.0alpha0
-   2.0.0
-   2.0.0rc0
-   2.0.0beta1
-   2.0.0beta0
+   3.1.2rc1
+   3.1.2rc0
+   3.1.1rc3
+   3.1.1rc2
    ...
 
 The ``checkout`` command can move to a specific release. It works like
 the git checkout command but also checks out the relevant
 dependencies::
 
-   $ xpd checkout 2.0.0
+   $ xpd checkout 3.1.1rc2
 
 Once we have checked out this version, it is possible to look at the
 information for this version:: 
 
-   $ xpd show
+   $ xpd status
    INFO:
-    
+   
                  Name: sc_xtcp
-              Version: 2.0.0
-                 Icon: icon/sc_xtcp.png
+              Version: 3.1.1rc2
              Location: ssh://git@github.com/davelxmos/sc_xtcp
-        Documentation: http://xcore.github.com/sc_xtcp
-          Description: A TCP/IP stack component. This component is a
-                       port of the uIP stack. 
-                       It requires sc_ethernet to function.
-    
-   DEPENDENCIES:
-    
-   Actual:
-                xcommon: 1.0.0 
-            sc_ethernet: 2.0.0
-    
-   Expected:
-                xcommon: 1.0.0
-            sc_ethernet: 2.0.0
+          Description: Implementation of uIP TCP/IP stack for XMOS devices. Runs in a single thread.
+        Documentation: doc/xtcp_guide
+                       doc/slicekit_quickstart
 
+   ...
+   
+   DEPENDENCIES:
+   
+   Actual:
+            sc_ethernet: 2.2.1rc1
+                 sc_otp: 1.0.0rc0
+   
+   Expected:
+            sc_ethernet: 2.2.1rc1
+                 sc_otp: 1.0.0rc0
 
 Here we can see that the actual versions of our local repositories
-have changed. We can get back to the master branch using xpd checkout again::
+have changed. We can get back to the head of the master branch using
+xpd checkout again::
 
    $ xpd checkout master
 
@@ -124,7 +158,8 @@ Running git commands
 --------------------
 
 It is possible to iterate git commands over all dependent repositories
-using the ``xpd git`` command. So, the following will call ``git status`` on the main repository and all its dependents::
+using the ``xpd git`` command. So, the following will call ``git status``
+on the main repository and all its dependents::
 
    $ xpd git status
 
@@ -136,21 +171,18 @@ repository depends upon. To maintain this list you can use the
 ``show_dep``, ``check_dep``, ``add_dep`` and ``remove_dep`` commands. 
 
 The main command to use is the ``check_dep`` command. This checks the
-current dependencies and offers to update meta-information if new or
-changed dependencies are found e.g.::
+current dependencies and automatically updates the dependencies in
+xpd.xml::
   
- $ xpd check_dep
- Add xcommon to dependencies (Y/n)?y
- Added
- Add sc_ethernet to dependencies (Y/n)?y
- Added
+   $ xpd check_dep
+   Saving xpd.xml
 
-Checking metainformation
-------------------------
+Checking repository information
+-------------------------------
 
-You can also check the current state of the meta-information in the
-repository with the ``show`` and ``check_info`` commands. The
-``check_info`` commands checks what meta-information is defines and
+You can check the current state of the repository information
+with the ``status`` and ``check_info`` commands. The
+``check_info`` commands checks what repository information is defined and
 asks you to update it with anything that is missing.
 
 Creating releases
@@ -161,26 +193,18 @@ Creating releases involves the following steps:
   #. Create alphas and betas for testing (optional, during development
      phase)
   #. Create release candidates until one is ready for full release
-  #. Upgrade a release candidate to a release
 
 Creating an alpha, beta or release candidate is a matter of:
  
   #. Check that all the dependency information and meta information is
      as you want it for the release.
-  #. Add release notes and changelog entries to ``xpd.xml``
+  #. Add release notes and changelog entries to ``CHANGELOG.rst``
   #. Run ``xpd create_release`` 
 
-The ``create_release`` command will prompt you for a version number
-and type (e.g. alpha, beta etc). It will check dependencies, update
-the xpd.xml file with the release information and make a commit to the
-repository which represents the release. It will then ask if you want
-to make a zip of the release. The zip will contain the repository and
-all its dependencies so is self contained for anyone who wishes to use it.
-
-To upgrade a release candidate you need to run::
-
-    xpd upgrade_rc [version]
-
+The ``create_release`` command will prompt you for the release type
+and version number. It will check dependencies, update
+the ``xpd.xml`` file with the release information and make a commit to the
+repository which represents the release. 
 
 Tagging
 -------
