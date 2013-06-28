@@ -1494,7 +1494,6 @@ def xpd_gen_readme(repo, options, args):
     print '\n'.join(release_details)
     print '\n'.join(changelog)
 
-
 def xpd_checkout(repo, options, args):
     if len(args) < 1:
         return False
@@ -2596,14 +2595,11 @@ if __name__ == "__main__":
 
     (options, args) = optparser.parse_args()
 
-
-
     if len(args) < 1:
         optparser.error("incorrect number of arguments")
 
     git_dir = get_git_dir('.')
     os.chdir(git_dir)
-
 
     repo = Repo(".")
 
@@ -2639,7 +2635,7 @@ if __name__ == "__main__":
             repo.save()
     else:
         matches = difflib.get_close_matches(command, commands)
-        sys.stderr.write("Unknown command %s.\n" % command)
+        sys.stderr.write("Unknown command %s\n" % command)
         if matches != []:
             sys.stderr.write("Did you mean one of:\n")
             for m in matches:

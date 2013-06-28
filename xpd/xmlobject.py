@@ -144,7 +144,6 @@ class XmlObject(object):
     def post_import(self):
         pass
 
-
     def _add_child(self, dom, rootelem, name, val, attrs = {},wrapper=None):
         if isinstance(val, XmlObject):
             elem = dom.createElement(name)
@@ -171,7 +170,6 @@ class XmlObject(object):
             elem.appendChild(text)
             rootelem.appendChild(elem)
 
-
     def _add_children(self, dom, rootelem):
         for tag in self.tags:
             val = getattr(self, tag.name)
@@ -185,14 +183,10 @@ class XmlObject(object):
             if val:
                 elem.setAttribute(attr.attrname, val)
 
-
-
     def _add_extra_xml(self, dom, elem):
         if self._extra_xml:
             for c in self._extra_xml.childNodes:
                 elem.appendChild(c.cloneNode(True))
-
-
 
     def todom(self, root):
         self.pre_export()
@@ -212,7 +206,7 @@ class XmlObject(object):
     def _fromdom(self, dom, root):
         for attr in self.attrs:
             attr_val = root.getAttribute(attr.attrname)
-            setattr(self, attr.name,attr_val)
+            setattr(self, attr.name, attr_val)
 
         for tag in self.tags:
             vals = []
@@ -297,7 +291,6 @@ class XmlObject(object):
     def parse(self, f):
         dom = xml.dom.minidom.parse(f)
         self._fromdom(dom, dom.childNodes[0])
-
 
 
 class TestXmlObject1(XmlObject):
