@@ -471,7 +471,7 @@ def _check_cproject(repo,makefiles,project_deps,path=None, force_creation=False)
         if prompt(force_creation, "There is a problem with the eclipse .cproject file.\n" + 
                                   "Do you want xpd to create a new one", True):
             sys.stdout.write("Creating new .cproject file\n")
-            create_cproject(repo, path, name, configs, all_includes,is_module=is_module)
+            create_cproject(repo, path, name, configs, all_includes, is_module=is_module)
             print "New .cproject created."
 
     repo.git_add(cproject_path)
