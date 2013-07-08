@@ -461,7 +461,7 @@ class Repo(XmlObject):
 
         if master:
             (stdout_lines, stderr_lines) = call_get_output(
-                    ["git", "show", "master:xpd.xml"])
+                    ["git", "show", "master:xpd.xml"], cwd=path)
 
             if stderr_lines == []:
                 read_file = False
