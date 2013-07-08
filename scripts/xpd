@@ -386,7 +386,7 @@ def xpd_create_release(repo, options, args):
         version.rtype = rtype
         version.set_rnumber(repo.releases)
 
-    if not confirm("Create release %s. Are you sure"%version, default=True):
+    if not confirm("Create release %s. Are you sure" % version, default=True):
         return False
 
     notes = xpd_parse_release_notes(repo, options, args, return_notes = True)
@@ -405,10 +405,8 @@ def xpd_create_release(repo, options, args):
             print "Please update notes and try again"
             return True
 
-
     release = Release()
     release.version = version
-
 
     print "=============="
     print "RUNNING CHECKS"
@@ -453,7 +451,7 @@ def xpd_create_release(repo, options, args):
         return True
 
     print "Checking xSOFTip block information"
-    ok = xpd_check_swblocks(repo, options, args, return_valid = True, validate=True)
+    ok = xpd_check_swblocks(repo, options, args, return_valid=True, validate=True)
 
     if not ok:
         print "---------------------------"
@@ -1080,7 +1078,6 @@ def xpd_info(repo, options, args):
     xpd_show(repo, options, args)
 
 def xpd_show(repo, options, args):
-
     rel = repo.current_release()
     if rel:
         version = str(rel.version)
@@ -1123,7 +1120,6 @@ def xpd_show(repo, options, args):
     for module in repo.get_modules():
         print_software_block_details(module)
 
-
     print "\nDEPENDENCIES:\n"
     xpd_show_dep(repo, options, args)
 
@@ -1131,7 +1127,6 @@ def xpd_show(repo, options, args):
         print "\nEXPORTS:\n"
         for export in repo.exports:
             print "     %s" % export
-
 
 def remove_indent(xs):
     return [re.match(' *(.*)',x).groups(0)[0] for x in xs]
@@ -1409,7 +1404,6 @@ def xpd_check_swblocks(repo, options, args, return_valid=False, verbose=True, va
 
     return True
 
-
 def xpd_gen_readme(repo, options, args):
     sep = '.. seperator'
     latest = repo.latest_release(release_filter=lambda r: r.version.rtype=='rc')
@@ -1497,7 +1491,6 @@ def xpd_gen_readme(repo, options, args):
     print '\n'.join(release_details)
     print '\n'.join(changelog)
 
-
 def xpd_checkout(repo, options, args):
     if len(args) < 1:
         return False
@@ -1550,7 +1543,7 @@ def xpd_getdeps(repo, options, args):
             print "Cloning " + dep.repo_name
             call(["git", "clone", dep.uri, dep_path])
 
-def xpd_check_info(repo, options, args,check_icon=True):
+def xpd_check_info(repo, options, args, check_icon=True):
     update = False
     if repo.description==None or repo.description=="":
         print "The repo's description is one or two paragraphs description the contents of the repository."
@@ -1663,6 +1656,9 @@ def xpd_create_module(repo, options, args):
     f.close()
     return False
 
+def xpd_create_schema(repo, options, args):
+    print "This feature is not implemented yet"
+    return false
 
 def xpd_init(repo, options, args):
     xpd_check_info(repo, options, args,check_icon=False)
@@ -2127,10 +2123,10 @@ def xpd_create_warnings(repo, options, args, return_warnings=False):
         print "Checking dependency %s" % dep.repo.name
         rel = dep.repo.current_release()
         if not rel:
-            warning = "Dependency '%s' is not on a specified version"%dep.repo.name
+            warning = "Dependency '%s' is not on a specified version" % dep.repo.name
             warnings.append(warning)
         elif not dep.repo.partnumber:
-            warning = "Dependency '%s' is not a published component"%dep.repo.name
+            warning = "Dependency '%s' is not a published component" % dep.repo.name
             warnings.append(warning)
 
     if not return_warnings:
@@ -2140,7 +2136,6 @@ def xpd_create_warnings(repo, options, args, return_warnings=False):
         return False
     else:
         return warnings
-
 
 def xpd_parse_release_notes(repo, options, args, return_notes=False):
     changelog_path = os.path.join(repo.path, 'CHANGELOG.rst')
@@ -2481,7 +2476,6 @@ common_commands =  [
             ("update","Check and update metainformation for repository"),
             ("create_release","Create a release"),
             ("make_zip","Make zipfile of release"),
-            ("upgrade_rc","Upgrade an RC to a final release"),
             ("publish","Publish the current version to cognidox"),
             ("publish_github","Publish the current version to cognidox as a github open source stub"),
             ("list","List releases"),
@@ -2504,9 +2498,10 @@ other_commands =[
             ("check_dep","Check dependencies of the current repository"),
             ("check_infr","Check infrastructure (Makefiles, eclipse projects)"),
             ("check_makefiles","Check makefiles"),
-            ("create_app","Create application within project"),
             ("update_readme","Update README.rst with latest metainformation"),
+            ("create_app","Create application within project"),
             ("create_module","Create module within project"),
+            ("create_schema","Create a Relax NG schema file for xpd.xml"),
             ("install_local","Install into local xsoftipexploer cache (DEBUG)"),
             ("check_partinfo","Check part information (DEBUG)"),
             ("make_docholder","Make docholder (DEBUG)"),
@@ -2589,14 +2584,11 @@ if __name__ == "__main__":
 
     (options, args) = optparser.parse_args()
 
-
-
     if len(args) < 1:
         optparser.error("incorrect number of arguments")
 
     git_dir = get_git_dir('.')
     os.chdir(git_dir)
-
 
     repo = Repo(".")
 
@@ -2632,7 +2624,7 @@ if __name__ == "__main__":
             repo.save()
     else:
         matches = difflib.get_close_matches(command, commands)
-        sys.stderr.write("Unknown command %s.\n" % command)
+        sys.stderr.write("Unknown command %s\n" % command)
         if matches != []:
             sys.stderr.write("Did you mean one of:\n")
             for m in matches:

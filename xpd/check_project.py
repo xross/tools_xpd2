@@ -387,7 +387,7 @@ def valid_include_path(relpath):
 
      return True
 
-def _check_cproject(repo,makefiles,project_deps,path=None, force_creation=False):
+def _check_cproject(repo, makefiles, project_deps, path=None, force_creation=False):
     if not path:
          path = repo.path
          configs = get_all_configs(makefiles)

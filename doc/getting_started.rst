@@ -3,21 +3,12 @@ Getting Started
 
 Before installing xpd you need to have python installed on your system.
 
-The xpd github repository can be found here:
+The xpd tool is delivered as part of the xSOFTip development tools. The
+latest version can be found here::
 
-  http://github.com/xcore/tool_xpd
+  http://users.xmos.local/~swnb/
 
-To install, first clone the repository::
-
-  git clone http://github.com/xcore/tool_xpd
-
-and then run the ``setup.py`` script::
-
-  cd tool_xpd
-  python setup.py install
-
-This should put the script ``xpd`` into your executable path. You
-will probably need superuser/administrator priveledges to do this.
+To install download and install the appropriate installer for your platform.
 
 Creating an ``xpd.xml`` file
 -----------------------------

@@ -18,30 +18,19 @@ specify that it should only be packaged as a binary.
 This means that when a zip file is created only the binary and the
 exported source directories of that module are copied into the zip.
 
-The ``<export_git>`` tag
-........................
-
-By default, when a zip is made of a particular release, a copy of the
-git information for that repo will be packaged. If you wish the
-repository to only be packaged without the git history, you can add::
-
-  <export_git>False</export_git>
-
-to the ``xpd.xml`` file.
-
-If the git history is not exported then a ``<version>`` and/or
-``<githash>`` tag is added to the ``xpd.xml`` file in the zip for that
-repository showing what version the current snapshot is.
-
-The ``<vendor>`` and ``maintainer`` tag
-.......................................
+The ``<vendor>`` tag
+....................
 
 The ``<vendor>`` element is used to specify a company responsible for support,
-release and maintenaince of a repository. For a purely open source
+release and maintenance of a repository. For all repositories developed in the
+company this should have a value of ``XMOS``. For a purely open source
 community repository this can be omitted.
 
+The ``<maintainer>`` tag
+........................
+
 The ``<maintainer>`` elements is used to specify the github username of the
-maintainer of the repository.
+maintainer of the repository or the XMOS email if it is a gitweb repo.
 
 The ``<keyword>`` tag
 .....................
@@ -64,7 +53,7 @@ one of:
 
   :Product:    A repository that is intended to be productized (with
                all the quality, support and validation that entails)
-               by a particualr vendor.
+               by a particular vendor.
 
   :Reference Design:    A repository that provides a complete
                         end-system application to be provided by
@@ -75,7 +64,7 @@ The ``<docdir>`` tag
 ....................
 
 Several ``docdir`` tags can be added which can contain a
-path to a documentation directory relative to the toplevel of the
+path to a documentation directory relative to the top-level of the
 repository. The documents in these directories will be built when a
 package is built.
 
@@ -90,8 +79,8 @@ all others) or a list of directories to exclude when packaging.
 The ``<partnumber>`` and ``<subpartnumber>`` tags
 .................................................
 
-These tags relate to partnumbers of a repository in a vendor's
-document management system. For xmos repositories this is handled by
+These tags relate to part numbers of a repository in a vendor's
+document management system. For XMOS repositories this is handled by
 the ``--upload`` flag to xpd.
 
 Creating and releasing a custom branch of a release
@@ -119,7 +108,7 @@ git::
         git checkout mybranch
 
 
-After making, commiting and pushing your changes. You can now create
+After making, committing and pushing your changes. You can now create
 your release::
 
        xpd create_release -v 1.1.0 -b mybranch 
@@ -127,4 +116,4 @@ your release::
 This will create a release called ``1.1.0_mybranch0``. If you make
 more modifications, the next release will be called
 ``1.1.0_mybranch1`` and so on.
-      
+
