@@ -13,7 +13,7 @@ from xpd.xpd_data import Repo, Release, Version, Dependency
 from xpd.xpd_data import AllSoftwareDescriptor, SoftwareDescriptor
 from xpd.xpd_data import DocMap, Doc
 import xpd.check_project
-from xpd.xpd_subprocess import call, Popen
+from xpd.xpd_subprocess import call, call_get_output
 import xpd.xmlobject
 from xpd import templates
 from xpd import cognidox
@@ -301,7 +301,7 @@ def xpd_build_sw(repo, options):
     print "Building repo"
     if options.nobuild:
         return
-    ret = call(["xmake", "CONFIG=All", "NO_IGNORE_ERRORS=1", "all"], cwd=repo.path, shell=True)
+    ret = call(["xmake", "CONFIG=All", "NO_IGNORE_ERRORS=1", "all"], cwd=repo.path)
     if ret != 0 and not options.force:
         print "Error building"
         sys.exit(1)
@@ -498,10 +498,7 @@ def xpd_create_release(repo, options, args):
     print "Created release %s" % str(release.version)
 
     xpd_update_readme(repo, options, [])
-    call(["git", "add", "README.rst"],
-         cwd=repo.path,
-         stdout=subprocess.PIPE,
-         stderr=subprocess.PIPE)
+    call(["git", "add", "README.rst"], cwd=repo.path, silent=True)
 
     repo.save_and_commit_release(release)
 
@@ -729,7 +726,7 @@ def xpd_make_zip(repo, options, args, dest=None):
                 cognidox.assign_license_agreement(partnum, 6)
 
         if options.upload:
-            f = open(os.path.join(repo.path, "docmap.xml"), "w")
+            f = open(os.path.join(repo.path, "docmap.xml"), 'wb')
             f.write(xpd_make_docmap(repo, [], [], return_str = True))
             f.close()
 
@@ -1264,7 +1261,7 @@ def xpd_update_readme(repo, options, args,
     if not write_back:
         return lines
     else:
-        f=open(os.path.join(repo.path,"README.rst"),"w")
+        f = open(os.path.join(repo.path,"README.rst"), 'wb')
         for line in lines:
             f.write(line)
         f.close()
@@ -1285,7 +1282,7 @@ def check_swblock(repo, options, args, comp, verbose=True):
        print "  ERROR: software block %s has no README.rst" % comp.path
        valid = False
        print "  Creating new template README"
-       f = open(comp.readme_path(),"w")
+       f = open(comp.readme_path(), 'wb')
        f.write(templates.swblock_readme)
        f.close()
        repo.git_add(comp.readme_path())
@@ -1608,10 +1605,10 @@ def xpd_create_app(repo, options, args):
     print "Creating %s" % appname
     os.mkdir(os.path.join(repo.path,appname))
     os.mkdir(os.path.join(repo.path,appname,'src'))
-    f = open(os.path.join(repo.path,appname,'Makefile'),'w')
+    f = open(os.path.join(repo.path,appname,'Makefile'), 'wb')
     f.write(templates.app_makefile)
     f.close()
-    f = open(os.path.join(repo.path,appname,'README.rst'),'w')
+    f = open(os.path.join(repo.path,appname,'README.rst'), 'wb')
     f.write(templates.swblock_readme)
     f.close()
     return False
@@ -1622,10 +1619,10 @@ def xpd_create_module(repo, options, args):
     print "Creating %s" % modulename
     os.mkdir(os.path.join(repo.path,modulename))
     os.mkdir(os.path.join(repo.path,modulename,'src'))
-    f = open(os.path.join(repo.path,modulename,'module_build_info'),'w')
+    f = open(os.path.join(repo.path,modulename,'module_build_info'), 'wb')
     f.write(templates.module_build_info)
     f.close()
-    f = open(os.path.join(repo.path,modulename,'README.rst'),'w')
+    f = open(os.path.join(repo.path,modulename,'README.rst'), 'wb')
     f.write(templates.swblock_readme)
     f.close()
     return False
@@ -1661,7 +1658,7 @@ A repository can contains modules that contain sets of source files than can be 
             xpd_create_module(repo, options, [])
 
     if not os.path.exists(os.path.join(repo.path,'Makefile')):
-        f = open(os.path.join(repo.path,'Makefile'),'w')
+        f = open(os.path.join(repo.path,'Makefile'), 'wb')
         f.write(templates.toplevel_makefile)
         f.close()
 
@@ -1674,7 +1671,7 @@ A repository can contains modules that contain sets of source files than can be 
             while holder == '':
                 sys.stdout.write('Enter copyright holder: ')
                 holder = raw_input()
-            f = open(os.path.join(repo.path,'LICENSE.txt'),'w')
+            f = open(os.path.join(repo.path,'LICENSE.txt'), 'wb')
             f.write(templates.xcore_license % {'holder':holder})
             f.close()
 
@@ -1689,7 +1686,7 @@ A repository can contains modules that contain sets of source files than can be 
         desc = repo.description
         if not desc or desc=='':
             desc = 'A brief description of the repo'
-        f = open(os.path.join(repo.path,'README.rst'),'w')
+        f = open(os.path.join(repo.path,'README.rst'), 'wb')
         context = {'maintainer':maintainer,
                    'longname':longname,
                    'description':desc}
@@ -1836,7 +1833,7 @@ h3. Description
         dh.sections.append(block_zips_section)
 
     if to_file:
-        f = open(to_file,"w")
+        f = open(to_file, 'wb')
         f.write(dh.toxml("documentHolder"))
         f.close()
         return
@@ -1882,7 +1879,7 @@ def xpd_build_topdoc(repo, options=None, args=None):
     if os.path.exists(topdoc_path):
         shutil.rmtree(topdoc_path)
     os.makedirs(topdoc_path)
-    f = open(os.path.join(topdoc_path, 'index.rst'),'w')
+    f = open(os.path.join(topdoc_path, 'index.rst'), 'wb')
     f.write(''.join(readme))
     f.close()
     changelog_path = os.path.join(repo.path, 'CHANGELOG.rst')
@@ -2184,7 +2181,7 @@ def call_xsoftip(command, comp, repo):
 
     cmd = ["xsoftip", command] + args
     print " ".join(cmd)
-    return call(cmd, cwd=repo.path, shell=True)
+    return call(cmd, cwd=repo.path)
 
 def xpd_build_results(repo, options, args, return_valid=False):
     if args == []:
@@ -2198,7 +2195,7 @@ def xpd_build_results(repo, options, args, return_valid=False):
                 if comp.scope == "Roadmap":
                     buildinfo_name = "." + comp.id + ".buildinfo"
                     buildinfo_path = os.path.join(repo.path, comp.path, buildinfo_name)
-                    f = open(buildinfo_path, "w")
+                    f = open(buildinfo_path, 'wb')
                     f.write("<buildresults></buildresults>");
                     f.close()
                 else:
@@ -2243,15 +2240,10 @@ def xpd_validate_swblock(repo, options, args, return_valid=False):
     return False
 
 def get_tools_version():
-    process = Popen(["xcc", "--version"],
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
-
-    err_lines = process.stderr.readlines()
-    lines = process.stdout.readlines()
+    (stdout_lines, stderr_lines) = call_get_output(["xcc", "--version"])
 
     try:
-        m = re.match("(\d+\.\d+\.\d+).*", lines[0])
+        m = re.match("(\d+\.\d+\.\d+).*", stdout_lines[0])
         if m:
             print "VERSION:" + m.groups(1)[0]
             return m.groups(1)[0]
@@ -2279,7 +2271,7 @@ def xpd_install_local_xml(repo, cache_path, github=False):
         elif component.buildresults_path:
             if component.scope != "Roadmap":
                 print "WARNING: %s has no buildresults!!" % component.name
-            f = open(os.path.join(cache_path, package.name + "-" + component.id + ".buildresults"), "w")
+            f = open(os.path.join(cache_path, package.name + "-" + component.id + ".buildresults"), 'wb')
             f.write("<buildresults></buildresults>");
             f.close()
 
@@ -2289,7 +2281,7 @@ def xpd_install_local_xml(repo, cache_path, github=False):
     sw.name = repo.longname
     sw.project = package.project
     sw.packages.append(package)
-    f = open(os.path.join(cache_path, package.id + ".xml"), "w")
+    f = open(os.path.join(cache_path, package.id + ".xml"), 'wb')
     f.write(sw.toxml("software"))
     f.close()
 
@@ -2303,11 +2295,11 @@ def xpd_install_local_xml(repo, cache_path, github=False):
     all_software.toolsVersion = sw.toolsVersion
     all_software.packages.append(package)
 
-    f = open(fpath, "w")
+    f = open(fpath, 'wb')
     f.write(all_software.toxml("software"))
     f.close()
 
-    f = open(os.path.join(cache_path, package.name), "w")
+    f = open(os.path.join(cache_path, package.name), 'wb')
     f.write("dummyzip")
     f.close()
     return package
@@ -2357,7 +2349,7 @@ def xpd_install_local(repo, options, args):
             readme_str = f.read()
             f.close()
             readme_str = readme_str.replace("<!--seealsos-->", seealsos)
-            index = open(os.path.join(doc_dir, 'index.html'), 'w')
+            index = open(os.path.join(doc_dir, 'index.html'), 'wb')
             index.write(readme_str)
             index.close()
             zfile = zipfile.ZipFile(zipfilepath, 'w')
@@ -2496,18 +2488,12 @@ hidden_commands = [("approve_latest","Approved latest cognidox version")]
 
 
 def get_git_dir(path):
-    process = Popen(["git","rev-parse","--show-cdup"],
-                    cwd=path,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE)
+    (stdout_lines, stderr_lines) = call_get_output(["git", "rev-parse", "--show-cdup"], cwd=path)
 
-    err_lines = process.stderr.readlines()
-    lines = process.stdout.readlines()
-
-    if lines == []:
+    if stdout_lines == []:
         git_dir = path
     else:
-        git_dir = os.path.abspath(os.path.join(path,lines[0][:-1]))
+        git_dir = os.path.abspath(os.path.join(path, stdout_lines[0][:-1]))
 
     return git_dir
 

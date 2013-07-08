@@ -42,9 +42,6 @@ def get_files(src, dst):
 
     return [(os.path.normpath(os.path.join(dst,p)),os.path.abspath(os.path.join(src,p)),'DATA') for p in files]
 
-def to_toc(root, fs):
-    return
-
 data_files = ['xsphinx/Doxyfile','xsphinx/conf.py']
 
 xmosroot = os.environ['XMOS_ROOT']
@@ -58,16 +55,22 @@ data_files_toc = [(p,os.path.join(xmosroot,'tools_xdoc','xdoc',p),'DATA') for p 
 
 
 
-
 pyz = PYZ(a.pure)
 exe = EXE(pyz,
           a.scripts,
           a.binaries,
           a.zipfiles,
           a.datas,
-          data_files_toc,
           name=os.path.join('dist', 'xpd.exe'),
           debug=False,
-          strip=False,
-          upx=True,
-          console=1 )
+          strip=None,
+          upx=True)
+coll = COLLECT(exe,
+               a.binaries,
+               a.zipfiles,
+               a.datas,
+               data_files_toc,
+               strip=None,
+               upx=True,
+               name=os.path.join('dist', 'xpd'))
+

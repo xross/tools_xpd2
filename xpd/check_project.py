@@ -6,7 +6,6 @@ import subprocess
 import random
 import shutil
 import hashlib
-from xpd.xpd_subprocess import call, Popen
 from xpd import templates
 
 rst_title_regexp = r'[-=^~.][-=^~.]+'
@@ -98,7 +97,7 @@ def _check_project(repo, path=None, force_creation=False):
                                    "Do you want xpd to create a new one", True):
             sys.stdout.write("Creating new .project file\n")
             project_lines = templates.dotproject.split('\n')
-            f = open(os.path.join(path,'.project'), 'w')
+            f = open(os.path.join(path,'.project'), 'wb')
             for line in project_lines:
                 line = line.replace('%PROJECT%', name)
                 f.write(line+"\n")
@@ -267,7 +266,7 @@ def create_xproject(repo, path):
    if re.match('.*module_xcommon',path):
         is_hidden = True
    xproject_str = create_xproject_str(repo,is_hidden=is_hidden)
-   f = open(os.path.join(path,'.xproject'),'w')
+   f = open(os.path.join(path,'.xproject'), 'wb')
    f.write(xproject_str)
    f.close()
 
@@ -303,8 +302,13 @@ def create_cproject(repo, path=None, name=None, configs=None, all_includes=[],
    else:
         base_config = ''
 
-   includes = ['<listOptionValue builtIn="false" value=\'%s\' />\n'%x for x in all_includes]
+   includes = ['<listOptionValue builtIn="false" value=\'%s\' />\n'%x for x in sorted(all_includes)]
    includes = ''.join(includes)
+
+   if sys.platform.startswith('win'):
+       # On Windows need to write out paths with '/' instead of '\'
+       includes = includes.replace('\\','/')
+
    config_str = ''
    for config in configs:
        config_id = str(rand.randint(1,100000000))
@@ -336,17 +340,17 @@ def create_cproject(repo, path=None, name=None, configs=None, all_includes=[],
        lines[i] = re.sub(r'id\s*=\s*[\'"]([\w.]*)\.\d*[\'"]',new_id,lines[i])
        lines[i] = lines[i].replace('%CONFIGURATIONS%',config_str)
 
-   f = open(os.path.join(path,'.cproject'),'w')
+   f = open(os.path.join(path,'.cproject'), 'wb')
    f.write('\n'.join(lines))
    f.close()
 
    if is_module:
-        f = open(os.path.join(path,'.makefile'),'w')
+        f = open(os.path.join(path,'.makefile'), 'wb')
         f.write(templates.module_makefile)
         f.close()
 
    if is_extra_project:
-        f = open(os.path.join(path,'.makefile'),'w')
+        f = open(os.path.join(path,'.makefile'), 'wb')
         f.write(templates.extra_project_makefile)
         f.close()
 
@@ -471,7 +475,7 @@ def _check_cproject(repo, makefiles, project_deps, path=None, force_creation=Fal
         if prompt(force_creation, "There is a problem with the eclipse .cproject file.\n" + 
                                   "Do you want xpd to create a new one", True):
             sys.stdout.write("Creating new .cproject file\n")
-            create_cproject(repo, path, name, configs, all_includes,is_module=is_module)
+            create_cproject(repo, path, name, configs, all_includes, is_module=is_module)
             print "New .cproject created."
 
     repo.git_add(cproject_path)
@@ -613,7 +617,7 @@ def update_makefile(mkfile_path, all_configs):
     else:
          base_config = ''
 
-    f = open(mkfile_path,"w")
+    f = open(mkfile_path, 'wb')
     f.write(''.join(newlines) + include_section)
     f.close()
 
@@ -642,7 +646,7 @@ def check_toplevel_makefile(repo, force_creation=False):
     if updates_required:
         if prompt(force_creation, "There is a problem with the toplevel Makefile.\n" +
                                   "Do you want xpd to create a new one", True):
-             f = open(os.path.join(repo.path,'Makefile'),'w')
+             f = open(os.path.join(repo.path,'Makefile'), 'wb')
              f.write(templates.toplevel_makefile)
              f.close()
              print "New toplevel Makefile created"
@@ -680,7 +684,7 @@ def check_changelog(repo, force_creation=False):
         print "Cannot find CHANGELOG.rst"
         if prompt(force_creation, "Create template CHANGELOG.rst ", True):
             print "Adding template CHANGELOG.rst"
-            f = open(changelog_path,"w")
+            f = open(changelog_path, 'wb')
             f.write(templates.changelog)
             f.close()
             repo.git_add('CHANGELOG.rst')
@@ -721,7 +725,7 @@ def check_changelog(repo, force_creation=False):
             ok = False
             if prompt(force_creation, "Add valid title section", True):
                 title = "%s Change Log" % repo.name 
-                f = open(changelog_path, 'w')
+                f = open(changelog_path, 'wb')
                 f.write(title + '\n')
                 f.write(('=' * len(title)) + '\n')
                 for line in lines:

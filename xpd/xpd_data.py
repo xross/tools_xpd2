@@ -2,7 +2,7 @@ import os, subprocess, sys, re
 import difflib
 from xmlobject import XmlObject, XmlValue, XmlNode, XmlNodeList, XmlAttribute, XmlValueList
 from copy import copy
-from xpd.xpd_subprocess import call, Popen
+from xpd.xpd_subprocess import call, call_get_output
 from xpd.check_project import find_all_subprojects, get_project_immediate_deps
 import shutil
 import tempfile
@@ -25,11 +25,8 @@ def rst2xml(path):
     return xml_file.read()
 
 def exec_and_match(command, regexp, cwd=None):
-    process = Popen(command, cwd=cwd,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
-    lines = process.stdout.readlines()
-    for line in lines:
+    (stdout_lines, stderr_lines) = call_get_output(command, cwd=cwd)
+    for line in stdout_lines:
         m = re.match(regexp, line)
         if m:
             return m.groups(0)[0]
@@ -443,48 +440,32 @@ class Repo(XmlObject):
         self._repo_cache = {self.path:self}
         super(Repo, self).__init__(**kwargs)
 
-        process = Popen(["git","rev-parse","--show-cdup"],
-                                   cwd=path,
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
+        (stdout_lines, stderr_lines) = call_get_output(
+                ["git", "rev-parse", "--show-cdup"], cwd=path)
 
-        err_lines = process.stderr.readlines()
-        lines = process.stdout.readlines()
-
-        #if err_lines != []:
-        #    self.git = False
-
-        if self.git or lines == []:
+        if self.git or stdout_lines == []:
             git_dir = path
         else:
-            git_dir = os.path.abspath(os.path.join(path,lines[0][:-1]))
+            git_dir = os.path.abspath(os.path.join(path, stdout_lines[0][:-1]))
 
         read_file = True
 
         if parenthash:
-             relhash = self.get_child_hash(parenthash)
-             process = Popen(["git","show","%s:xpd.xml"%relhash],
-                                       cwd=path,
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE)
+            relhash = self.get_child_hash(parenthash)
+            (stdout_lines, stderr_lines) = call_get_output(
+                    ["git", "show", "%s:xpd.xml" % relhash], cwd=path)
             
-             err_lines = process.stderr.readlines()
-             if err_lines == []:
-                  read_file = False            
-                  self.parseString(process.stdout.read(),
-                                   src="%s:%s:xpd.xml"%(self.path,relhash))
+            if stderr_lines == []:
+                read_file = False
+                self.parseString(''.join(stdout_lines), src="%s:%s:xpd.xml" % (self.path,relhash))
 
         if master:
-             process = Popen(["git","show","master:xpd.xml"],
-                                       cwd=path,
-                                       stdout=subprocess.PIPE,
-                                       stderr=subprocess.PIPE)
-            
-             err_lines = process.stderr.readlines()
-             if err_lines == []:
-                  read_file = False
-                  self.parseString(process.stdout.read(),
-                                   src="%s:master:xpd.xml"%self.path)
+            (stdout_lines, stderr_lines) = call_get_output(
+                    ["git", "show", "master:xpd.xml"])
+
+            if stderr_lines == []:
+                read_file = False
+                self.parseString(''.join(stdout_lines), src="%s:master:xpd.xml"%self.path)
 
         self.xpd_file = os.path.join(git_dir,'xpd.xml')
 
@@ -524,17 +505,10 @@ class Repo(XmlObject):
         return Repo(path=self.path, parenthash=rel.parenthash)
 
     def checkout(self, githash, silent=False):
-        if silent:
-            call(["git","checkout",githash],
-                            cwd=self.path,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE)            
-        else:
-            call(["git","checkout",githash],
-                            cwd=self.path)
+        call(["git", "checkout",githash], cwd=self.path, silent=silent)
             
     def save(self):
-        f = open(self.xpd_file,"w")
+        f = open(self.xpd_file, 'wb')
         f.write(self.toxml("xpd"))
         f.close()
             
@@ -546,27 +520,17 @@ class Repo(XmlObject):
                 master_repo = Repo(self.path)
                 master_repo.releases.append(release)   
                 master_repo.save()
-                call(["git","add","xpd.xml"],
-                                cwd=self.path,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)                
-                call(["git","commit","-m","'Record release: %s'"%str(release.version)],
-                                cwd=self.path,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)                
+                call(["git", "add", "xpd.xml"], cwd=self.path, silent=True)
+                call(["git", "commit", "-m", "'Record release: %s'" % str(release.version)],
+                                cwd=self.path, silent=True)
                 self.checkout(ref, silent=True)
 
-    def save_and_commit_release(self, release):        
+    def save_and_commit_release(self, release):
         self.save()
         if self.git:
-            call(["git","add","xpd.xml"],
-                            cwd=self.path,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE)
-            call(["git","commit","-m","'Release: %s'"%str(release.version)],
-                            cwd=self.path,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE)
+            call(["git", "add", "xpd.xml"], cwd=self.path, silent=True)
+            call(["git", "commit", "-m", "'Release: %s'" % str(release.version)],
+                            cwd=self.path, silent=True)
 
         self.record_release(release)
 
@@ -639,17 +603,13 @@ class Repo(XmlObject):
             return Version(0,0,0)
         return rels[-1].version
 
-    def has_local_modifications(self):      
-        process = Popen(["git","update-index","-q","--refresh"], cwd=self.path,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
-        lines = process.stdout.readlines()
+    def has_local_modifications(self):
+        (stdout_lines, stderr_lines) = call_get_output(
+                ["git", "update-index", "-q", "--refresh"], cwd=self.path)
 
-        process = Popen(["git","diff-index","--name-only","HEAD","--"], cwd=self.path,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
-        lines = process.stdout.readlines()
-        if (lines == [] or re.match('fatal',lines[0])):
+        (stdout_lines, stderr_lines) = call_get_output(
+                ["git", "diff-index", "--name-only", "HEAD", "--"], cwd=self.path)
+        if (stdout_lines == [] or re.match('fatal', stdout_lines[0])):
             return False
         return True
 
@@ -715,15 +675,10 @@ class Repo(XmlObject):
 
     def _move_to_temp_sandbox(self, path, git_only=True):
         if git_only:
-            p = Popen(["git", "clone", self.path],
-                      cwd=path,
-                      stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            p.communicate()
-            p=Popen(["git", "checkout", self.current_githash()],
-                    cwd=path,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.STDOUT)
-            p.communicate()
+            (stdout_lines, stderr_lines) = call_get_output(
+                    ["git", "clone", self.path], cwd=path)
+            (stdout_lines, stderr_lines) = call_get_output(
+                    ["git", "checkout", self.current_githash()], cwd=path)
         else:
             shutil.copytree(self.path, os.path.join(path,os.path.basename(self.path)))
 
@@ -821,17 +776,13 @@ class Repo(XmlObject):
              cwd=self.path)
 
     def behind_upstream(self):
-        process = Popen(["git","status","-uno"],
-                                   cwd=self.path,
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
+        (stdout_lines, stderr_lines) = call_get_output(
+                ["git", "status", "-uno"], cwd=self.path)
 
-        err_lines = process.stderr.readlines()
-        lines = process.stdout.readlines()
-        for line in lines:
-            if re.match('.*is behind*',line):
+        for line in stdout_lines:
+            if re.match('.*is behind*', line):
                 return True
-            if re.match('.*diverged*',line):
+            if re.match('.*diverged*', line):
                 return True
 
         return False

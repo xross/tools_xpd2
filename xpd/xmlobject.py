@@ -1,7 +1,6 @@
 import xml.dom.minidom
 from xml.dom.minidom import parse, parseString
 import sys
-from xpd.xpd_subprocess import call, Popen
 import xml.sax.saxutils
 
 def pp_xml(dom, elem, indent=''):
