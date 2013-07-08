@@ -517,18 +517,6 @@ def do_exports(repo):
 
 def xpd_make_zip(repo, options, args, dest=None):
     # Do some checks
-    old_style = options.old_style
-
-    if old_style:
-        oldstyle_includes = get_current_modules(repo)
-        for x in os.listdir(repo.path):
-            if re.match('app_.*', x):
-                oldstyle_includes.add(x)
-        oldstyle_root = repo.name
-    else:
-        oldstyle_includes = []
-        oldstyle_root = None
-
     alternate_name = False
 
     local_mod = False
@@ -559,9 +547,6 @@ def xpd_make_zip(repo, options, args, dest=None):
 
     if alternate_name and not dest:
         version_string = raw_input("Please give a name for this snapshot: ")
-
-    if old_style:
-        version_string += "_flat"
 
     name = repo.name + "_" + version_string
 
@@ -605,11 +590,9 @@ def xpd_make_zip(repo, options, args, dest=None):
 
     f = zipfile.ZipFile(fname, "w")
 
-    zip_repo(repo, f, exports, old_style, oldstyle_includes, oldstyle_root,
-            include_binaries=repo.include_binaries, force=options.force)
+    zip_repo(repo, f, exports, include_binaries=repo.include_binaries, force=options.force)
     for dep in repo.dependencies:
-        zip_repo(dep.repo, f, exports, old_style, oldstyle_includes, oldstyle_root,
-                force=options.force, no_app_projects=True)
+        zip_repo(dep.repo, f, exports, force=options.force, no_app_projects=True)
 
     if not options.nodocs:
         for docdir in repo.docdirs:
@@ -683,8 +666,7 @@ def xpd_make_zip(repo, options, args, dest=None):
         info_string += "   <version>%s</version>\n" % version_string
     info_string += "</zipinfo>"
 
-    if not old_style:
-        f.writestr('.zipinfo', info_string)
+    f.writestr('.zipinfo', info_string)
 
     f.close()
     print "Created %s" % fname
@@ -804,8 +786,7 @@ def find_files(path):
 
     return fs
 
-def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[],
-             oldstyle_root="", include_binaries=False, force=False, no_app_projects=False):
+def zip_repo(repo, zipfile, exports, include_binaries=False, force=False, no_app_projects=False):
 
     repo_files = find_files(repo.path)
     excludes = []
@@ -834,14 +815,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[],
 
     for f in repo_files:
         f = f.rstrip()
-        if oldstyle:
-            ok = False
-            for i in oldstyle_includes:
-                if os.path.commonprefix([f, i]) == i:
-                    ok = True
-                    prefix = i
-        else:
-            ok = True
+        ok = True
 
         for export in exports:
             # Need to test against the export with trailing separator to prevent
@@ -867,21 +841,9 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[],
                ok = False
 
         if ok and f != "xpd.xml":
-            if oldstyle:
-                arcname = os.path.join(oldstyle_root, f)
-            else:
-                arcname = os.path.join(repo.name, f)
+            arcname = os.path.join(repo.name, f)
 
-            if oldstyle and re.match('.*Makefile$', f):
-                fh = open(os.path.join(repo.path, f))
-                lines = fh.readlines()
-                for i in range(len(lines)):
-                    lines[i] = lines[i].replace('xcommon' + os.path.sep + 'module_xcommon', 'module_xcommon')
-                    lines[i] = lines[i].replace('..' + os.path.sep + '..', '..')
-                fh.close()
-                new_makefile = ''.join(lines)
-                zipfile.writestr(arcname, new_makefile)
-            elif re.match('.*Makefile$', f):
+            if re.match('.*Makefile$', f):
                 if os.path.exists(os.path.join(repo.path, f)):
                     fh = open(os.path.join(repo.path, f))
                     makefile_str = fh.read()
@@ -921,14 +883,11 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[],
             for f in files:
                 fullpath = os.path.join(root, f)
                 arcname = os.path.relpath(fullpath, export_path)
-                if oldstyle:
-                    arcname = os.path.join(oldstyle_root, arcname)
-                else:
-                    arcname = os.path.join(repo.name, arcname)
+                arcname = os.path.join(repo.name, arcname)
 
                 zipfile.write(fullpath, arcname=arcname)
 
-    if not oldstyle and repo.git_export:
+    if repo.git_export:
         print "exporting git"
         print repo
         for root, dirs, files in os.walk(os.path.join(repo.path, ".git")):
@@ -979,10 +938,7 @@ def zip_repo(repo, zipfile, exports, oldstyle=False, oldstyle_includes=[],
                 if re.match('.*\.xe$', f):
                     fullpath = os.path.join(root, f)
                     arcname = os.path.relpath(root, repo.path)
-                    if oldstyle:
-                        arcname = os.path.join(oldstyle_root, arcname)
-                    else:
-                        arcname = os.path.join(repo.name, arcname)
+                    arcname = os.path.join(repo.name, arcname)
                     arcname = os.path.join(arcname, f)
                     zipfile.write(fullpath, arcname=arcname)
 
@@ -2565,9 +2521,6 @@ if __name__ == "__main__":
 
     optparser.add_option("-b","--branch",dest="release_branch",
                          help="release branch name")
-
-    optparser.add_option("--oldstyle",dest="old_style",action="store_true",default=False,
-                         help="create an old style zip")
 
     optparser.add_option("--force",dest="force",action="store_true",default=False,
                          help="Ignore safety check")
