@@ -29,6 +29,12 @@ xdoc = None
 xmossphinx = None
 xmos_xref = None
 
+def assert_exists(dep):
+    if not os.path.exists(dep.get_local_path()):
+        print "ERROR: Dependency missing for update: %s" % dep.repo_name
+        print "  - Use 'xpd getdeps' to get dependent repositories"
+        sys.exit(1)
+
 def samefile(fileA, fileB):
     try:
         return os.path.samefile(fileA, fileB)
@@ -1456,6 +1462,7 @@ def xpd_checkout(repo, options, args):
 
     local_mod = False
     for dep in repo.dependencies:
+        assert_exists(dep)
         if dep.repo.has_local_modifications():
             print "%s has local modifications" % dep.repo_name
             local_mod = True
@@ -1480,7 +1487,8 @@ def xpd_checkout(repo, options, args):
 
     rel = repo.get_release(version)
     if not rel:
-        print "Error with dependency: " + str(repo)
+        print "ERROR: release '%s' not found" % version
+        sys.exit(1)
 
     githash = repo.get_child_hash(rel.parenthash)
     if not githash:
@@ -2562,7 +2570,7 @@ if __name__ == "__main__":
     command = args[0]
 
     # Do not expect dependencies to exist if running getdeps
-    if command != "getdeps":
+    if command not in ["getdeps", "list"]:
         for dep in repo.dependencies:
             if not os.path.exists(dep.get_local_path()):
                 print "WARNING: Cannot find dependency: %s" % dep.repo_name
