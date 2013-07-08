@@ -1501,8 +1501,15 @@ def xpd_checkout(repo, options, args):
         dep.repo.checkout(dep.githash)
 
 def xpd_getdeps(repo, options, args):
+    if len(args):
+        version = Version(version_str=args[0])
+        vrepo = repo.get_versioned_repo(version)
+    else:
+        vrepo = repo
+
     for dep in repo.dependencies:
-        dep_path = os.path.join(repo.path, "..", dep.repo_name)
+        parent = os.path.sep.join(os.path.split(repo.path)[:-1])
+        dep_path = os.path.join(parent, dep.repo_name)
         if os.path.exists(dep_path):
             print "Dependency %s already exists" % dep_path
 
@@ -2457,7 +2464,7 @@ other_commands =[
             ("info","Same as status"),
             ("show","Same as status"),
             ("checkout","Checkout release"),
-            ("getdeps","Clone the dependencies of this repository"),
+            ("getdeps","Clone the dependencies of this repository. Optionally takes a version."),
             ("check_all","Check all meta information and infrastructure"),
             ("check_info","Check related information"),
             ("check_swblocks","Check swblocks"),
