@@ -1,8 +1,9 @@
 ## Annoying OS incompatability, not sure why this is needed
-import re
 import platform
+import re
 import subprocess
 import sys
+import tempfile
 
 ostype = platform.system()
 
@@ -25,6 +26,37 @@ def Popen(*args, **kwargs):
         sys.exit(1)
 
 def call(*args, **kwargs):
-    process = Popen(*args, **kwargs)
+    """ If silent, then create temporary files to pass stdout and stderr to since
+        on Windows the less/more-like behaviour waits for a keypress if it goes to stdout.
+    """
+    if ('silent' in kwargs) and kwargs['silent']:
+        kwargs['stdout'] = tempfile.TemporaryFile()
+        kwargs['stderr'] = tempfile.TemporaryFile()
+        process = Popen(*args, **kwargs)
+    else:
+        process = Popen(*args, **kwargs)
+
     return process.wait()
+
+def call_get_output(*args, **kwargs):
+    """ Create temporary files to pass stdout and stderr to since on Windows the
+        less/more-like behaviour waits for a keypress if it goes to stdout.
+    """
+    out = tempfile.TemporaryFile()
+    err = tempfile.TemporaryFile()
+    kwargs['stdout'] = out
+    kwargs['stderr'] = err
+    process = Popen(*args, **kwargs)
+
+    process.wait()
+
+    out.seek(0)
+    stdout_lines = out.readlines()
+    out.close()
+
+    err.seek(0)
+    stderr_lines = err.readlines()
+    err.close()
+
+    return (stdout_lines, stderr_lines)
 
