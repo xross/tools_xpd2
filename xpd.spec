@@ -53,18 +53,15 @@ data_files_toc = [(p,os.path.join(xmosroot,'tools_xdoc','xdoc',p),'DATA') for p 
                  get_files('../tools_xdoc/xdoc/texinput','texinputs') + \
                  get_files('../tools_xdoc/texinputs','texinputs')
 
-
-
 pyz = PYZ(a.pure)
 exe = EXE(pyz,
           a.scripts,
-          a.binaries,
-          a.zipfiles,
-          a.datas,
+          exclude_binaries=1,
           name=os.path.join('dist', 'xpd.exe'),
           debug=False,
           strip=None,
-          upx=True)
+          upx=True,
+          console=True)
 coll = COLLECT(exe,
                a.binaries,
                a.zipfiles,

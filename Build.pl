@@ -99,9 +99,8 @@ sub DoClean
 sub DoInstall
 {
   chdir($BUILDPATH) or die("oops");
-  # Rename doxygen to avoid clash with version supplied with OS
-  XmosBuildLib::InstallFile($DOMAIN, "dist", "xpd.exe");
-  XmosBuildLib::InstallxSOFTipToolsFile($DOMAIN, "dist", "xpd.exe", "bin");
+  XmosBuildLib::InstallDirectory($DOMAIN, "dist", "xpd");
+  XmosBuildLib::InstallxSOFTipToolsDirectory($DOMAIN, "dist", "xpd");
 }
 
 main()
