@@ -8,7 +8,13 @@ tools_xdoc_path = os.path.join(cwd,'..','tools_xdoc')
 
 sys.path.insert(0,tools_xdoc_path)
 
-a = Analysis([os.path.join(HOMEPATH,'support/_mountzlib.py'), os.path.join(HOMEPATH,'support/useUnicode.py'), 'scripts/xpd', '../tools_xdoc/xdoc/xsphinx/conf.py','../tools_xdoc/xdoc/xsphinx/breathe/breathe/__init__.py','../infr_docs/xmossphinx/xmosconf.py'],
+a = Analysis([os.path.join(HOMEPATH,'support/_mountzlib.py'),
+              os.path.join(HOMEPATH,'support/useUnicode.py'),
+              'scripts/xpd',
+              os.path.join(tools_xdoc_path, 'xdoc', 'xsphinx', 'conf.py'),
+              os.path.join(tools_xdoc_path, 'xdoc', 'xsphinx', 'breathe', 'breathe', '__init__.py'),
+              os.path.join(tools_xdoc_path,'doc_snippets','scripts', 'unweave.py'),
+              '../infr_docs/xmossphinx/xmosconf.py'],
 
              pathex=[cwd,
                      os.path.join(cwd,'xpd'),
