@@ -609,9 +609,13 @@ class Repo(XmlObject):
 
         (stdout_lines, stderr_lines) = call_get_output(
                 ["git", "diff-index", "--name-only", "HEAD", "--"], cwd=self.path)
-        if (stdout_lines == [] or re.match('fatal', stdout_lines[0])):
-            return False
-        return True
+
+        # Ignore files which are changed by xpd
+        stdout_lines = [ x for x in stdout_lines if not re.search("(^fatal:|\.xproject|\.cproject|xpd.xml)", x) ]
+
+        if stdout_lines:
+            return True
+        return False
 
     def uri(self):
         return exec_and_match(["git","remote","show","-n","origin"],
