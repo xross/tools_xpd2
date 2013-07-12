@@ -29,7 +29,8 @@ def call(*args, **kwargs):
     """ If silent, then create temporary files to pass stdout and stderr to since
         on Windows the less/more-like behaviour waits for a keypress if it goes to stdout.
     """
-    if ('silent' in kwargs) and kwargs['silent']:
+    silent = kwargs.pop('silent', False)
+    if silent:
         kwargs['stdout'] = tempfile.TemporaryFile()
         kwargs['stderr'] = tempfile.TemporaryFile()
         process = Popen(*args, **kwargs)
