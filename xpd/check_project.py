@@ -696,11 +696,14 @@ def check_changelog(repo, force_creation=False):
         f.close()
 
         title_error = False
+        replace_title = False
+        n_blank_lines = 0
         for i, line in enumerate(lines):
             line = line.strip()
 
             # Ignore blank lines at the start of the file
             if not line:
+                n_blank_lines += 1
                 continue
                 
             if line[0] == '<':
@@ -709,11 +712,11 @@ def check_changelog(repo, force_creation=False):
 
             if not re.search("change log", line, re.IGNORECASE):
                 title_error = True
-                break
 
             # The title must have a section line after it
             if i < (len(lines) - 1):
                 if re.match(rst_title_regexp,lines[i+1]):
+                    replace_title = True
                     break
 
             # Otherwise it is an error
@@ -728,7 +731,13 @@ def check_changelog(repo, force_creation=False):
                 f = open(changelog_path, 'wb')
                 f.write(title + '\n')
                 f.write(('=' * len(title)) + '\n')
-                for line in lines:
+
+                if replace_title:
+                    start_line = 2
+                else:
+                    start_line = 0
+
+                for line in lines[start_line + n_blank_lines:]:
                     f.write(line)
                 f.close()
                 print "Updated %s" % changelog_path
