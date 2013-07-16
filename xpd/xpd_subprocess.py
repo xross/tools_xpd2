@@ -1,9 +1,12 @@
 ## Annoying OS incompatability, not sure why this is needed
+import logging
 import platform
 import re
 import subprocess
 import sys
+import StringIO
 import tempfile
+import traceback
 
 ostype = platform.system()
 
@@ -21,8 +24,10 @@ def Popen(*args, **kwargs):
     try:
         return subprocess.Popen(*args, **kwargs)
     except:
-        sys.stderr.write("ERROR: Cannot run command `%s'\n" % ' '.join(args[0]))
-        sys.stderr.write("ABORTING\n")
+        fp = StringIO.StringIO()
+        traceback.print_exc(file=fp)
+        logging.debug(fp.getvalue())
+        logging.critical("Cannot run command `%s'\n" % ' '.join(args[0]))
         sys.exit(1)
 
 def call(*args, **kwargs):

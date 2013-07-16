@@ -176,10 +176,16 @@ class Dependency(XmlObject):
     def post_import(self):
         if os.path.exists(self.get_local_path()):
             path = os.path.abspath(self.get_local_path())
-            if path in self.parent._repo_cache:
+
+            (recursion, names) = self.parent.has_dependency_recursion()
+
+            if recursion:
+                print "Error: dependency recursion detected: %s" % ' -> '.join(names)
+                sys.exit(1)
+            elif path in self.parent._repo_cache:
                 self.repo = self.parent._repo_cache[path]
             else:                
-                self.repo = Repo(self.get_local_path())
+                self.repo = Repo(self.get_local_path(), parent=self.parent)
                 self.parent._repo_cache[path] = self.repo
         else:
             self.repo = None
@@ -879,6 +885,19 @@ class Repo(XmlObject):
             if re.match(match_path, path):
                 return True
         return False
+
+    def has_dependency_recursion(self):
+        recursion = False
+        names = [ self.name ]
+        parent = self.parent
+        while parent:
+            if parent:
+                names.insert(0, parent.name)
+                if parent.name == self.name:
+                    recursion = True
+            parent = parent.parent
+
+        return (recursion, names)
 
 
 class Package(XmlObject):

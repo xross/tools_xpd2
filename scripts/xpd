@@ -4,6 +4,7 @@ from stat import S_IWRITE
 
 from optparse import OptionParser
 import os, subprocess, sys, re
+import logging
 import difflib
 import zipfile
 import tempfile
@@ -31,8 +32,8 @@ xmos_xref = None
 
 def assert_exists(dep):
     if not os.path.exists(dep.get_local_path()):
-        print "ERROR: Dependency missing for update: %s" % dep.repo_name
-        print "  - Use 'xpd getdeps' to get dependent repositories"
+        logging.error("Dependency missing for update: %s" % dep.repo_name)
+        logging.info("  - Use 'xpd getdeps' to get dependent repositories")
         sys.exit(1)
 
 def samefile(fileA, fileB):
@@ -163,12 +164,12 @@ def find_current_dependencies(repo):
 
 def xpd_add_dep(repo, options, args):
     if len(args) < 1:
-        sys.stderr.write("ERROR: required repo name")
+        logging.error("required repo name")
         sys.exit(1)
 
     for dep in repo.dependencies:
         if dep.repo_name == args[0]:
-            sys.stderr.write("ERROR: dependency already exists")
+            logging.error("dependency already exists")
             sys.exit(1)
 
     dep = Dependency(parent=repo)
@@ -1654,7 +1655,7 @@ test application within the repo.
 A repository can contains modules that contain sets of source files than can be re-used across applications.
 """
 
-        if confirm("Would you like to create an module within this project", default=True):
+        if confirm("Would you like to create a module within this project", default=True):
             xpd_create_module(repo, options, [])
 
     if not os.path.exists(os.path.join(repo.path,'Makefile')):
@@ -2497,8 +2498,24 @@ def get_git_dir(path):
 
     return git_dir
 
+def configure_logging():
+    """ Set up logging so only INFO and above go to the console but DEBUG and above go to
+        a log file
+    """
+    cwd = os.getcwd()
+    logging.basicConfig(level=logging.DEBUG,
+            format='%(levelname)-8s: %(message)s',
+            filename=os.path.join(cwd, 'xpd.log'), filemode='w')
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(levelname)-8s: %(message)s')
+    console.setFormatter(formatter)
+    logging.getLogger('').addHandler(console)
+
 
 if __name__ == "__main__":
+    configure_logging()
+
     usage = "usage: %prog command [options]"
     usage += "\n\nMost useful commands:\n\n"
     for c in common_commands:

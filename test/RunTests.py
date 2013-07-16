@@ -7,45 +7,13 @@ import re
 import shutil
 import subprocess
 import sys
+import shutil
+import tempfile
+
+from TestUtils import call, get_apps_from_github
+from XpdTest import test_xpd_init, test_xpd_update
 
 ostype = platform.system()
-
-if not re.match('.*Darwin.*', ostype) and re.match('.*[W|w]in.*', ostype):
-    concat_args = True
-    use_shell = True
-else:
-    concat_args = False
-    use_shell = False
-
-def catch_errors(lines):
-    for line in lines:
-        if re.search('^Traceback', line):
-            logging.error('Backtrace produced')
-
-def Popen(*args, **kwargs):    
-    kwargs['shell'] = use_shell
-    if concat_args:
-        args = (' '.join(args[0]),) + args[1:]
-    try:
-        return subprocess.Popen(*args, **kwargs)
-    except:
-        sys.stderr.write("ERROR: Cannot run command `%s'\n"%' '.join(args[0]))
-        sys.stderr.write("ABORTING\n")
-        sys.exit(1)
-
-def call(command, cwd=None):
-    logging.debug("Run: %s" % ' '.join(command))
-    process = Popen(command, cwd=cwd,
-                               stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE)
-    stdout_lines = [line.strip() for line in process.stdout.readlines()]
-    catch_errors(stdout_lines)
-    stderr_lines = [line.strip() for line in process.stderr.readlines()]
-    catch_errors(stderr_lines)
-    if stdout_lines or stderr_lines:
-        logging.debug('\n'.join(stderr_lines))
-        logging.debug('\n'.join(stdout_lines))
-    return (stdout_lines, stderr_lines)
 
 def clean_repo(parent, folder):
     """ Put the test folder back into a known clean state
@@ -106,22 +74,44 @@ def test_folder(top, folder):
         for f in os.listdir(folder):
             if os.path.isdir(os.path.join(folder, f)):
                 test_folder(top, os.path.join(folder, f))
+                
+def run_basics(tests_source_folder, tests_run_folder, test_name):
+    logging.info("Running basic test %s" % test_name)
+    src = os.path.join(tests_source_folder, test_name)
+    dst = os.path.join(tests_run_folder, test_name)
+    shutil.copytree(src, dst)
+
+    call(["git", "init"], cwd=dst)
+    test_xpd_init(dst)
+    test_xpd_update(dst)
 
 def setup_logging(folder):
     """ Set up logging so only INFO and above go to the console but DEBUG and above go to
-        a log file
+        a log file.
     """
+    # Always open the file using 'wb' so that it is the same on Windows as other platforms
     logging.basicConfig(level=logging.DEBUG,
             format='%(asctime)s %(levelname)-8s: %(message)s',
-            filename=os.path.join(folder, 'tests.log'), filemode='w')
+            filename=os.path.join(folder, 'tests.log'), filemode='wb')
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
     formatter = logging.Formatter('%(levelname)-8s %(message)s')
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
 
+
 if __name__ == "__main__":
-    cwd = os.getcwd()
-    setup_logging(cwd)
-    test_folder(cwd, cwd)
+    setup_logging(os.getcwd())
+    (tests_source_folder, script_name) = os.path.split(os.path.realpath(__file__))
+    tests_run_folder = tempfile.mkdtemp()
+    logging.info("All tests running in %s" % tests_run_folder)
+
+    # Run the basic xpd functionality tests
+    run_basics(tests_source_folder, tests_run_folder, 'test_basics_1')
+
+#    logging.info("Cloning github repos to %s" % tests_run_folder)
+#    get_apps_from_github(tests_run_folder)
+#
+#    logging.info("Running tests in %s" % tests_run_folder)
+#    test_folder(cwd, cwd)
 
