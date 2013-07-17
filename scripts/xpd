@@ -466,6 +466,8 @@ def xpd_create_release(repo, options, args):
         print "... or add a <xsoftip_exclude> element to xpd.xml for the offending dir"
         return True
 
+    repo.patch_version_defines(version)
+
     print "Creating sandbox and checking build"
     repo.move_to_temp_sandbox()
     xpd_build_sw(repo, options)

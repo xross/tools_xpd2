@@ -4,6 +4,7 @@ from xmlobject import XmlObject, XmlValue, XmlNode, XmlNodeList, XmlAttribute, X
 from copy import copy
 from xpd.xpd_subprocess import call, call_get_output
 from xpd.check_project import find_all_subprojects, get_project_immediate_deps
+import logging
 import shutil
 import tempfile
 from docutils.core import publish_file
@@ -31,6 +32,12 @@ def exec_and_match(command, regexp, cwd=None):
         if m:
             return m.groups(0)[0]
     return None
+
+def is_source_file(filename):
+    if (filename.endswith(".xc") or filename.endswith(".c") or
+        filename.endswith(".h")  or filename.endswith(".S")):
+           return True
+    return False
 
 
 class VersionParseError(Exception):
@@ -289,6 +296,19 @@ class ChangeLog(XmlObject):
             self.version = None
 
 
+class VersionDefine(XmlObject):
+    name = XmlAttribute()
+    format = XmlAttribute()
+    type = XmlAttribute()
+
+    def produce_version_string(self, version):
+        value_string = self.format
+        value_string = value_string.replace("%MAJOR%", str(version.major))
+        value_string = value_string.replace("%MINOR%", str(version.minor))
+        value_string = value_string.replace("%POINT%", str(version.point))
+        value_string = value_string.replace("%VERSION%", str(version))
+        return value_string
+
 class Component(XmlObject):
     id = XmlAttribute()
     name = XmlAttribute()
@@ -430,6 +450,7 @@ class Repo(XmlObject):
     boards = XmlValueList()
     extra_eclipse_projects = XmlValueList()
     components = XmlNodeList(Component, wrapper="components")
+    version_defines = XmlNodeList(VersionDefine, wrapper="version_defines")
     snippets = XmlValue(default=False)
     docmap_partnumber = XmlValue()
     path = None
@@ -882,6 +903,40 @@ class Repo(XmlObject):
             if re.match(match_path, path):
                 return True
         return False
+
+    def patch_version_defines(self, version):
+        for root, dirs, files in os.walk(self.path):
+            if self.excluded(root):
+                continue
+
+            source_files = [f for f in files if is_source_file(f)]
+
+            for f in source_files:
+                filename = os.path.join(root, f)
+                with open(filename, "r") as f_ptr:
+                    lines = f_ptr.readlines()
+                with open(filename, "wb") as f_ptr:
+                    for line in lines:
+                        line = self.line_patch_version_defines(filename, line, version)
+                        f_ptr.write(line)
+
+    def line_patch_version_defines(self, filename, line, version):
+        if not re.search("^\s*#\s*define", line):
+            return line
+
+        for version_define in self.version_defines:
+            m = re.match('^(\s*)#(\s*)define\s+%s\s+[^\s]+(.*)$' % version_define.name, line)
+            if m:
+                value = version_define.produce_version_string(version)
+                if version_define.type == "str":
+                    value = '"' + value + '"'
+
+                relative_filename = re.sub("^%s%s" % (os.path.commonprefix([filename, self.path]), os.sep), '', filename)
+                logging.debug("Patching %s %s = %s" % (relative_filename, version_define.name, value))
+                line = '%s#%sdefine %s %s%s\n' % (m.group(1), m.group(2), version_define.name, value, m.group(3))
+                break
+
+        return line
 
     def has_dependency_recursion(self):
         recursion = False
