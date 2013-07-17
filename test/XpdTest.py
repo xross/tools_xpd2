@@ -26,7 +26,7 @@ def clean_repo(parent, folder):
             continue
         shutil.rmtree(fullname)
 
-def test_xpd_version(top, folder):
+def test_xpd_commands(top, folder):
     (parent, test_name) = os.path.split(folder)
     logging.info("Test: %s" % test_name)
 
@@ -45,7 +45,7 @@ def test_xpd_version(top, folder):
     # Ensure all versions can be checked out
     for version in versions[1:]:
         logging.info("Try: %s" % version)
-        call(["xpd", "getdeps", version])
+        test_xpd_getdeps(folder, latest_version)
         call(["xpd", "checkout", version])
         call(["xpd", "status"])
 
@@ -53,12 +53,29 @@ def test_xpd_version(top, folder):
     latest_version = versions[0].rstrip()
 
     logging.info("Try: %s" % latest_version)
-    call(["xpd", "getdeps", latest_version])
+    test_xpd_getdeps(folder, latest_version)
     call(["xpd", "checkout", latest_version])
     call(["xpd", "status"])
     call(["xpd", "make_zip", latest_version])
     
     logging.info("Done: %s" % test_name)
+
+def test_xpd_getdeps(folder, version):
+    (parent, test_name) = os.path.split(folder)
+    logging.info("test_xpd_getdeps: %s" % test_name)
+    xpd_contents = get_xpd_contents(folder)
+    deps = []
+    for line in xpd_contents:
+        m = re.search('<dependency repo = "(.*)"', line)
+        if m:
+            deps += m.group(1)
+
+    call(["xpd", "getdeps", version])
+
+    logging.debug("checking for ", [os.path.join(parent, dep) for dep in deps])
+    check_exists([os.path.join(parent, dep) for dep in deps])
+
+    logging.info("test_xpd_getdeps: %s done" % test_name)
 
 def test_xpd_init(folder):
     (parent, test_name) = os.path.split(folder)
@@ -67,10 +84,7 @@ def test_xpd_init(folder):
     # Set of expected output from xpd init and the responses to give. It is built up
     # depending on the current state of the repo
     expected = []
-    xpd_contents = []
-    if os.path.exists(os.path.join(folder, 'xpd.xml')):
-        with open(os.path.join(folder, 'xpd.xml')) as xpd:
-            xpd_contents = xpd.readlines()
+    xpd_contents = get_xpd_contents(folder)
 
     if not any("<description>" in s for s in xpd_contents):
         expected += [Expect("No description found", "y"),
@@ -103,18 +117,17 @@ def test_xpd_init(folder):
 
     interact(["xpd", "init"], expected, cwd=folder)
 
-    check_exists('run_basics', [
-            os.path.join(folder, 'xpd.xml'),
-            os.path.join(folder, 'README.rst'), 
-            os.path.join(folder, 'LICENSE.txt'),
-            os.path.join(folder, 'Makefile'),
-            os.path.join(folder, 'Makefile'),
-            os.path.join(folder, 'app_%s_example' % test_name, 'README.rst'),
-            os.path.join(folder, 'app_%s_example' % test_name, 'Makefile'),
-            os.path.join(folder, 'app_%s_example' % test_name, 'src'),
-            os.path.join(folder, 'module_test', 'README.rst'),
-            os.path.join(folder, 'module_test', 'module_build_info'),
-            os.path.join(folder, 'module_test', 'src')])
+    check_exists([os.path.join(folder, 'xpd.xml'),
+                  os.path.join(folder, 'README.rst'), 
+                  os.path.join(folder, 'LICENSE.txt'),
+                  os.path.join(folder, 'Makefile'),
+                  os.path.join(folder, 'Makefile'),
+                  os.path.join(folder, 'app_%s_example' % test_name, 'README.rst'),
+                  os.path.join(folder, 'app_%s_example' % test_name, 'Makefile'),
+                  os.path.join(folder, 'app_%s_example' % test_name, 'src'),
+                  os.path.join(folder, 'module_test', 'README.rst'),
+                  os.path.join(folder, 'module_test', 'module_build_info'),
+                  os.path.join(folder, 'module_test', 'src')])
 
     logging.info("test_xpd_init: %s done" % test_name)
 
@@ -125,45 +138,41 @@ def test_xpd_update(folder):
     # Set of expected output from xpd init and the responses to give. It is built up
     # depending on the current state of the repo
     expected = []
-    xpd_contents = []
-    if os.path.exists(os.path.join(folder, 'xpd.xml')):
-        with open(os.path.join(folder, 'xpd.xml')) as xpd:
-            xpd_contents = xpd.readlines()
+    xpd_contents = get_xpd_contents(folder)
 
     if not any("<partnumber>" in s for s in xpd_contents):
         expected += [Expect("No part number found", "n")]
 
     interact(["xpd", "update"], expected, cwd=folder)
 
-    check_exists('run_basics', [
-            os.path.join(folder, 'CHANGELOG.rst')])
+    check_exists([os.path.join(folder, 'CHANGELOG.rst'),
+                  os.path.join(folder, 'app_%s_example' % test_name, '.project'),
+                  os.path.join(folder, 'app_%s_example' % test_name, '.cproject'),
+                  os.path.join(folder, 'app_%s_example' % test_name, '.xproject'),
+                  os.path.join(folder, 'module_test', '.project'),
+                  os.path.join(folder, 'module_test', '.cproject'),
+                  os.path.join(folder, 'module_test', '.xproject'),
+                  os.path.join(folder, 'module_test', '.makefile')])
 
     logging.info("test_xpd_update: %s done" % test_name)
 
-def test_folder(top, folder):
-    if os.path.isfile(os.path.join(folder, "xpd.xml")):
-        test_xpd_version(top, folder)
-        #test_xpd_latest(folder)
-    else:
-        for f in os.listdir(folder):
-            if os.path.isdir(os.path.join(folder, f)):
-                test_folder(top, os.path.join(folder, f))
+def test_xpd_create_release(folder, version_type, version_number):
+    (parent, test_name) = os.path.split(folder)
+    logging.info("test_xpd_create_release: %s" % test_name)
 
-def setup_logging(folder):
-    """ Set up logging so only INFO and above go to the console but DEBUG and above go to
-        a log file
-    """
-    logging.basicConfig(level=logging.DEBUG,
-            format='%(asctime)s %(levelname)-8s: %(message)s',
-            filename=os.path.join(folder, 'tests.log'), filemode='w')
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(levelname)-8s %(message)s')
-    console.setFormatter(formatter)
-    logging.getLogger('').addHandler(console)
+    # Set of expected output from xpd init and the responses to give. It is built up
+    # depending on the current state of the repo
+    expected = [Expect("Enter release type", version_type),
+                Expect("Enter version number", version_number),
+                Expect("Create release %s" % version_number, ""), # Use default answer
+                Expect("Are these notes up to date", ""), # Use default answer
+                Expect("Do you want to push the commit of this release upstream", "n")]
+    xpd_contents = get_xpd_contents(folder)
 
-if __name__ == "__main__":
-    cwd = os.getcwd()
-    setup_logging(cwd)
-    test_folder(cwd, cwd)
+    if not any("<partnumber>" in s for s in xpd_contents):
+        expected += [Expect("No part number found", "n")]
+
+    interact(["xpd", "create_release"], expected, cwd=folder)
+
+    logging.info("test_xpd_create_release: %s done" % test_name)
 

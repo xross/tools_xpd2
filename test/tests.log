@@ -1,0 +1,133 @@
+2013-07-17 12:13:45,623 INFO    : All tests running in /Users/peter/sandboxes/xpd/tests
+2013-07-17 12:13:45,623 INFO    : Running basic test test_basics_1
+2013-07-17 12:13:45,629 DEBUG   : Run: 'git init' in /Users/peter/sandboxes/xpd/tests/test_basics_1
+2013-07-17 12:13:45,695 DEBUG   : Initialized empty Git repository in /Users/peter/sandboxes/xpd/tests/test_basics_1/.git/
+2013-07-17 12:13:45,696 DEBUG   : Run: 'git add .' in /Users/peter/sandboxes/xpd/tests/test_basics_1
+2013-07-17 12:13:45,702 DEBUG   : Run: 'git commit -m "initial"' in /Users/peter/sandboxes/xpd/tests/test_basics_1
+2013-07-17 12:13:45,712 DEBUG   : [master (root-commit) cbe1056] "initial"
+2013-07-17 12:13:45,712 DEBUG   : 0 files changed
+2013-07-17 12:13:45,713 DEBUG   : create mode 100644 place_holder
+2013-07-17 12:13:45,713 INFO    : test_xpd_init: test_basics_1
+2013-07-17 12:13:45,713 DEBUG   : Interact: 'xpd init' in /Users/peter/sandboxes/xpd/tests/test_basics_1
+2013-07-17 12:13:45,714 DEBUG   : Interact: expect 'No description found'
+2013-07-17 12:13:46,394 DEBUG   : Interact: send 'y'
+2013-07-17 12:13:46,497 DEBUG   : Interact: expect 'Enter paragraph description'
+2013-07-17 12:13:46,498 DEBUG   : Interact: send 'This is a test'
+2013-07-17 12:13:46,601 DEBUG   : Interact: expect 'No vendor found'
+2013-07-17 12:13:46,602 DEBUG   : Interact: send ''
+2013-07-17 12:13:46,704 DEBUG   : Interact: expect 'Enter vendor name'
+2013-07-17 12:13:46,705 DEBUG   : Interact: send 'XMOS'
+2013-07-17 12:13:46,808 DEBUG   : Interact: expect 'No maintainer found'
+2013-07-17 12:13:46,809 DEBUG   : Interact: send ''
+2013-07-17 12:13:46,911 DEBUG   : Interact: expect 'Enter maintainer github username'
+2013-07-17 12:13:46,913 DEBUG   : Interact: send 'test'
+2013-07-17 12:13:47,015 DEBUG   : Interact: expect 'No part number found'
+2013-07-17 12:13:47,017 DEBUG   : Interact: send 'n'
+2013-07-17 12:13:47,118 DEBUG   : Interact: expect 'Would you like to create an application'
+2013-07-17 12:13:47,120 DEBUG   : Interact: send 'y'
+2013-07-17 12:13:47,222 DEBUG   : Interact: expect 'app_test_basics_1_example'
+2013-07-17 12:13:47,223 DEBUG   : Interact: send ''
+2013-07-17 12:13:47,326 DEBUG   : Interact: expect 'Would you like to create an module'
+2013-07-17 12:13:47,328 DEBUG   : Interact: send 'y'
+2013-07-17 12:13:47,430 DEBUG   : Interact: expect 'module_test_basics_1_example'
+2013-07-17 12:13:47,431 DEBUG   : Interact: send 'module_test'
+2013-07-17 12:13:47,534 DEBUG   : Interact: expect 'Would you like to license the code'
+2013-07-17 12:13:47,535 DEBUG   : Interact: send 'y'
+2013-07-17 12:13:47,638 DEBUG   : Interact: expect 'Enter copyright holder'
+2013-07-17 12:13:47,639 DEBUG   : Interact: send 'XMOS'
+2013-07-17 12:13:48,011 INFO    : test_xpd_init: test_basics_1 done
+2013-07-17 12:13:48,011 INFO    : test_xpd_update: test_basics_1
+2013-07-17 12:13:48,011 DEBUG   : Interact: 'xpd update' in /Users/peter/sandboxes/xpd/tests/test_basics_1
+2013-07-17 12:13:48,014 DEBUG   : Interact: expect 'No part number found'
+2013-07-17 12:13:48,698 DEBUG   : Interact: send 'n'
+2013-07-17 12:13:49,186 INFO    : test_xpd_update: test_basics_1 done
+2013-07-17 12:13:49,186 DEBUG   : Run: 'git add .' in /Users/peter/sandboxes/xpd/tests/test_basics_1
+2013-07-17 12:13:49,198 DEBUG   : Run: 'git commit -m "initial"' in /Users/peter/sandboxes/xpd/tests/test_basics_1
+2013-07-17 12:13:49,211 DEBUG   : [master b22cf7b] "initial"
+2013-07-17 12:13:49,212 DEBUG   : 16 files changed, 1347 insertions(+)
+2013-07-17 12:13:49,212 DEBUG   : create mode 100644 CHANGELOG.rst
+2013-07-17 12:13:49,212 DEBUG   : create mode 100644 LICENSE.txt
+2013-07-17 12:13:49,212 DEBUG   : create mode 100644 Makefile
+2013-07-17 12:13:49,212 DEBUG   : create mode 100644 README.rst
+2013-07-17 12:13:49,212 DEBUG   : create mode 100644 app_test_basics_1_example/.cproject
+2013-07-17 12:13:49,212 DEBUG   : create mode 100644 app_test_basics_1_example/.project
+2013-07-17 12:13:49,212 DEBUG   : create mode 100644 app_test_basics_1_example/.xproject
+2013-07-17 12:13:49,212 DEBUG   : create mode 100644 app_test_basics_1_example/Makefile
+2013-07-17 12:13:49,212 DEBUG   : create mode 100644 app_test_basics_1_example/README.rst
+2013-07-17 12:13:49,212 DEBUG   : create mode 100644 module_test/.cproject
+2013-07-17 12:13:49,212 DEBUG   : create mode 100644 module_test/.makefile
+2013-07-17 12:13:49,212 DEBUG   : create mode 100644 module_test/.project
+2013-07-17 12:13:49,212 DEBUG   : create mode 100644 module_test/.xproject
+2013-07-17 12:13:49,213 DEBUG   : create mode 100644 module_test/README.rst
+2013-07-17 12:13:49,213 DEBUG   : create mode 100644 module_test/module_build_info
+2013-07-17 12:13:49,213 DEBUG   : create mode 100644 xpd.xml
+2013-07-17 12:13:49,213 INFO    : Running basic test test_basics_2
+2013-07-17 12:13:49,226 DEBUG   : Run: 'git init' in /Users/peter/sandboxes/xpd/tests/test_basics_2
+2013-07-17 12:13:49,270 DEBUG   : Initialized empty Git repository in /Users/peter/sandboxes/xpd/tests/test_basics_2/.git/
+2013-07-17 12:13:49,270 DEBUG   : Run: 'git add .' in /Users/peter/sandboxes/xpd/tests/test_basics_2
+2013-07-17 12:13:49,282 DEBUG   : Run: 'git commit -m "initial"' in /Users/peter/sandboxes/xpd/tests/test_basics_2
+2013-07-17 12:13:49,296 DEBUG   : [master (root-commit) 667c4f7] "initial"
+2013-07-17 12:13:49,296 DEBUG   : 12 files changed, 195 insertions(+)
+2013-07-17 12:13:49,296 DEBUG   : create mode 100644 CHANGELOG.rst
+2013-07-17 12:13:49,296 DEBUG   : create mode 100644 LICENSE.txt
+2013-07-17 12:13:49,296 DEBUG   : create mode 100644 Makefile
+2013-07-17 12:13:49,296 DEBUG   : create mode 100644 README.rst
+2013-07-17 12:13:49,296 DEBUG   : create mode 100644 app_test_basics_2_example/Makefile
+2013-07-17 12:13:49,297 DEBUG   : create mode 100644 app_test_basics_2_example/README.rst
+2013-07-17 12:13:49,297 DEBUG   : create mode 100644 app_test_basics_2_example/src/main.xc
+2013-07-17 12:13:49,297 DEBUG   : create mode 100644 module_test/README.rst
+2013-07-17 12:13:49,297 DEBUG   : create mode 100644 module_test/module_build_info
+2013-07-17 12:13:49,297 DEBUG   : create mode 100644 module_test/src/module.h
+2013-07-17 12:13:49,297 DEBUG   : create mode 100644 module_test/src/module.xc
+2013-07-17 12:13:49,297 DEBUG   : create mode 100644 xpd.xml
+2013-07-17 12:13:49,297 INFO    : test_xpd_init: test_basics_2
+2013-07-17 12:13:49,297 DEBUG   : Interact: 'xpd init' in /Users/peter/sandboxes/xpd/tests/test_basics_2
+2013-07-17 12:13:50,275 INFO    : test_xpd_init: test_basics_2 done
+2013-07-17 12:13:50,275 INFO    : test_xpd_update: test_basics_2
+2013-07-17 12:13:50,276 DEBUG   : Interact: 'xpd update' in /Users/peter/sandboxes/xpd/tests/test_basics_2
+2013-07-17 12:13:51,387 INFO    : test_xpd_update: test_basics_2 done
+2013-07-17 12:13:51,388 DEBUG   : Run: 'git add .' in /Users/peter/sandboxes/xpd/tests/test_basics_2
+2013-07-17 12:13:51,399 DEBUG   : Run: 'git commit -m "initial"' in /Users/peter/sandboxes/xpd/tests/test_basics_2
+2013-07-17 12:13:51,414 DEBUG   : [master 6ee3287] "initial"
+2013-07-17 12:13:51,414 DEBUG   : 8 files changed, 1188 insertions(+), 1 deletion(-)
+2013-07-17 12:13:51,415 DEBUG   : create mode 100644 app_test_basics_2_example/.cproject
+2013-07-17 12:13:51,415 DEBUG   : create mode 100644 app_test_basics_2_example/.project
+2013-07-17 12:13:51,415 DEBUG   : create mode 100644 app_test_basics_2_example/.xproject
+2013-07-17 12:13:51,415 DEBUG   : create mode 100644 module_test/.cproject
+2013-07-17 12:13:51,415 DEBUG   : create mode 100644 module_test/.makefile
+2013-07-17 12:13:51,415 DEBUG   : create mode 100644 module_test/.project
+2013-07-17 12:13:51,415 DEBUG   : create mode 100644 module_test/.xproject
+2013-07-17 12:13:51,415 INFO    : test_xpd_create_release: test_basics_2
+2013-07-17 12:13:51,415 DEBUG   : Interact: 'xpd create_release' in /Users/peter/sandboxes/xpd/tests/test_basics_2
+2013-07-17 12:13:51,416 DEBUG   : Interact: expect 'Enter release type'
+2013-07-17 12:13:52,138 DEBUG   : Interact: send 'r'
+2013-07-17 12:13:52,240 DEBUG   : Interact: expect 'Enter version number'
+2013-07-17 12:13:52,241 DEBUG   : Interact: send '1.2.3'
+2013-07-17 12:13:52,343 DEBUG   : Interact: expect 'Create release 1.2.3'
+2013-07-17 12:13:52,346 DEBUG   : Interact: send ''
+2013-07-17 12:13:52,448 DEBUG   : Interact: expect 'Are these notes up to date'
+2013-07-17 12:13:52,452 DEBUG   : Interact: send ''
+2013-07-17 12:13:52,554 DEBUG   : Interact: expect 'Do you want to push the commit of this release upstream'
+2013-07-17 12:13:53,886 DEBUG   : Interact: send 'n'
+2013-07-17 12:13:54,258 INFO    : test_xpd_create_release: test_basics_2 done
+2013-07-17 12:13:54,259 DEBUG   : Run: 'make' in /Users/peter/sandboxes/xpd/tests/test_basics_2
+2013-07-17 12:13:55,186 DEBUG   : cd app_test_basics_2_example && xmake all
+2013-07-17 12:13:55,186 DEBUG   : xmake[1]: Entering directory `/Users/peter/sandboxes/xpd/tests/test_basics_2/app_test_basics_2_example'
+2013-07-17 12:13:55,186 DEBUG   : Creating dependencies for module.xc
+2013-07-17 12:13:55,186 DEBUG   : Creating dependencies for main.xc
+2013-07-17 12:13:55,186 DEBUG   : Using modules: module_test
+2013-07-17 12:13:55,186 DEBUG   : Compiling main.xc
+2013-07-17 12:13:55,186 DEBUG   : Compiling module.xc
+2013-07-17 12:13:55,186 DEBUG   : Creating app_test_basics_2_example.xe
+2013-07-17 12:13:55,187 DEBUG   : Build Complete
+2013-07-17 12:13:55,187 DEBUG   : xmake[1]: Leaving directory `/Users/peter/sandboxes/xpd/tests/test_basics_2/app_test_basics_2_example'
+2013-07-17 12:13:55,187 DEBUG   : Run: 'xsim app_test_basics_2_example/bin/app_test_basics_2_example.xe' in /Users/peter/sandboxes/xpd/tests/test_basics_2
+2013-07-17 12:13:55,375 DEBUG   : 0
+2013-07-17 12:13:55,375 DEBUG   : 0
+2013-07-17 12:13:55,375 DEBUG   : 0
+2013-07-17 12:13:55,375 DEBUG   : 0
+2013-07-17 12:13:55,375 DEBUG   : 0
+2013-07-17 12:13:55,375 DEBUG   : 0
+2013-07-17 12:13:55,375 DEBUG   : 0.0.0
+2013-07-17 12:13:55,375 DEBUG   : 0.0.0
+2013-07-17 12:13:55,375 ERROR   : Release patching failed

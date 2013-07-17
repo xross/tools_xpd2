@@ -28,20 +28,24 @@ def Popen(*args, **kwargs):
     try:
         return subprocess.Popen(*args, **kwargs)
     except:
-        sys.stderr.write("ERROR: Cannot run command `%s'\n"%' '.join(args[0]))
-        sys.stderr.write("ABORTING\n")
+        logging.critical("Cannot run command `%s'\n"%' '.join(args[0]))
+        logging.critical("ABORTING\n")
         sys.exit(1)
 
 def call(command, cwd=None):
     """ Run the command requested and return the stdout/stderr expected
     """
-    logging.debug("Run: %s" % ' '.join(command))
+    if cwd:
+        logging.debug("Run: '%s' in %s" % (' '.join(command), cwd))
+    else:
+        logging.debug("Run: '%s' in %s" % (' '.join(command), os.getcwd()))
 
     # Create temporary files to pass stdout and stderr to since on Windows the
     # less/more-like behaviour waits for a keypress if it goes to stdout.
     out = tempfile.TemporaryFile()
     err = tempfile.TemporaryFile()
     process = Popen(command, cwd=cwd, stdout=out, stderr=err)
+    process.wait()
     out.seek(0)
     err.seek(0)
 
@@ -49,9 +53,8 @@ def call(command, cwd=None):
     catch_errors(stdout_lines)
     stderr_lines = [line.strip() for line in err.readlines()]
     catch_errors(stderr_lines)
-    if stdout_lines or stderr_lines:
-        logging.debug('\n'.join(stderr_lines))
-        logging.debug('\n'.join(stdout_lines))
+    for line in stdout_lines + stderr_lines:
+        logging.debug(line)
     return (stdout_lines, stderr_lines)
 
 
@@ -71,13 +74,13 @@ def interact(command, expected, cwd=None):
     """
     if cwd:
         os.chdir(cwd)
-    logging.debug("Interact: %s" % ' '.join(command))
+    logging.debug("Interact: '%s' in %s" % (' '.join(command), os.getcwd()))
     process = pexpect.spawn(' '.join(command), timeout=10)
 
     all_output = ''
     for expect in expected:
         if expect.value:
-            logging.debug("interact: expect '%s'" % expect.value)
+            logging.debug("Interact: expect '%s'" % expect.value)
             try:
                 process.expect(expect.value, timeout=expect.timeout)
                 if process.before:
@@ -85,17 +88,17 @@ def interact(command, expected, cwd=None):
                 if process.after:
                     all_output += process.after
             except pexpect.EOF:
-                logging.error("interact: unexpected EOF")
+                logging.error("Interact: unexpected EOF")
                 process.close()
                 return
             except pexpect.TIMEOUT:
-                logging.error("interact: TIMEDOUT")
+                logging.error("Interact: TIMEDOUT")
                 process.close()
                 return
                 
         # Want to be able to send blank lines (use default value) hence not None check
         if expect.send is not None:
-            logging.debug("interact: send '%s'" % expect.send)
+            logging.debug("Interact: send '%s'" % expect.send)
             process.sendline(expect.send)
 
     process.expect(pexpect.EOF)
@@ -112,35 +115,44 @@ def catch_errors(lines):
     for line in lines:
         if re.search('^Traceback', line):
             logging.error('Backtrace produced')
+        if re.search('^fatal:', line):
+            logging.error('git error')
 
-def check_exists(test, files):
+def check_exists(files):
     for f in files:
         if not os.path.exists(f):
-            logging.error("%s: missing %s" % (test, f))
+            logging.error("missing %s" % f)
 
 def get_apps_from_github(tests_folder):
     """ Clone all the public repos from github. If the folder already exists then simply
         update it.
     """
     github = Github()
-    org = github.get_organization("Xcore")
-    repos = org.get_repos("public")
+    org = github.get_organization('Xcore')
+    repos = org.get_repos('public')
     for repo in repos:
         os.chdir(tests_folder)
 
-        test_name = "test_" + repo.name
+        test_name = 'test_' + repo.name
         test_folder = os.path.join(test_name, repo.name)
 
         if os.path.exists(test_folder):
             logging.info("Updating %s" % repo.name)
-            os.chdir(test_folder)
-            os.system('git pull')
+            call(['git', 'pull'], cwd=os.path.join(tests_folder, test_folder))
 
         else:
             logging.info("Cloning %s" % repo.name)
             if not os.path.exists(test_name):
                 os.mkdir(test_name)
-            os.chdir(test_name)
-            os.system('git clone ' + repo.clone_url)
+            call(['git', 'clone', repo.clone_url], cwd=os.path.join(tests_folder, test_name))
 
+def get_parent(folder):
+    return os.path.sep.join(os.path.split(folder)[:-1])
+
+def get_xpd_contents(folder):
+    xpd_contents = []
+    if os.path.exists(os.path.join(folder, 'xpd.xml')):
+        with open(os.path.join(folder, 'xpd.xml')) as xpd:
+            xpd_contents = xpd.readlines()
+    return xpd_contents
 
