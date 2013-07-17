@@ -1,4 +1,5 @@
 import os
+import logging
 import xml.dom.minidom
 import sys
 import re
