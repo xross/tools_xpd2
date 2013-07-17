@@ -1,14 +1,15 @@
 #include <print.h>
 #include "module.h"
 
-#define APP_MAJOR_VERSION 0
-#define APP_MINOR_VERSION 0
-#define APP_POINT_VERSION 0
-#define APP_MAJOR_VERSION_STR "0"
+#define APP_MAJOR_VERSION       0 // This is a test
+#      define APP_MINOR_VERSION 0
+     # define APP_POINT_VERSION 0
+
+#define APP_MAJOR_VERSION_STR "0" // More comments
 #define APP_MINOR_VERSION_STR "0"
 #define APP_POINT_VERSION_STR "0"
-#define APP_FULL_VERSION_STR  "0.0.0"
-#define APP_VERSION_STR  "0.0.0"
+#define APP_FULL_VERSION_STR "0.0.0"
+#define APP_VERSION_STR "0.0.0rc0"
 
 int main()
 {
