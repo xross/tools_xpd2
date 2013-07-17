@@ -28,8 +28,7 @@ def Popen(*args, **kwargs):
     try:
         return subprocess.Popen(*args, **kwargs)
     except:
-        logging.critical("Cannot run command `%s'\n"%' '.join(args[0]))
-        logging.critical("ABORTING\n")
+        logging.error("Cannot run command `%s'\n"%' '.join(args[0]), exc_info=True)
         sys.exit(1)
 
 def call(command, cwd=None):
