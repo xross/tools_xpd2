@@ -35,7 +35,8 @@ def exec_and_match(command, regexp, cwd=None):
 
 def is_source_file(filename):
     if (filename.endswith(".xc") or filename.endswith(".c") or
-        filename.endswith(".h")  or filename.endswith(".S")):
+        filename.endswith(".h")  or filename.endswith(".S") or
+        filename.endswith(".in")):
            return True
     return False
 
