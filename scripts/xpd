@@ -68,7 +68,6 @@ def xpd_dep_iter(repo, command, output_repo_names=True):
         os.chdir(cwd)
 
 def xpd_show_dep(repo, options, args):
-
     if repo.dependencies == []:
         print "No dependencies"
     else:

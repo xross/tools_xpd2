@@ -53,7 +53,6 @@ def call_get_output(*args, **kwargs):
     kwargs['stdout'] = out
     kwargs['stderr'] = err
     process = Popen(*args, **kwargs)
-
     process.wait()
 
     out.seek(0)

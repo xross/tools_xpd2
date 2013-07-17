@@ -267,7 +267,6 @@ class Release(XmlObject):
 
 
 class ReleaseNote(XmlObject):
-    
     version_str = XmlAttribute(attrname="version")
 
     def post_import(self):
@@ -281,7 +280,6 @@ class ReleaseNote(XmlObject):
 
 
 class ChangeLog(XmlObject):
-    
     version_str = XmlAttribute(attrname="version")
 
     def post_import(self):
@@ -401,7 +399,6 @@ class Component(XmlObject):
 
 
 class Repo(XmlObject):
-
     dependencies = XmlNodeList(Dependency, tagname="dependency")
     releases = XmlNodeList(Release)
     longname = XmlValue(tagname="name")
