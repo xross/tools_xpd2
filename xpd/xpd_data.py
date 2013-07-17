@@ -925,7 +925,7 @@ class Repo(XmlObject):
             return line
 
         for version_define in self.version_defines:
-            m = re.match('^(\s*)#(\s*)define\s+%s\s+[^\s]+(.*)$' % version_define.name, line)
+            m = re.match('^(\s*)#(\s*)define(\s+)%s(\s+)[^\s]+(.*)$' % version_define.name, line)
             if m:
                 value = version_define.produce_version_string(version)
                 if version_define.type == "str":
@@ -933,7 +933,8 @@ class Repo(XmlObject):
 
                 relative_filename = re.sub("^%s%s" % (os.path.commonprefix([filename, self.path]), os.sep), '', filename)
                 logging.debug("Patching %s %s = %s" % (relative_filename, version_define.name, value))
-                line = '%s#%sdefine %s %s%s\n' % (m.group(1), m.group(2), version_define.name, value, m.group(3))
+                line = '%s#%sdefine%s%s%s%s%s\n' % (m.group(1), m.group(2), m.group(3),
+                        version_define.name, m.group(4), value, m.group(5))
                 break
 
         return line
