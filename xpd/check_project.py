@@ -49,7 +49,7 @@ def _check_project(repo, path=None, force_creation=False):
     project_ok = True
     project_path = os.path.join(path,'.project')
     if not os.path.exists(project_path):
-        print ".project file missing"
+        logging.warning(".project file missing")
         project_ok = False
 
     else:
@@ -58,21 +58,21 @@ def _check_project(repo, path=None, force_creation=False):
             root = getFirstChild(dom, 'projectDescription')
             names = [x.toxml() for x in dom.getElementsByTagName('name')]
         except:
-            print ".project file is invalid"
+            logging.warning(".project file is invalid")
             project_ok = False
             root = None
             names = []
 
         if not root:
-            print ".project file is invalid"
+            logging.warning(".project file is invalid")
             project_ok = False
 
         if not '<name>com.xmos.cdt.core.ModulePathBuilder</name>' in names:
-             print ".project file is invalid (no module path builder)"
+             logging.warning(".project file is invalid (no module path builder)")
              project_ok = False
 
         if not '<name>com.xmos.cdt.core.IncludePathBuilder</name>' in names:
-             print ".project file is invalid (no module path builder)"
+             logging.warning(".project file is invalid (no module path builder)")
              project_ok = False
 
         if project_ok:
@@ -84,18 +84,18 @@ def _check_project(repo, path=None, force_creation=False):
                 valid_name = False
 
             if not valid_name:
-                print "Eclipse project name is invalid"
+                logging.warning("Eclipse project name is invalid")
                 project_ok = False
 
             projects = getFirstChild(root, 'projects')
             if projects and getFirstChild(projects, 'project'):
-                print "Eclipse project has related projects in it (probably a bad idea)"
+                logging.warning("Eclipse project has related projects in it (probably a bad idea)")
                 project_ok = False
 
     if force_creation or not project_ok:
         if prompt(force_creation, "There is a problem with the eclipse .project file.\n" +
                                    "Do you want xpd to create a new one", True):
-            sys.stdout.write("Creating new .project file\n")
+            print "Creating new .project file"
             project_lines = templates.dotproject.split('\n')
             f = open(os.path.join(path,'.project'), 'wb')
             for line in project_lines:
@@ -153,11 +153,11 @@ def check_project(repo, force_creation=False):
                ok = ok and proj_ok
 
           if os.path.exists(os.path.join(repo.path,'.project')):
-               sys.stdout.write("Found top level .project, removing...")
+               print "Found top level .project, removing..."
                repo.git_remove(os.path.join(repo.path,'.project'))
                ok = False
           if os.path.exists(os.path.join(repo.path,'.cproject')):
-               sys.stdout.write("Found top level .cproject, removing...")
+               print "Found top level .cproject, removing..."
                repo.git_remove(os.path.join(repo.path,'.cproject'))
                ok = False
      else:
@@ -398,8 +398,7 @@ def _check_cproject(repo, makefiles, project_deps, path=None, force_creation=Fal
     name = get_project_name(repo,path)
     print "Checking .cproject file [%s]" % os.path.basename(path)
     print "Using configs: %s" % ', '.join(configs)
-    sys.stdout.write('Finding include directories\n')
-    sys.stdout.flush()
+    print 'Finding include directories'
 
     all_includes = set([os.path.basename(path)])
     for root, dirs, files in os.walk(path):
@@ -411,7 +410,7 @@ def _check_cproject(repo, makefiles, project_deps, path=None, force_creation=Fal
     (_,deps) = project_deps[os.path.basename(path)]
     for dep in deps:
          if not dep in project_deps:
-              print "ERROR: Cannot find %s" % dep
+              logging.error("ERROR: Cannot find %s" % dep)
               sys.exit(1)
          dep_repo = project_deps[dep][0]
          dep_path = os.path.join(dep_repo.path, dep)
@@ -464,17 +463,17 @@ def _check_cproject(repo, makefiles, project_deps, path=None, force_creation=Fal
                     pass
 
         if unfound_includes != [] or sys_includes != []:
-            print ".cproject does not cover all include paths"
+            logging.warning(".cproject does not cover all include paths")
             cproject_ok = False
 
         if found_configs != configs:
-            print ".cproject does not handle correct build configurations"
+            logging.warning(".cproject does not handle correct build configurations")
             cproject_ok = False
 
     if force_creation or not cproject_ok:
         if prompt(force_creation, "There is a problem with the eclipse .cproject file.\n" + 
                                   "Do you want xpd to create a new one", True):
-            sys.stdout.write("Creating new .cproject file\n")
+            print "Creating new .cproject file"
             create_cproject(repo, path, name, configs, all_includes, is_module=is_module)
             print "New .cproject created."
 
@@ -531,7 +530,7 @@ def check_makefile(mkfile_path, repo, all_configs):
             include_path = m.groups(0)[0].strip()
             if include_path != \
                '$(XMOS_MAKE_PATH)/xcommon/module_xcommon/build/Makefile.common':
-                print "%s has incorrect xcommon include" % relpath
+                logging.warning("%s has incorrect xcommon include" % relpath)
                 updates_required = True
 
     if not found_xcommon:
@@ -641,7 +640,7 @@ def check_toplevel_makefile(repo, force_creation=False):
                    found_include = True
 
          if not found_include:
-              print "WARNING: toplevel Makefile not standard"
+              logging.warning("Toplevel Makefile not standard")
 
     if updates_required:
         if prompt(force_creation, "There is a problem with the toplevel Makefile.\n" +
@@ -681,7 +680,7 @@ def check_changelog(repo, force_creation=False):
     ok = True
     changelog_path = os.path.join(repo.path, 'CHANGELOG.rst')
     if not os.path.exists(changelog_path):
-        print "Cannot find CHANGELOG.rst"
+        logging.warning("Cannot find CHANGELOG.rst")
         if prompt(force_creation, "Create template CHANGELOG.rst ", True):
             print "Adding template CHANGELOG.rst"
             f = open(changelog_path, 'wb')
@@ -707,7 +706,7 @@ def check_changelog(repo, force_creation=False):
                 continue
                 
             if line[0] == '<':
-                print >>sys.stderr, "ERROR: CHANGELOG.rst is still empty template - please update it"
+                logging.error("CHANGELOG.rst is still empty template - please update it")
                 sys.exit(1)
 
             if not re.search("change log", line, re.IGNORECASE):
@@ -724,7 +723,7 @@ def check_changelog(repo, force_creation=False):
             break
 
         if title_error:
-            print 'ERROR: title section in %s CHANGELOG.rst not valid' % repo.name
+            logging.warning('Title section in %s CHANGELOG.rst not valid' % repo.name)
             ok = False
             if prompt(force_creation, "Add valid title section", True):
                 title = "%s Change Log" % repo.name 

@@ -187,7 +187,7 @@ class Dependency(XmlObject):
             (recursion, names) = self.parent.has_dependency_recursion()
 
             if recursion:
-                print "Error: dependency recursion detected: %s" % ' -> '.join(names)
+                logging.error("Dependency recursion detected: %s" % ' -> '.join(names))
                 sys.exit(1)
             elif path in self.parent._repo_cache:
                 self.repo = self.parent._repo_cache[path]
@@ -532,6 +532,7 @@ class Repo(XmlObject):
         call(["git", "checkout",githash], cwd=self.path, silent=silent)
             
     def save(self):
+        logging.debug("Saving xpd.xml") 
         f = open(self.xpd_file, 'wb')
         f.write(self.toxml("xpd"))
         f.close()

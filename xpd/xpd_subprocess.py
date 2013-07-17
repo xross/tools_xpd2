@@ -24,10 +24,7 @@ def Popen(*args, **kwargs):
     try:
         return subprocess.Popen(*args, **kwargs)
     except:
-        fp = StringIO.StringIO()
-        traceback.print_exc(file=fp)
-        logging.debug(fp.getvalue())
-        logging.critical("Cannot run command `%s'\n" % ' '.join(args[0]))
+        logging.error("Cannot run command `%s'\n" % ' '.join(args[0]), exc_info=True)
         sys.exit(1)
 
 def call(*args, **kwargs):

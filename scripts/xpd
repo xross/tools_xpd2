@@ -103,7 +103,7 @@ def xpd_remove_dep(repo, options, args):
             print "Removed"
             return True
 
-    sys.stderr.write("%s is not a current dependency\n" % to_remove)
+    logging.error("%s is not a current dependency" % to_remove)
     return False
 
 def get_current_modules(repo):
@@ -210,7 +210,7 @@ def xpd_check_dep(repo, options, args, return_current_ok=False,
             update = True
         else:
             if not allow_updates:
-                print "Dependency %s is not up to date" % dep_repo
+                logging.warning("Dependency %s is not up to date" % dep_repo)
             if dep_repo != "xcommon":
                 current_ok = False
 
@@ -228,7 +228,7 @@ def xpd_check_dep(repo, options, args, return_current_ok=False,
                 update = True
             else:
                 if not allow_updates:
-                    print "Dependency %s is not up to date" % dep.repo_name
+                    logging.warning("Dependency %s is not up to date" % dep.repo_name)
                 current_ok = False
 
     if len(repos) == 0 and current_ok and not update:
@@ -251,7 +251,7 @@ def xpd_list(repo, options, args):
 
 def xpd_upgrade_rc(repo, options, args):
     if len(args) < 1:
-        sys.stderr.write("Requires version number.\n")
+        logging.error("Requires version number.")
         sys.exit(1)
 
     version = Version(version_str=args[0])
@@ -260,13 +260,13 @@ def xpd_upgrade_rc(repo, options, args):
     version.rnumber = 0
 
     if repo.get_release(version):
-        sys.stderr.write("Version already exists.\n")
+        logging.error("Version already exists.")
         sys.exit(1)
 
     rc = repo.latest_release(release_filter=lambda r: r.version.match_modulo_rtype(version) and r.version.rtype=='rc')
 
     if not rc:
-        sys.stderr.write("Cannot find rc.\n")
+        logging.error("Cannot find rc.")
         sys.exit(1)
 
     if not confirm("Upgrade %s to %s. Are you sure" % (rc.version, version), default=True):
@@ -303,7 +303,7 @@ def xpd_build_sw(repo, options):
         return
     ret = call(["xmake", "CONFIG=All", "NO_IGNORE_ERRORS=1", "all"], cwd=repo.path)
     if ret != 0 and not options.force:
-        print "Error building"
+        logging.error("Build failed")
         sys.exit(1)
 
 def xpd_create_release(repo, options, args):
@@ -315,7 +315,7 @@ def xpd_create_release(repo, options, args):
     if create_branch:
         candidates = branch_candidates(repo)
         if len(candidates) == 0:
-            print "No candidates to branch from"
+            logging.error("No candidates to branch from")
             sys.exit(1)
         if len(candidates) == 1:
             base_release = candidates[0]
@@ -328,7 +328,7 @@ def xpd_create_release(repo, options, args):
             try:
                 base_release = candidates[int(x)]
             except:
-                print "Invalid choice"
+                logging.error("Invalid choice")
                 sys.exit(1)
     elif hasattr(options, 'release_type') and options.release_type:
         rtype = options.release_type
@@ -348,10 +348,10 @@ def xpd_create_release(repo, options, args):
             if rtype:
                 break
             else:
-                sys.stderr.write("Unknown release type '%s'\n" % x)
+                logging.error("Unknown release type '%s'" % x)
 
         if rtype in ['release', '']:
-            sys.stderr.write("Cannot create release directly - must upgrade an rc\n")
+            logging.error("Cannot create release directly - must upgrade an rc")
             sys.exit(1)
 
     if create_branch:
@@ -382,7 +382,7 @@ def xpd_create_release(repo, options, args):
                 version = Version(version_str=x)
                 break
             except:
-                sys.stderr.write("Invalid version number '%s'\n" % x)
+                logging.error("Invalid version number '%s'" % x)
 
     if create_branch:
         version = base_release.version
@@ -399,7 +399,7 @@ def xpd_create_release(repo, options, args):
 
     fstr = version.final_version_str()
     if not fstr in notes:
-        print "Cannot find release notes for %s, please update CHANGELOG.rst" % fstr
+        logging.error("Cannot find release notes for %s, please update CHANGELOG.rst" % fstr)
         return True
     else:
         print "RELEASE NOTES FOR %s:" % fstr
@@ -421,30 +421,30 @@ def xpd_create_release(repo, options, args):
     xpd_check_all(repo, options, [])
 
     if repo.is_detached_head():
-        sys.stderr.write("Cannot create release from detached head.\n")
+        logging.error("Cannot create release from detached head.")
         sys.exit(1)
 
     # Do some checks
     local_mod = False
     for r in repo.all_repos():
         if r.has_local_modifications():
-            print "%s has local modifications" % r
+            logging.warning("%s has local modifications" % r)
             local_mod = True
 
     if local_mod and not options.force:
-        print "Cannot create release: uncommitted modifications"
+        logging.error("Cannot create release: uncommitted modifications")
         sys.exit(1)
 
     repo.git_fetch()
     if repo.behind_upstream():
-        print "Upstream changes not merged in. Cannot create release"
-        print "Try a 'git pull'"
+        logging.error("Upstream changes not merged in. Cannot create release")
+        logging.error("Try a 'git pull'")
         sys.exit(1)
 
     current_ok = xpd_check_dep(repo, options, args, return_current_ok=True)
 
     if not current_ok:
-        print "Cannot create release: dependencies not up to date"
+        logging.error("Cannot create release: dependencies not up to date")
         sys.exit(1)
 
     xpd_check_info(repo, options, args)
@@ -452,18 +452,18 @@ def xpd_create_release(repo, options, args):
     ok = xpd.check_project.check_makefiles(repo)
 
     if not ok:
-        print "Updates required to Makefiles."
-        print "Update files (or commit automatic changes) and try again."
+        logging.error("Updates required to Makefiles.")
+        logging.error("Update files (or commit automatic changes) and try again.")
         return True
 
     print "Checking xSOFTip block information"
     ok = xpd_check_swblocks(repo, options, args, return_valid=True, validate=True)
 
     if not ok:
-        print "---------------------------"
-        print "Problem with xSOFTip Blocks"
-        print "Either update README.rst files and metainfo files"
-        print "... or add a <xsoftip_exclude> element to xpd.xml for the offending dir"
+        logging.error("---------------------------")
+        logging.error("Problem with xSOFTip Blocks")
+        logging.error("Either update README.rst files and metainfo files")
+        logging.error("... or add a <xsoftip_exclude> element to xpd.xml for the offending dir")
         return True
 
     repo.patch_version_defines(version)
@@ -474,7 +474,7 @@ def xpd_create_release(repo, options, args):
     if not options.nobuild:
         ok = xpd_build_results(repo, options, ['all'], return_valid=True)
         if not ok:
-            print "xSOFTip Build Results Failed"
+            logging.error("xSOFTip Build Results Failed")
             return True
 
     repo.delete_temp_sandbox()
@@ -527,18 +527,18 @@ def xpd_make_zip(repo, options, args, dest=None):
     local_mod = False
     for r in repo.all_repos():
         if r and r.has_local_modifications():
-            print "%s has local modifications" % r
+            logging.warning("%s has local modifications" % r)
             local_mod = True
 
     if local_mod and not options.force:
-        print "Cannot make zip: uncommitted modifications"
+        logging.error("Cannot make zip: uncommitted modifications")
         sys.exit(1)
 
     current_ok = xpd_check_dep(repo, options, args, return_current_ok=True,
                                 allow_updates=False)
 
     if not current_ok:
-        print "WARNING: Current dependency versions do not match meta-data"
+        logging.warning("Current dependency versions do not match meta-data")
         alternate_name = True
 
     release = repo.current_release()
@@ -546,7 +546,7 @@ def xpd_make_zip(repo, options, args, dest=None):
         version_string = str(release.version)
     else:
         if options.upload:
-            print "Repository not at specific version point in git. Cannot publish."
+            logging.error("Repository not at specific version point in git. Cannot publish.")
             sys.exit(1)
         version_string = repo.current_githash()[:8]
 
@@ -607,8 +607,8 @@ def xpd_make_zip(repo, options, args, dest=None):
         for block in repo.components:
             src = os.path.join(repo.path, block.path, '_build', 'text', 'README.txt')
             if not os.path.isfile(src):
-                print "  WARNING: repo %s vendor is not XMOS and does not come from github" % repo.path
-                print "           so there will be no README.txt for block %s" % block.path
+                logging.warning("repo %s vendor is not XMOS and does not come from github" % repo.path)
+                logging.warning("so there will be no README.txt for block %s" % block.path)
             else:
                 arcname = os.path.join(repo.name, block.path, 'README.txt')
                 f.write(src, arcname=arcname)
@@ -626,7 +626,7 @@ def xpd_make_zip(repo, options, args, dest=None):
         for dep in repo.dependencies:
             if dep.repo.subpartnumber and dep.repo.is_xmos_repo():
                 if not dep.repo.current_release():
-                    print "WARNING: Dependency %s is not on a released version." % dep.repo.name
+                    logging.warning("Dependency %s is not on a released version." % dep.repo.name)
                     continue
 
                 version = dep.repo.current_version_or_githash()
@@ -637,7 +637,7 @@ def xpd_make_zip(repo, options, args, dest=None):
                 try:
                     cogfile = cognidox.fetch_version(dep.repo.subpartnumber, version)
                 except:
-                    print "WARNING: Cannot connect to cognidox"
+                    logging.warning("Cannot connect to cognidox")
                     cogfile = None
 
                 if cogfile:
@@ -663,7 +663,7 @@ def xpd_make_zip(repo, options, args, dest=None):
                     cogfile.close()
                     tmpfile.close()
                 else:
-                    print "WARNING: Cannot find relevant version of %s is cognidox. DEPENDENCIES SHOULD BE OFF RELEASED VERSIONS OF COMPONENTS" % dep.repo.name
+                    logging.warning("Cannot find relevant version of %s is cognidox. DEPENDENCIES SHOULD BE OFF RELEASED VERSIONS OF COMPONENTS" % dep.repo.name)
 
     info_string = "<zipinfo>\n"
     info_string += "   <main>%s</main>\n" % repo.name
@@ -1068,7 +1068,7 @@ def xpd_show(repo, options, args):
     def print_software_block_details(swblock):
         print swblock.name
         if not swblock.has_readme():
-            print "***** WARNING - missing README.rst ******"
+            logging.warning("Missing README.rst")
         print "       Name: %s" % swblock.name
         print "      Scope: %s" % swblock.scope
         print "Description: %s" % swblock.description
@@ -1281,7 +1281,7 @@ def check_swblock(repo, options, args, comp, verbose=True):
        print ""
 
    if not comp.has_readme():
-       print "  ERROR: software block %s has no README.rst" % comp.path
+       logging.error("Software block %s has no README.rst" % comp.path)
        valid = False
        print "  Creating new template README"
        f = open(comp.readme_path(), 'wb')
@@ -1290,15 +1290,15 @@ def check_swblock(repo, options, args, comp, verbose=True):
        repo.git_add(comp.readme_path())
    else:
        if comp.name=='' or comp.name[0] == '<':
-           print "  ERROR: software block %s title not specified, update README.rst" % comp.path
+           logging.error("Software block %s title not specified, update README.rst" % comp.path)
            valid = False
        if comp.description[0]=='<' or re.match('Software Block:',comp.description):
-           print "  ERROR: software block %s description not specified, update README.rst" % comp.path
+           logging.error("Software block %s description not specified, update README.rst" % comp.path)
            valid = False
 
        if comp.scope not in ALLOWED_SCOPES:
-           print "  ERROR: software block %s invalid scope" % comp.path
-           print "  Update README to set scope to one of:"
+           logging.error("Software block %s invalid scope" % comp.path)
+           print "Update README to set scope to one of:"
            for scope in ALLOWED_SCOPES:
                print "         " + scope
            print ""
@@ -1307,24 +1307,23 @@ def check_swblock(repo, options, args, comp, verbose=True):
        if comp.type == "component" and not comp.metainfo_path and comp.scope != "Example":
 
            if comp.scope == "Roadmap":
-               print "  ERROR: roadmap software block %s must have metainfo" % comp.path
+               logging.error("Roadmap software block %s must have metainfo" % comp.path)
            else:
-               print "  ERROR: software block %s without metainfo must have scope 'Example'" % comp.path
+               logging.error("Software block %s without metainfo must have scope 'Example'" % comp.path)
            valid = False
 
-
        if comp.keywords_text and comp.keywords_text[0]=='<':
-           print "  ERROR: %s keywords field as template, update README.rst to specify keywords or delete the line" % comp.path
+           logging.error("%s keywords field as template, update README.rst to specify keywords or delete the line" % comp.path)
            valid = False
 
        if comp.boards_text and comp.boards_text[0]=='<':
-           print "  ERROR: %s boards field as template, update README.rst to specify keywords or delete the line" % comp.path
+           logging.error("%s boards field as template, update README.rst to specify keywords or delete the line" % comp.path)
            valid = False
 
        comp.local = "false"
 
        if repo.snippets and not comp.description.startswith("How to"):
-           print "  ERROR: %s Snippet example title should start with 'How to'" % comp.path
+           logging.error("%s snippet example title should start with 'How to'" % comp.path)
            valid = False
 
    return valid
@@ -1463,7 +1462,7 @@ def xpd_checkout(repo, options, args):
     for dep in repo.dependencies:
         assert_exists(dep)
         if dep.repo.has_local_modifications():
-            print "%s has local modifications" % dep.repo_name
+            logging.error("%s has local modifications" % dep.repo_name)
             local_mod = True
 
     if local_mod:
@@ -1472,7 +1471,7 @@ def xpd_checkout(repo, options, args):
     if args[0] == 'latest':
         rel = repo.latest_release()
         if not rel:
-            print "Cannot find latest release"
+            logging.error("Cannot find latest release")
             sys.exit(1)
         else:
             print "Checking out %s" % str(rel.version)
@@ -1486,12 +1485,12 @@ def xpd_checkout(repo, options, args):
 
     rel = repo.get_release(version)
     if not rel:
-        print "ERROR: release '%s' not found" % version
+        logging.error("Release '%s' not found" % version)
         sys.exit(1)
 
     githash = repo.get_child_hash(rel.parenthash)
     if not githash:
-        print >>sys.stderr, "ERROR: cannot find githash for version %s, maybe the git history has been modified" % str(version)
+        logging.error("Cannot find githash for version %s, maybe the git history has been modified" % str(version))
         sys.exit(1)
     vrepo = repo.get_versioned_repo(version)
 
@@ -1564,7 +1563,7 @@ def xpd_check_info(repo, options, args, check_icon=True):
 
 def xpd_tag(repo, options, args):
     if len(args) < 1:
-        sys.stderr.write("error: requires version number\n")
+        logging.error("Requires version number")
         sys.exit(1)
 
     v = Version(version_str=args[0])
@@ -1574,7 +1573,7 @@ def xpd_tag(repo, options, args):
     relhash = repo.get_child_hash(rel.parenthash)
 
     if not relhash:
-        sys.stderr.write("error: cannot determine release hash\n")
+        logging.error("Cannot determine release hash")
         sys.exit(1)
 
     call(["git","tag","v%s"%str(v),relhash],cwd=Repo.path)
@@ -1854,7 +1853,7 @@ def import_xdoc():
     xmossphinx = __import__("xmossphinx")
     xmos_xref = __import__("xmos_xref")
 #    except ImportError:
-    #    sys.stderr.write("Cannot find xdoc")
+    #    logging.error("Cannot find xdoc")
      #   sys.exit(1)
 
 def xpd_build_dep_docs(dep):
@@ -2000,8 +1999,8 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
             issue = 'latest'
 
         if docinfo.title == None:
-            print "ERROR: Problem with seealso cross reference."
-            print "ERROR: Cannot determine title of %s" % docnum
+            logging.error("Problem with seealso cross reference.")
+            logging.error("ERROR: Cannot determine title of %s" % docnum)
             sys.exit(1)
 
         seealsos.append(('https://test.xmos.com/doc/%s/%s'%(docnum,issue),
@@ -2103,9 +2102,8 @@ def xpd_create_warnings(repo, options, args, return_warnings=False):
             warnings.append(warning)
 
     if not return_warnings:
-        print "WARNINGS\n========\n\n"
         for warning in warnings:
-            print warning
+            logging.warning(warning)
         return False
     else:
         return warnings
@@ -2113,7 +2111,7 @@ def xpd_create_warnings(repo, options, args, return_warnings=False):
 def xpd_parse_release_notes(repo, options, args, return_notes=False):
     changelog_path = os.path.join(repo.path, 'CHANGELOG.rst')
     if not os.path.exists(changelog_path):
-        print >>sys.stderr, "ERROR: cannot find CHANGELOG.rst"
+        logging.error("Cannot find CHANGELOG.rst")
         sys.exit(1)
     f = open(changelog_path)
     lines = f.readlines()
@@ -2205,7 +2203,7 @@ def xpd_build_results(repo, options, args, return_valid=False):
                     if ret != 0:
                         return False
             else:
-                print "Cannot find metadata file"
+                logging.error("Cannot find metadata file for %s" % comp.id)
 
     if return_valid:
         return True
@@ -2224,7 +2222,7 @@ def xpd_validate_swblock(repo, options, args, return_valid=False):
     for comp in repo.get_software_blocks():
         if comp.id == swblock_id or swblock_id == 'all':
             if not comp.name in component_names:
-                print "Can't check metadata until error found by check_swblocks are fixed"
+                logging.error("Can't check metadata until error found by check_swblocks are fixed")
                 return False
 
             comp.init_from_path(repo, comp.path)
@@ -2234,7 +2232,7 @@ def xpd_validate_swblock(repo, options, args, return_valid=False):
                 if ret != 0:
                     return False
             else:
-                print "Cannot find metadata file"
+                logging.error("Cannot find metadata file")
 
     if return_valid:
         return valid
@@ -2272,7 +2270,7 @@ def xpd_install_local_xml(repo, cache_path, github=False):
                         os.path.join(cache_path, package.name + "-" + component.id + ".buildresults"))
         elif component.buildresults_path:
             if component.scope != "Roadmap":
-                print "WARNING: %s has no buildresults!!" % component.name
+                logging.warning("%s has no buildresults!" % component.name)
             f = open(os.path.join(cache_path, package.name + "-" + component.id + ".buildresults"), 'wb')
             f.write("<buildresults></buildresults>");
             f.close()
@@ -2584,7 +2582,7 @@ if __name__ == "__main__":
     if command not in ["getdeps", "list"]:
         for dep in repo.dependencies:
             if not os.path.exists(dep.get_local_path()):
-                print "WARNING: Cannot find dependency: %s" % dep.repo_name
+                logging.warning("Cannot find dependency: %s" % dep.repo_name)
 
     if command == "help":
         optparser.print_help()
@@ -2606,7 +2604,6 @@ if __name__ == "__main__":
         if command_fn(repo, options, args):
             if options.github:
                 repo.leave_github_mode()
-            print "Saving xpd.xml"
             repo.save()
     else:
         matches = difflib.get_close_matches(command, commands)

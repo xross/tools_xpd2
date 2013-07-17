@@ -234,9 +234,9 @@ class XmlObject(object):
                         vals.append(val)
                     else:
                         if not x.hasChildNodes():
-                            sys.stderr.write("Warning - expected %s to have content\n"%tag.tagname)
+                            logging.warning("Expected %s to have content" % tag.tagname)
                         elif len(x.childNodes)<1 or not hasattr(x.childNodes[0],"wholeText"):
-                            sys.stderr.write("Parse error - expected %s to have text content\n"%tag.tagname)
+                            logging.error("Parse error - expected %s to have text content" % tag.tagname)
 			else:
                             val = x.childNodes[0].wholeText
                             val = val.strip()
@@ -278,10 +278,10 @@ class XmlObject(object):
             dom = xml.dom.minidom.parseString(s)
         except xml.parsers.expat.ExpatError:
             if src:
-                print >>sys.stderr, "XML parsing error: %s" % src
+                logging.error("XML parsing error: %s" % src)
                 sys.exit(1)
             else:
-                print >>sys.stderr, "XML parsing error"
+                logging.error("XML parsing error")
                 sys.exit(1)
 
         self._fromdom(dom, dom.childNodes[0])
