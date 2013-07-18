@@ -10,55 +10,22 @@ import sys
 
 from TestUtils import *
 
-def clean_repo(parent, folder):
-    """ Put the test folder back into a known clean state
-    """
-    # Restore the git repo to not have any local files
-    os.chdir(folder)
-    call(["git", "clean", "-xfdq"])
-    call(["git", "reset", "HEAD"])
-    call(["git", "checkout", "master"])
-
-    # Delete all other cloned folders that aren't the folder in question
-    for f in os.listdir(parent):
-        fullname = os.path.join(parent, f)
-        if not os.path.isdir(fullname) or (fullname == folder):
-            continue
-        shutil.rmtree(fullname)
-
-def test_xpd_commands(top, folder):
+def test_xpd_make_zip(folder):
     (parent, test_name) = os.path.split(folder)
-    logging.info("Test: %s" % test_name)
+    logging.info("test_xpd_make_zip: %s" % test_name)
+    xpd_contents = get_xpd_contents(folder)
+    deps = []
+    for line in xpd_contents:
+        m = re.search('<dependency repo = "(.*)"', line)
+        if m:
+            deps += m.group(1)
 
-    # Strip off the common bit of the path
-    testname = folder[len(top):] + "_version"
+    call(["xpd", "make_zip"])
 
-    clean_repo(parent, folder)
+    logging.debug("checking for ", [os.path.join(parent, dep) for dep in deps])
+    check_exists([os.path.join(parent, dep) for dep in deps])
 
-    # Needs to get the version before getting dependencies as the
-    # dependencies can change between versions
-    (versions, errors) = call(["xpd", "list"], cwd=folder)
-    if not versions:
-        logging.error("No versions")
-        return
-
-    # Ensure all versions can be checked out
-    for version in versions[1:]:
-        logging.info("Try: %s" % version)
-        test_xpd_getdeps(folder, latest_version)
-        call(["xpd", "checkout", version])
-        call(["xpd", "status"])
-
-    # xpd reverses the order of the releases so that the newest is the first
-    latest_version = versions[0].rstrip()
-
-    logging.info("Try: %s" % latest_version)
-    test_xpd_getdeps(folder, latest_version)
-    call(["xpd", "checkout", latest_version])
-    call(["xpd", "status"])
-    call(["xpd", "make_zip", latest_version])
-    
-    logging.info("Done: %s" % test_name)
+    logging.info("test_xpd_make_zip: %s done" % test_name)
 
 def test_xpd_getdeps(folder, version):
     (parent, test_name) = os.path.split(folder)
@@ -108,8 +75,8 @@ def test_xpd_init(folder):
 
     modules = [f for f in os.listdir(folder) if f.startswith('module_')]
     if not apps:
-        expected += [Expect("Would you like to create an module", "y"),
-                     Expect("module_%s_example" % test_name, "module_test")]
+        expected += [Expect("Would you like to create a module", "y"),
+                     Expect("module_%s_example" % test_name, "module_test_%s" % test_name[-1])] # append last character
 
     if not os.path.exists(os.path.join(folder, 'LICENSE.txt')):
         expected += [Expect("Would you like to license the code", "y"),
@@ -125,9 +92,9 @@ def test_xpd_init(folder):
                   os.path.join(folder, 'app_%s_example' % test_name, 'README.rst'),
                   os.path.join(folder, 'app_%s_example' % test_name, 'Makefile'),
                   os.path.join(folder, 'app_%s_example' % test_name, 'src'),
-                  os.path.join(folder, 'module_test', 'README.rst'),
-                  os.path.join(folder, 'module_test', 'module_build_info'),
-                  os.path.join(folder, 'module_test', 'src')])
+                  os.path.join(folder, 'module_test_%s' % test_name[-1], 'README.rst'),
+                  os.path.join(folder, 'module_test_%s' % test_name[-1], 'module_build_info'),
+                  os.path.join(folder, 'module_test_%s' % test_name[-1], 'src')])
 
     logging.info("test_xpd_init: %s done" % test_name)
 
@@ -149,10 +116,10 @@ def test_xpd_update(folder):
                   os.path.join(folder, 'app_%s_example' % test_name, '.project'),
                   os.path.join(folder, 'app_%s_example' % test_name, '.cproject'),
                   os.path.join(folder, 'app_%s_example' % test_name, '.xproject'),
-                  os.path.join(folder, 'module_test', '.project'),
-                  os.path.join(folder, 'module_test', '.cproject'),
-                  os.path.join(folder, 'module_test', '.xproject'),
-                  os.path.join(folder, 'module_test', '.makefile')])
+                  os.path.join(folder, 'module_test_%s' % test_name[-1], '.project'),
+                  os.path.join(folder, 'module_test_%s' % test_name[-1], '.cproject'),
+                  os.path.join(folder, 'module_test_%s' % test_name[-1], '.xproject'),
+                  os.path.join(folder, 'module_test_%s' % test_name[-1], '.makefile')])
 
     logging.info("test_xpd_update: %s done" % test_name)
 

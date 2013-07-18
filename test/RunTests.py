@@ -10,7 +10,7 @@ import sys
 import shutil
 
 from TestUtils import call, get_apps_from_github, get_parent
-from XpdTest import test_xpd_init, test_xpd_update, test_xpd_create_release, test_xpd_commands
+from XpdTest import *
 
 ostype = platform.system()
 
@@ -19,9 +19,9 @@ def clean_repo(parent, folder):
     """
     # Restore the git repo to not have any local files
     os.chdir(folder)
-    call(["git", "clean", "-xfdq"])
-    call(["git", "reset", "HEAD"])
-    call(["git", "checkout", "master"])
+    call(['git', 'clean', '-xfdq'])
+    call(['git', 'reset', 'HEAD'])
+    call(['git', 'checkout', 'master'])
 
     # Delete all other cloned folders that aren't the folder in question
     for f in os.listdir(parent):
@@ -30,8 +30,42 @@ def clean_repo(parent, folder):
             continue
         shutil.rmtree(fullname)
 
+def test_xpd_commands(top, folder):
+    (parent, test_name) = os.path.split(folder)
+    logging.info('Test: %s' % test_name)
+
+    # Strip off the common bit of the path
+    testname = folder[len(top):] + '_version'
+
+    clean_repo(parent, folder)
+
+    # Needs to get the version before getting dependencies as the
+    # dependencies can change between versions
+    (versions, errors) = call(['xpd', 'list'], cwd=folder)
+    if not versions:
+        logging.error('No versions')
+        return
+
+    # Ensure all versions can be checked out
+    for version in versions[1:]:
+        logging.info('Try: %s' % version)
+        test_xpd_getdeps(folder, latest_version)
+        call(['xpd', 'checkout', version])
+        call(['xpd', 'status'])
+
+    # xpd reverses the order of the releases so that the newest is the first
+    latest_version = versions[0].rstrip()
+
+    logging.info('Try: %s' % latest_version)
+    test_xpd_getdeps(folder, latest_version)
+    call(['xpd', 'checkout', latest_version])
+    call(['xpd', 'status'])
+    test_xpd_make_zip(folder)
+    
+    logging.info('Done: %s' % test_name)
+
 def test_folder(top, folder):
-    if os.path.isfile(os.path.join(folder, "xpd.xml")):
+    if os.path.isfile(os.path.join(folder, 'xpd.xml')):
         test_xpd_commands(top, folder)
         #test_xpd_latest(folder)
     else:
@@ -40,7 +74,7 @@ def test_folder(top, folder):
                 test_folder(top, os.path.join(folder, f))
                 
 def run_basic(tests_source_folder, tests_run_folder, test_name):
-    logging.info("Running basic test %s" % test_name)
+    logging.info('Running basic test %s' % test_name)
     src = os.path.join(tests_source_folder, test_name)
     dst = os.path.join(tests_run_folder, test_name)
     if os.path.exists(dst):
@@ -48,17 +82,16 @@ def run_basic(tests_source_folder, tests_run_folder, test_name):
     shutil.copytree(src, dst)
 
     # Ensure the copied directory is a git repo with all files added 
-    call(["git", "init"], cwd=dst)
-    call(["git", "add", "."], cwd=dst)
-    call(["git", "commit", "-m", '"initial"'], cwd=dst)
+    call(['git', 'init'], cwd=dst)
+    call(['git', 'add', '.'], cwd=dst)
+    call(['git', 'commit', '-m', '"Initial"'], cwd=dst)
 
     # Run the test
     test_xpd_init(dst)
     test_xpd_update(dst)
 
     # Check in everything after the update
-    call(["git", "add", "."], cwd=dst)
-    call(["git", "commit", "-m", '"initial"'], cwd=dst)
+    call(['git', 'commit', '-a', '-m', '"post update"'], cwd=dst)
 
 def setup_logging(folder):
     """ Set up logging so only INFO and above go to the console but DEBUG and above go to
@@ -66,7 +99,7 @@ def setup_logging(folder):
     """
     # Always open the file using 'wb' so that it is the same on Windows as other platforms
     logging.basicConfig(level=logging.DEBUG,
-            format='%(asctime)s %(levelname)-8s: %(message)s',
+            format='%(levelname)-8s: %(message)s',
             filename=os.path.join(folder, 'tests.log'), filemode='wb')
     console = logging.StreamHandler()
     console.setLevel(logging.INFO)
@@ -103,7 +136,7 @@ def print_usage():
     print "  Available tests are: basics, clone_xcore, test_all"
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     if len(sys.argv) < 2:
         print_usage()
 
