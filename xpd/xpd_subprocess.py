@@ -1,5 +1,4 @@
 ## Annoying OS incompatability, not sure why this is needed
-import logging
 import platform
 import re
 import subprocess
@@ -7,6 +6,8 @@ import sys
 import StringIO
 import tempfile
 import traceback
+
+from xpd.xpd_logging import *
 
 ostype = platform.system()
 
@@ -22,9 +23,10 @@ def Popen(*args, **kwargs):
     if concat_args:
         args = (' '.join(args[0]),) + args[1:]
     try:
+        log_debug("Run: %s" % ' '.join(args[0]))
         return subprocess.Popen(*args, **kwargs)
     except:
-        logging.error("Cannot run command `%s'\n" % ' '.join(args[0]), exc_info=True)
+        log_error("Cannot run command `%s'\n" % ' '.join(args[0]), exc_info=True)
         sys.exit(1)
 
 def call(*args, **kwargs):
@@ -32,14 +34,23 @@ def call(*args, **kwargs):
         on Windows the less/more-like behaviour waits for a keypress if it goes to stdout.
     """
     silent = kwargs.pop('silent', False)
+    retval = 0
     if silent:
-        kwargs['stdout'] = tempfile.TemporaryFile()
-        kwargs['stderr'] = tempfile.TemporaryFile()
+        out = tempfile.TemporaryFile()
+        kwargs['stdout'] = out
+        kwargs['stderr'] = subprocess.STDOUT
         process = Popen(*args, **kwargs)
+        retval = process.wait()
+
+        out.seek(0)
+        for line in out.readlines():
+            log_debug("     " + line.rstrip())
+        
     else:
         process = Popen(*args, **kwargs)
+        retval = process.wait()
 
-    return process.wait()
+    return retval
 
 def call_get_output(*args, **kwargs):
     """ Create temporary files to pass stdout and stderr to since on Windows the

@@ -1,5 +1,4 @@
 import os
-import logging
 import xml.dom.minidom
 import sys
 import re
@@ -8,6 +7,7 @@ import random
 import shutil
 import hashlib
 from xpd import templates
+from xpd.xpd_logging import *
 
 rst_title_regexp = r'[-=^~.][-=^~.]+'
 
@@ -43,14 +43,15 @@ def get_project_name(repo,path):
           return "%s" % (os.path.basename(path))
 
 def _check_project(repo, path=None, force_creation=False):
-    print "Checking .project file [%s]" % os.path.basename(path)
     if not path:
         path = repo.path
-    name = get_project_name(repo,path)
+
+    name = get_project_name(repo, path)
+    log_debug("%s: checking .project file" % name)
     project_ok = True
-    project_path = os.path.join(path,'.project')
+    project_path = os.path.join(path, '.project')
     if not os.path.exists(project_path):
-        logging.warning(".project file missing")
+        log_warning("%s: .project file missing" % name)
         project_ok = False
 
     else:
@@ -59,21 +60,21 @@ def _check_project(repo, path=None, force_creation=False):
             root = getFirstChild(dom, 'projectDescription')
             names = [x.toxml() for x in dom.getElementsByTagName('name')]
         except:
-            logging.warning(".project file is invalid")
+            log_warning("%s: .project file is invalid" % name)
             project_ok = False
             root = None
             names = []
 
         if not root:
-            logging.warning(".project file is invalid")
+            log_warning("%s: .project file is invalid" % name)
             project_ok = False
 
         if not '<name>com.xmos.cdt.core.ModulePathBuilder</name>' in names:
-             logging.warning(".project file is invalid (no module path builder)")
+             log_warning("%s: .project file is invalid (no module path builder)" % name)
              project_ok = False
 
         if not '<name>com.xmos.cdt.core.IncludePathBuilder</name>' in names:
-             logging.warning(".project file is invalid (no module path builder)")
+             log_warning("%s: .project file is invalid (no module path builder)" % name)
              project_ok = False
 
         if project_ok:
@@ -85,31 +86,29 @@ def _check_project(repo, path=None, force_creation=False):
                 valid_name = False
 
             if not valid_name:
-                logging.warning("Eclipse project name is invalid")
+                log_warning("%s: eclipse project name is invalid" % name)
                 project_ok = False
 
             projects = getFirstChild(root, 'projects')
             if projects and getFirstChild(projects, 'project'):
-                logging.warning("Eclipse project has related projects in it (probably a bad idea)")
+                log_warning("%s: eclipse project has related projects in it (probably a bad idea)" % name)
                 project_ok = False
 
     if force_creation or not project_ok:
         if prompt(force_creation, "There is a problem with the eclipse .project file.\n" +
                                    "Do you want xpd to create a new one", True):
-            print "Creating new .project file"
             project_lines = templates.dotproject.split('\n')
             f = open(os.path.join(path,'.project'), 'wb')
             for line in project_lines:
                 line = line.replace('%PROJECT%', name)
                 f.write(line+"\n")
             f.close()
-            print "New .project created"
+            log_info("New .project created in %s" % name)
             project_ok = True
 
     repo.git_add(project_path)
 
     return project_ok
-
 
 def find_all_subprojects(repo,exclude_apps=False):
      path = repo.path
@@ -154,17 +153,16 @@ def check_project(repo, force_creation=False):
                ok = ok and proj_ok
 
           if os.path.exists(os.path.join(repo.path,'.project')):
-               print "Found top level .project, removing..."
+               log_debug("Found top level .project, removing...")
                repo.git_remove(os.path.join(repo.path,'.project'))
                ok = False
           if os.path.exists(os.path.join(repo.path,'.cproject')):
-               print "Found top level .cproject, removing..."
+               log_debug("Found top level .cproject, removing...")
                repo.git_remove(os.path.join(repo.path,'.cproject'))
                ok = False
      else:
           ok = _check_project(repo, force_creation=force_creation)
      return ok
-
 
 def find_all_app_makefiles(path):
     makefiles = set()
@@ -411,7 +409,7 @@ def _check_cproject(repo, makefiles, project_deps, path=None, force_creation=Fal
     (_,deps) = project_deps[os.path.basename(path)]
     for dep in deps:
          if not dep in project_deps:
-              logging.error("ERROR: Cannot find %s" % dep)
+              log_error("%s: cannot find %s" % (name, dep))
               sys.exit(1)
          dep_repo = project_deps[dep][0]
          dep_path = os.path.join(dep_repo.path, dep)
@@ -434,11 +432,11 @@ def _check_cproject(repo, makefiles, project_deps, path=None, force_creation=Fal
 #                    '&quot;${XMOS_TOOL_PATH}/target/include&quot;']
     sys_includes = []
 
-    print "Checking .cproject file"
+    log_debug("%s: checking .cproject file" % name)
     cproject_ok = True
     cproject_path = os.path.join(path,'.cproject')
     if not os.path.exists(cproject_path):
-        print ".cproject file missing"
+        log_warning("%s: .cproject file missing" % name)
         cproject_ok = False
 
     else:
@@ -464,19 +462,18 @@ def _check_cproject(repo, makefiles, project_deps, path=None, force_creation=Fal
                     pass
 
         if unfound_includes != [] or sys_includes != []:
-            logging.warning(".cproject does not cover all include paths")
+            log_warning("%s: .cproject does not cover all include paths" % name)
             cproject_ok = False
 
         if found_configs != configs:
-            logging.warning(".cproject does not handle correct build configurations")
+            log_warning("%s: .cproject does not handle correct build configurations (handles %s)" % (name, ', '.join(found_configs)))
             cproject_ok = False
 
     if force_creation or not cproject_ok:
         if prompt(force_creation, "There is a problem with the eclipse .cproject file.\n" + 
                                   "Do you want xpd to create a new one", True):
-            print "Creating new .cproject file"
             create_cproject(repo, path, name, configs, all_includes, is_module=is_module)
-            print "New .cproject created."
+            log_info("New .cproject created in %s" % name)
 
     repo.git_add(cproject_path)
     repo.git_add(cproject_path.replace('.cproject','.xproject'))
@@ -516,14 +513,14 @@ def check_makefile(mkfile_path, repo, all_configs):
         if re.match('.*xcommon.*', line):
              found_xcommon = True
         if re.match('all:.*', line):
-            print "%s defines all target" % relpath
+            log_warning("%s defines all target" % relpath)
             updates_required = True
         if re.match('clean:.*', line):
-            print "%s defines clean target" % relpath
+            log_warning("%s defines clean target" % relpath)
             updates_required = True
 
         if re.match('\s*USED_MODULES\s*=.*module_(\w*)\.\d', line):
-            print "%s has explicit module versions" % relpath
+            log_warning("%s has explicit module versions" % relpath)
             updates_required = True
 
         m = re.match('-?include(.*)', line)
@@ -531,11 +528,11 @@ def check_makefile(mkfile_path, repo, all_configs):
             include_path = m.groups(0)[0].strip()
             if include_path != \
                '$(XMOS_MAKE_PATH)/xcommon/module_xcommon/build/Makefile.common':
-                logging.warning("%s has incorrect xcommon include" % relpath)
+                log_warning("%s has incorrect xcommon include" % relpath)
                 updates_required = True
 
     if not found_xcommon:
-         print "Doesn't look like an xcommon makefile ... leaving alone"
+         log_debug("Doesn't look like an xcommon makefile ... leaving alone")
          updates_required = False
 
     return updates_required
@@ -622,7 +619,7 @@ def update_makefile(mkfile_path, all_configs):
     f.close()
 
 def check_toplevel_makefile(repo, force_creation=False):
-    print "Checking toplevel Makefile"
+    log_debug("Checking toplevel Makefile")
     updates_required = False
     path = os.path.join(repo.path,'Makefile')
 
@@ -630,7 +627,7 @@ def check_toplevel_makefile(repo, force_creation=False):
          f = open(path)
     except:
          updates_required = True
-         print "Toplevel Makefile does not exist"
+         log_debug("Toplevel Makefile does not exist")
 
     if not updates_required:
          lines = f.readlines()
@@ -641,7 +638,7 @@ def check_toplevel_makefile(repo, force_creation=False):
                    found_include = True
 
          if not found_include:
-              logging.warning("Toplevel Makefile not standard")
+              log_warning("Toplevel Makefile not standard")
 
     if updates_required:
         if prompt(force_creation, "There is a problem with the toplevel Makefile.\n" +
@@ -649,7 +646,7 @@ def check_toplevel_makefile(repo, force_creation=False):
              f = open(os.path.join(repo.path,'Makefile'), 'wb')
              f.write(templates.toplevel_makefile)
              f.close()
-             print "New toplevel Makefile created"
+             log_info("New toplevel Makefile created")
 
     return updates_required
 
@@ -658,7 +655,7 @@ def check_makefiles(repo, force_creation=False):
     makefiles = find_all_app_makefiles(repo.path)
     all_configs = get_all_configs(makefiles)
     for mkfile in makefiles:
-        print "Checking %s" % os.path.relpath(mkfile, repo.path)
+        log_debug("Checking %s" % os.path.relpath(mkfile, repo.path))
         if flat_projects:
              configs = get_all_configs(set([mkfile]))
         else:
@@ -673,7 +670,7 @@ def check_makefiles(repo, force_creation=False):
                 else:
                       configs = all_configs
                 update_makefile(mkfile, configs)
-                print "Updated %s" % os.path.relpath(mkfile, repo.path)
+                log_info("Updated %s" % os.path.relpath(mkfile, repo.path))
 
     return (not updates_required)
 
@@ -681,9 +678,9 @@ def check_changelog(repo, force_creation=False):
     ok = True
     changelog_path = os.path.join(repo.path, 'CHANGELOG.rst')
     if not os.path.exists(changelog_path):
-        logging.warning("Cannot find CHANGELOG.rst")
+        log_warning("Cannot find CHANGELOG.rst")
         if prompt(force_creation, "Create template CHANGELOG.rst ", True):
-            print "Adding template CHANGELOG.rst"
+            log_info("Adding template CHANGELOG.rst")
             f = open(changelog_path, 'wb')
             f.write(templates.changelog)
             f.close()
@@ -707,7 +704,7 @@ def check_changelog(repo, force_creation=False):
                 continue
                 
             if line[0] == '<':
-                logging.error("CHANGELOG.rst is still empty template - please update it")
+                log_error("CHANGELOG.rst is still empty template - please update it")
                 sys.exit(1)
 
             if not re.search("change log", line, re.IGNORECASE):
@@ -724,7 +721,7 @@ def check_changelog(repo, force_creation=False):
             break
 
         if title_error:
-            logging.warning('Title section in %s CHANGELOG.rst not valid' % repo.name)
+            log_warning('Title section in %s CHANGELOG.rst not valid' % repo.name)
             ok = False
             if prompt(force_creation, "Add valid title section", True):
                 title = "%s Change Log" % repo.name 
@@ -740,7 +737,7 @@ def check_changelog(repo, force_creation=False):
                 for line in lines[start_line + n_blank_lines:]:
                     f.write(line)
                 f.close()
-                print "Updated %s" % changelog_path
+                log_info("Updated %s" % changelog_path)
 
     return ok
 

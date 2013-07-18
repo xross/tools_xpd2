@@ -4,7 +4,7 @@ from xmlobject import XmlObject, XmlValue, XmlNode, XmlNodeList, XmlAttribute, X
 from copy import copy
 from xpd.xpd_subprocess import call, call_get_output
 from xpd.check_project import find_all_subprojects, get_project_immediate_deps
-import logging
+from xpd.xpd_logging import *
 import shutil
 import tempfile
 from docutils.core import publish_file
@@ -188,7 +188,7 @@ class Dependency(XmlObject):
             (recursion, names) = self.parent.has_dependency_recursion()
 
             if recursion:
-                logging.error("Dependency recursion detected: %s" % ' -> '.join(names))
+                log_error("Dependency recursion detected: %s" % ' -> '.join(names))
                 sys.exit(1)
             elif path in self.parent._repo_cache:
                 self.repo = self.parent._repo_cache[path]
@@ -533,7 +533,7 @@ class Repo(XmlObject):
         call(["git", "checkout",githash], cwd=self.path, silent=silent)
             
     def save(self):
-        logging.debug("Saving xpd.xml") 
+        log_debug("Saving xpd.xml") 
         f = open(self.xpd_file, 'wb')
         f.write(self.toxml("xpd"))
         f.close()
@@ -790,20 +790,16 @@ class Repo(XmlObject):
         return package
 
     def git_add(self, path):
-        call(["git","add",path],
-             cwd=self.path)
+        call(["git","add",path], cwd=self.path, silent=True)
 
     def git_push(self):
-        call(["git","push"],
-             cwd=self.path)
+        call(["git","push"], cwd=self.path, silent=True)
 
     def git_fetch(self):
-        call(["git","fetch"],
-             cwd=self.path)
+        call(["git","fetch"], cwd=self.path, silent=True)
 
     def git_remove(self, path):
-        call(["git","rm","-f",path],
-             cwd=self.path)
+        call(["git","rm","-f",path], cwd=self.path, silent=True)
 
     def behind_upstream(self):
         (stdout_lines, stderr_lines) = call_get_output(
@@ -818,7 +814,7 @@ class Repo(XmlObject):
         return False
 
     def enter_github_mode(self):
-        print "Github mode"
+        log_info("Github mode")
         self._partnumber = self.partnumber
         self._subpartnumber = self.subpartnumber
         self.partnumber = self.xcore_partnumber
@@ -934,7 +930,7 @@ class Repo(XmlObject):
                     value = '"' + value + '"'
 
                 relative_filename = re.sub("^%s%s" % (os.path.commonprefix([filename, self.path]), os.sep), '', filename)
-                logging.debug("Patching %s %s = %s" % (relative_filename, version_define.name, value))
+                log_debug("Patching %s %s = %s" % (relative_filename, version_define.name, value))
                 line = '%s#%sdefine%s%s%s%s%s\n' % (m.group(1), m.group(2), m.group(3),
                         version_define.name, m.group(4), value, m.group(5))
                 break
