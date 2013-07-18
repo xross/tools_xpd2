@@ -1497,8 +1497,11 @@ def xpd_checkout(repo, options, args):
 
 def xpd_getdeps(repo, options, args):
     if args:
-        version = Version(version_str=args[0])
-        vrepo = repo.get_versioned_repo(version)
+        if args[0] == 'master':
+            vrepo = repo
+        else:
+            version = Version(version_str=args[0])
+            vrepo = repo.get_versioned_repo(version)
     else:
         vrepo = repo
 
