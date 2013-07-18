@@ -393,9 +393,8 @@ def _check_cproject(repo, makefiles, project_deps, path=None, force_creation=Fal
     else:
          configs = ['Default']
     name = get_project_name(repo,path)
-    print "Checking .cproject file [%s]" % os.path.basename(path)
-    print "Using configs: %s" % ', '.join(configs)
-    print 'Finding include directories'
+    log_debug("%s: checking .cproject file" % name)
+    log_debug("%s: using configs: %s" % (name, ', '.join(configs)))
 
     all_includes = set([os.path.basename(path)])
     for root, dirs, files in os.walk(path):
