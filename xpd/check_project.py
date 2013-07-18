@@ -144,7 +144,6 @@ def get_project_immediate_deps(repo, project):
 
      return deps
 
-
 def check_project(repo, force_creation=False):
      ok = True
      if flat_projects:
@@ -211,7 +210,6 @@ def get_configs(mkfile_path):
         if m:
             config = m.groups(0)[0]
             configs.add(config)
-
 
         m = re.match('ifeq "\$\(CONFIG\)" "(\w*)"',line)
         if m:
