@@ -2199,8 +2199,8 @@ def xpd_build_results(repo, options, args, return_valid=False):
                     ret = call_xsoftip("buildresults", comp, repo)
                     if ret != 0:
                         return False
-            else:
-                logging.error("Cannot find metadata file for %s" % comp.id)
+            elif comp.type == "component":
+                log_error("Cannot find metadata file for %s" % comp.id)
 
     if return_valid:
         return True
@@ -2228,8 +2228,8 @@ def xpd_validate_swblock(repo, options, args, return_valid=False):
                 ret = call_xsoftip("validate", comp, repo)
                 if ret != 0:
                     return False
-            else:
-                logging.error("Cannot find metadata file")
+            elif comp.type == "component":
+                log_error("Cannot find metadata file for %s" % comp.id)
 
     if return_valid:
         return valid
