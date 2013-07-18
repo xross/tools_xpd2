@@ -87,7 +87,7 @@ def test_xpd_commands(top, folder):
     # Ensure all versions can be checked out
     for version in versions[1:]:
         logging.info('Try: %s' % version)
-        test_xpd_getdeps(folder, latest_version)
+        test_xpd_getdeps(folder, version)
         call(['xpd', 'checkout', version])
         call(['xpd', 'status'])
 
@@ -115,10 +115,14 @@ def test_folder(top, folder):
                 
 def run_basic(tests_source_folder, tests_run_folder, test_name):
     logging.info('Running basic test %s' % test_name)
-    src = os.path.join(tests_source_folder, test_name)
-    dst = os.path.join(tests_run_folder, test_name)
+    src = os.path.join(tests_source_folder, 'test_%s' % test_name, test_name)
+    dst_folder = os.path.join(tests_run_folder, 'test_%s' % test_name)
+    dst = os.path.join(dst_folder, test_name)
+
     if os.path.exists(dst):
         shutil.rmtree(dst)
+    if not os.path.exists(dst_folder):
+        os.mkdir(dst_folder)
     shutil.copytree(src, dst)
 
     # Ensure the copied directory is a git repo with all files added 
@@ -149,14 +153,14 @@ def setup_logging(folder):
 
 def run_basics(tests_source_folder, tests_run_folder):
     # Run the basic xpd functionality tests
-    run_basic(tests_source_folder, tests_run_folder, 'test_basics_1')
-    run_basic(tests_source_folder, tests_run_folder, 'test_basics_2')
+    run_basic(tests_source_folder, tests_run_folder, 'basics_1')
+    run_basic(tests_source_folder, tests_run_folder, 'basics_2')
     
     # Test creating a release which patches version numbers into defines
-    test_folder = os.path.join(tests_run_folder, 'test_basics_2')
+    test_folder = os.path.join(tests_run_folder, 'test_basics_2', 'basics_2')
     test_xpd_create_release(test_folder, 'r', '1.2.3')
     call(['make'], cwd=test_folder)
-    bin_path = os.path.join('app_test_basics_2_example', 'bin', 'app_test_basics_2_example.xe')
+    bin_path = os.path.join('app_basics_2_example', 'bin', 'app_basics_2_example.xe')
     (stdout_lines, stderr_lines) = call(['xsim', bin_path], cwd=test_folder)
     if ', '.join(stdout_lines) != "1, 2, 3, 1, 2, 3, 1.2.3, 1.2.3rc0":
         logging.error("Release patching failed")
@@ -170,11 +174,13 @@ def run_test_all(tests_source_folder, tests_run_folder):
     logging.info("Running tests in %s" % tests_run_folder)
     test_folder(tests_run_folder, tests_run_folder)
 
+supported_tests = ['basics', 'clone_xcore', 'test_all']
+
 def print_usage():
     (tests_source_folder, script_name) = os.path.split(os.path.realpath(__file__))
     print "%s: [TEST]+" % script_name
-    print "  Available tests are: basics, clone_xcore, test_all"
-
+    print "  Available tests are: %s" % ', '.join(supported_tests)
+    sys.exit(1)
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -183,9 +189,13 @@ if __name__ == '__main__':
     setup_logging(os.getcwd())
     (tests_source_folder, script_name) = os.path.split(os.path.realpath(__file__))
     tests_run_folder = os.path.join(get_parent(get_parent(os.getcwd())), 'tests')
-    logging.info("All tests running in %s" % tests_run_folder)
+    logging.info("Tests running in %s" % tests_run_folder)
 
     for arg in sys.argv[1:]:
-        run_fn = eval('run_%s' % arg)
-        run_fn(tests_source_folder, tests_run_folder)
+        if arg in supported_tests:
+            run_fn = eval('run_%s' % arg)
+            run_fn(tests_source_folder, tests_run_folder)
+        else:
+            logging.error("Unsupported test '%s'" % arg)
+            print_usage()
 

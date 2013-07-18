@@ -14,16 +14,8 @@ def test_xpd_make_zip(folder):
     (parent, test_name) = os.path.split(folder)
     logging.info("test_xpd_make_zip: %s" % test_name)
     xpd_contents = get_xpd_contents(folder)
-    deps = []
-    for line in xpd_contents:
-        m = re.search('<dependency repo = "(.*)"', line)
-        if m:
-            deps += m.group(1)
 
     call(["xpd", "make_zip"])
-
-    logging.debug("checking for ", [os.path.join(parent, dep) for dep in deps])
-    check_exists([os.path.join(parent, dep) for dep in deps])
 
     logging.info("test_xpd_make_zip: %s done" % test_name)
 
@@ -35,11 +27,10 @@ def test_xpd_getdeps(folder, version):
     for line in xpd_contents:
         m = re.search('<dependency repo = "(.*)"', line)
         if m:
-            deps += m.group(1)
+            deps += [m.group(1)]
 
     call(["xpd", "getdeps", version])
 
-    logging.debug("checking for ", [os.path.join(parent, dep) for dep in deps])
     check_exists([os.path.join(parent, dep) for dep in deps])
 
     logging.info("test_xpd_getdeps: %s done" % test_name)

@@ -22,7 +22,6 @@ else:
 
 def Popen(*args, **kwargs):    
     kwargs['shell'] = use_shell
-#    kwargs['bufsize'] = 1
     if concat_args:
         args = (' '.join(args[0]),) + args[1:]
     try:
@@ -120,7 +119,9 @@ def catch_errors(lines):
 def check_exists(files):
     for f in files:
         if not os.path.exists(f):
-            logging.error("missing %s" % f)
+            logging.error("Missing %s" % f)
+        else:
+            logging.debug("Found required file %s" % f)
 
 def get_apps_from_github(tests_folder):
     """ Clone all the public repos from github. If the folder already exists then simply
