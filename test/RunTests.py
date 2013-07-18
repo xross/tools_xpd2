@@ -14,9 +14,44 @@ from XpdTest import *
 
 ostype = platform.system()
 
+def break_remote_link(folder):
+    """ Break the 'url' line of the .git/config file so that the testing cannot
+        accidentally push to the remote repo.
+    """
+    try:
+        lines = []
+        with open(os.path.join(folder, '.git', 'config'), 'r') as f:
+            lines = f.readlines()
+        with open(os.path.join(folder, '.git', 'config'), 'wb') as f:
+            for line in lines:
+                if re.search('^\s*url = ', line):
+                    f.write('#')
+                f.write(line)
+        logging.debug("%s disconnected from remote git" % folder)
+    except:
+        logging.debug("Error modifying .git/config", exc_info=True)
+
+def restore_remote_link(folder):
+    """ Restore the 'url' line of the .git/config file so that the repo can
+        be updated.
+    """
+    try:
+        lines = []
+        with open(os.path.join(folder, '.git', 'config'), 'r') as f:
+            lines = f.readlines()
+        with open(os.path.join(folder, '.git', 'config'), 'wb') as f:
+            for line in lines:
+                if re.match('^#(\s*url = .*)$', line):
+                    line = line[1:]
+                f.write(line)
+        logging.debug("%s re-connected to remote git" % folder)
+    except:
+        logging.debug("Error modifying .git/config", exc_info=True)
+
 def clean_repo(parent, folder):
     """ Put the test folder back into a known clean state
     """
+    logging.debug("Clean %s, %s" % (parent, folder))
     # Restore the git repo to not have any local files
     os.chdir(folder)
     call(['git', 'clean', '-xfdq'])
@@ -28,6 +63,7 @@ def clean_repo(parent, folder):
         fullname = os.path.join(parent, f)
         if not os.path.isdir(fullname) or (fullname == folder):
             continue
+        logging.debug("rmtree %s" % fullname)
         shutil.rmtree(fullname)
 
 def test_xpd_commands(top, folder):
@@ -46,6 +82,8 @@ def test_xpd_commands(top, folder):
         logging.error('No versions')
         return
 
+    break_remote_link(folder)
+
     # Ensure all versions can be checked out
     for version in versions[1:]:
         logging.info('Try: %s' % version)
@@ -62,6 +100,8 @@ def test_xpd_commands(top, folder):
     call(['xpd', 'status'])
     test_xpd_make_zip(folder)
     
+    restore_remote_link(folder)
+
     logging.info('Done: %s' % test_name)
 
 def test_folder(top, folder):
