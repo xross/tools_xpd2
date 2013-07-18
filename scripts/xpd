@@ -1452,7 +1452,7 @@ def xpd_gen_readme(repo, options, args):
     log_info('\n'.join(changelog))
 
 def xpd_checkout(repo, options, args):
-    if len(args) < 1:
+    if not args:
         return False
 
     local_mod = False
@@ -1496,13 +1496,13 @@ def xpd_checkout(repo, options, args):
         dep.repo.checkout(dep.githash)
 
 def xpd_getdeps(repo, options, args):
-    if len(args):
+    if args:
         version = Version(version_str=args[0])
         vrepo = repo.get_versioned_repo(version)
     else:
         vrepo = repo
 
-    for dep in repo.dependencies:
+    for dep in vrepo.dependencies:
         parent = os.path.sep.join(os.path.split(repo.path)[:-1])
         dep_path = os.path.join(parent, dep.repo_name)
         if os.path.exists(dep_path):
