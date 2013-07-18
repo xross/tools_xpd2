@@ -57,64 +57,103 @@ def call(command, cwd=None):
 
 
 class Expect(object):
-    """ Container for an expected output and its response.
-        The default timeout version is the default for pexpect.
+    """ Container for a set of expected output and their responses.
+        The default timeout version is the default for the process
+        as defined at that spawn.
     """
-    def __init__(self, value=None, send=None, timeout=-1):
-        self.value = value
-        self.send = send
+    def __init__(self, values=None, responses=None, timeout=-1):
+        if values and responses:
+            assert len(values) == len(responses)
+
+        self.values = values
+        self.responses = responses
         self.timeout = timeout
 
 
-def interact(command, expected, cwd=None):
+def interact(command, expected, cwd=None, early_out=False):
     """ Interact with a process given a list of expected output and responses.
-        Also keeps track of all output seen to check for errors at the end
+        Also keeps track of all output seen to check for errors at the end.
+
+        Each expected output is a set of options that are looked for in parallel.
+        The responses should be a list of the same length as the expected outputs.
+
+        Returns the final index in the list of expected output and the option from
+        that entry that was matched.
     """
     if cwd:
         os.chdir(cwd)
     logging.debug("Interact: '%s' in %s" % (' '.join(command), os.getcwd()))
-    process = pexpect.spawn(' '.join(command), timeout=10)
+    process = pexpect.spawn(' '.join(command), timeout=30)
 
     all_output = ''
+    last_index = 0
+    last_option = 0
     for expect in expected:
-        if expect.value:
-            logging.debug("Interact: expect '%s'" % expect.value)
+        if expect.values:
+            value = '(' + '|'.join(expect.values) + ')'
+            logging.debug("Interact: expect '%s'" % value)
             try:
-                process.expect(expect.value, timeout=expect.timeout)
-                if process.before:
-                    all_output += process.before
-                if process.after:
-                    all_output += process.after
+                process.expect(value, timeout=expect.timeout)
+                all_output += process.before
+                all_output += process.after
             except pexpect.EOF:
-                logging.error("Interact: unexpected EOF")
+                if not early_out:
+                    logging.error("Interact: unexpected EOF")
                 process.close()
-                return
+                break
             except pexpect.TIMEOUT:
                 logging.error("Interact: TIMEDOUT")
+                if process.before:
+                    all_output += process.before
                 process.close()
-                return
+                break
+
+        # Find the index that matched and send the appropriate response. Default to index 0
+        # if nothing was expected
+        last_option = 0
+        if expect.values:
+            for (i, value) in enumerate(expect.values):
+                if re.search(value, process.after):
+                    last_option = i
+                    break
                 
         # Want to be able to send blank lines (use default value) hence not None check
-        if expect.send is not None:
-            logging.debug("Interact: send '%s'" % expect.send)
-            process.sendline(expect.send)
+        if expect.responses[last_option] is not None:
+            logging.debug("Interact: send '%s'" % expect.responses[last_option])
+            process.sendline(expect.responses[last_option])
 
-    process.expect(pexpect.EOF)
-    if process.before:
-        all_output += process.before
+        last_index += 1
 
-    # Required according to pexpect documentation to guarantee process has been updated
-    time.sleep(0.1)
-    assert not process.isalive()
+    if process.isalive():
+        # If the process is still alive wait for it to complete
+        try:
+            process.expect(pexpect.EOF)
+        except pexpect.TIMEOUT:
+            logging.error("Interact: TIMEDOUT")
+            process.close()
+
+        if process.before:
+            all_output += process.before
+
+        time.sleep(0.1) # Required according to pexpect documentation to guarantee process has been updated
+        assert not process.isalive()
 
     catch_errors(all_output)
+    for line in all_output.split('\n'):
+        logging.debug(line.rstrip())
+
+    return (last_index, last_option)
 
 def catch_errors(lines):
     for line in lines:
         if re.search('^Traceback', line):
             logging.error('Backtrace produced')
         if re.search('^fatal:', line):
-            logging.error('git error')
+            logging.error('git error detected')
+        if re.search('^ERROR:', line):
+            logging.error('xpd error detected')
+        if re.search('\(ERROR/', line):
+            logging.error('document error detected')
 
 def check_exists(files):
     for f in files:
