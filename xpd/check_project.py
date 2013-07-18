@@ -391,7 +391,7 @@ def _check_cproject(repo, makefiles, project_deps, path=None, force_creation=Fal
     elif os.path.exists(os.path.join(path,'Makefile')):
          _, configs = get_configs(os.path.join(path,'Makefile'))
     else:
-         configs = ['Default']
+         configs = set(['Default'])
     name = get_project_name(repo,path)
     log_debug("%s: checking .cproject file" % name)
     log_debug("%s: using configs: %s" % (name, ', '.join(configs)))
