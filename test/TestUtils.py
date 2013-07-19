@@ -195,3 +195,10 @@ def get_xpd_contents(folder):
             xpd_contents = xpd.readlines()
     return xpd_contents
 
+def git_has_origin(folder):
+    (stdout_lines, stderr_lines) = call(['git', 'branch', '-a'], cwd=folder)
+    for line in stdout_lines + stderr_lines:
+        if re.search("origin/master", line):
+            return True
+    return False
+

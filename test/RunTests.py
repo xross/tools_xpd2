@@ -17,12 +17,25 @@ ostype = platform.system()
 
 def patch_changelog(folder, version):
     """ Patch the changelog with a version so that a release can be created.
+        Create the changelog file if it is missing.
     """
+    changelog_path = os.path.join(folder, 'CHANGELOG.rst')
+    if not os.path.exists(changelog_path):
+        log_error('CHANGELOG.rst missing')
+        with open(changelog_path, 'wb') as f:
+            (parent, test_name) = os.path.split(folder)
+            title = '%s Change Log' % test_name
+            f.write(title + '\n')
+            f.write('%s\n' % '=' * len(title))
+
+        call(['git', 'add', 'CHANGELOG.rst'], cwd=folder)
+        call(['git', 'commit', '-m', '"Added change log"'], cwd=folder)
+
     try:
         lines = []
-        with open(os.path.join(folder, 'CHANGELOG.rst'), 'r') as f:
+        with open(changelog_path, 'r') as f:
             lines = f.readlines()
-        with open(os.path.join(folder, 'CHANGELOG.rst'), 'wb') as f:
+        with open(changelog_path, 'wb') as f:
             for line in lines[0:3]:
                 f.write(line)
             f.write('%s\n' % version)
@@ -78,9 +91,12 @@ def clean_repo(parent, folder):
     # having an origin/master
     os.chdir(folder)
     call(['git', 'clean', '-xfdq'])
-    call(['git', 'fetch', 'origin'])
-    call(['git', 'reset', '--hard', 'origin/master'])
-    call(['git', 'checkout', '--', '.'])
+    
+    if git_has_origin(folder):
+        call(['git', 'fetch', 'origin'])
+        call(['git', 'reset', '--hard', 'origin/master'])
+    else:
+        call(['git', 'checkout', '--', '.'])
 
     # Delete all other cloned folders that aren't the folder in question
     for f in os.listdir(parent):

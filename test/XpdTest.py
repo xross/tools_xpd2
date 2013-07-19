@@ -79,13 +79,19 @@ def test_xpd_init(folder):
 
     apps = [f for f in os.listdir(folder) if f.startswith('app_')]
     if not apps:
+        # xpd does some pre-processing on names it will use for the default app name
+        default_name = test_name
+        m = re.match('(proj_|sc_|sw_)(.*)', test_name)
+        if m:
+            default_name = m.group(2)
+
         expected += [Expect(["Would you like to create an application"], ["y"]),
-                     Expect(["app_%s_example" % test_name], [""])] # Test default value
+                     Expect(["app_%s_example" % default_name], [""])] # Test default value
 
     modules = [f for f in os.listdir(folder) if f.startswith('module_')]
     if not modules:
         expected += [Expect(["Would you like to create a module"], ["y"]),
-                     Expect(["module_%s_example" % test_name], ["module_test_%s" % test_name[-1]])] # append last character
+                     Expect(["Enter module name"], ["module_test_%s" % test_name[-1]])] # append last character
 
     if not os.path.exists(os.path.join(folder, 'LICENSE.txt')):
         expected += [Expect(["Would you like to license the code"], ["y"]),
