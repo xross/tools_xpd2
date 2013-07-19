@@ -19,12 +19,15 @@ def test_xpd_build_docs(folder):
 
     logging.info("test_xpd_build_docs: %s done" % test_name)
 
-def test_xpd_make_zip(folder):
+def test_xpd_make_zip(folder, user, password):
     (parent, test_name) = os.path.split(folder)
     logging.info("test_xpd_make_zip: %s" % test_name)
     xpd_contents = get_xpd_contents(folder)
 
-    call(["xpd", "make_zip"])
+    expected = [Expect(["Please enter cognidox username:"], [user]),
+                Expect(["Password"], [password])]
+
+    interact(["xpd", "make_zip"], expected, cwd=folder, early_out=True, timeout=120)
 
     logging.info("test_xpd_make_zip: %s done" % test_name)
 

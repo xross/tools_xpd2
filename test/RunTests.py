@@ -1,5 +1,6 @@
 #! /usr/bin/env python
 
+import argparse
 import logging
 import os
 import platform
@@ -89,7 +90,7 @@ def clean_repo(parent, folder):
         logging.debug("rmtree %s" % fullname)
         shutil.rmtree(fullname)
 
-def test_xpd_commands(folder):
+def test_xpd_commands(folder, args):
     (parent, test_name) = os.path.split(folder)
     logging.info('Test: %s' % test_name)
 
@@ -128,7 +129,7 @@ def test_xpd_commands(folder):
     test_xpd_getdeps(folder, latest_version)
     call(['xpd', 'checkout', latest_version])
     call(['xpd', 'status'])
-    test_xpd_make_zip(folder)
+    test_xpd_make_zip(folder, args.user, args.password)
 
     # Try creating a release of the master
     test_xpd_getdeps(folder, 'master')
@@ -180,7 +181,7 @@ def run_basic(tests_source_folder, tests_run_folder, test_name):
     # Check in everything after the update
     call(['git', 'commit', '-a', '-m', '"post update"'], cwd=dst)
 
-def run_basics(tests_source_folder, tests_run_folder):
+def run_basics(tests_source_folder, tests_run_folder, args):
     # Run the basic xpd functionality tests
     run_basic(tests_source_folder, tests_run_folder, 'basics_1')
     run_basic(tests_source_folder, tests_run_folder, 'basics_2')
@@ -194,11 +195,11 @@ def run_basics(tests_source_folder, tests_run_folder):
     if ', '.join(stdout_lines) != "1, 2, 3, 1, 2, 3, 1.2.3, 1.2.3rc0":
         logging.error("Release patching failed")
 
-def run_clone_xcore(tests_source_folder, tests_run_folder):
+def run_clone_xcore(tests_source_folder, tests_run_folder, args):
     logging.info("Cloning github repos to %s" % tests_run_folder)
     get_apps_from_github(tests_run_folder)
 
-def run_test_all(tests_source_folder, tests_run_folder):
+def run_test_all(tests_source_folder, tests_run_folder, args):
     logging.info("Running tests in %s" % tests_run_folder)
     test_folders(tests_run_folder)
 
@@ -225,19 +226,18 @@ def print_usage():
     sys.exit(1)
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print_usage()
+    parser = argparse.ArgumentParser(description='Automated test')
+    parser.add_argument('user', help="cognidox user")
+    parser.add_argument('password', help="cognidox password")
+    parser.add_argument('tests', nargs='+', help='tests', choices=supported_tests)
+    args = parser.parse_args()
 
     setup_logging(os.getcwd())
     (tests_source_folder, script_name) = os.path.split(os.path.realpath(__file__))
     tests_run_folder = os.path.join(get_parent(get_parent(os.getcwd())), 'tests')
     logging.info("Tests running in %s" % tests_run_folder)
 
-    for arg in sys.argv[1:]:
-        if arg in supported_tests:
-            run_fn = eval('run_%s' % arg)
-            run_fn(tests_source_folder, tests_run_folder)
-        else:
-            logging.error("Unsupported test '%s'" % arg)
-            print_usage()
+    for arg in args.tests:
+        run_fn = eval('run_%s' % arg)
+        run_fn(tests_source_folder, tests_run_folder, args)
 
