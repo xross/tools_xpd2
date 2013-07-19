@@ -27,16 +27,16 @@ def Popen(*args, **kwargs):
     try:
         return subprocess.Popen(*args, **kwargs)
     except:
-        logging.error("Cannot run command `%s'\n"%' '.join(args[0]), exc_info=True)
+        log_error("Cannot run command `%s'\n"%' '.join(args[0]), exc_info=True)
         sys.exit(1)
 
 def call(command, cwd=None):
     """ Run the command requested and return the stdout/stderr expected
     """
     if cwd:
-        logging.debug("Run: '%s' in %s" % (' '.join(command), cwd))
+        log_debug("Run: '%s' in %s" % (' '.join(command), cwd))
     else:
-        logging.debug("Run: '%s' in %s" % (' '.join(command), os.getcwd()))
+        log_debug("Run: '%s' in %s" % (' '.join(command), os.getcwd()))
 
     # Create temporary files to pass stdout and stderr to since on Windows the
     # less/more-like behaviour waits for a keypress if it goes to stdout.
@@ -52,7 +52,7 @@ def call(command, cwd=None):
     stderr_lines = [line.strip() for line in err.readlines()]
     catch_errors(stderr_lines)
     for line in stdout_lines + stderr_lines:
-        logging.debug(line)
+        log_debug(line)
     return (stdout_lines, stderr_lines)
 
 
@@ -70,7 +70,7 @@ class Expect(object):
         self.timeout = timeout
 
 
-def interact(command, expected, cwd=None, early_out=False):
+def interact(command, expected, cwd=None, early_out=False, timeout=30):
     """ Interact with a process given a list of expected output and responses.
         Also keeps track of all output seen to check for errors at the end.
 
@@ -82,8 +82,8 @@ def interact(command, expected, cwd=None, early_out=False):
     """
     if cwd:
         os.chdir(cwd)
-    logging.debug("Interact: '%s' in %s" % (' '.join(command), os.getcwd()))
-    process = pexpect.spawn(' '.join(command), timeout=30)
+    log_debug("Interact: '%s' in %s" % (' '.join(command), os.getcwd()))
+    process = pexpect.spawn(' '.join(command), timeout=timeout)
 
     all_output = ''
     last_index = 0
@@ -91,18 +91,18 @@ def interact(command, expected, cwd=None, early_out=False):
     for expect in expected:
         if expect.values:
             value = '(' + '|'.join(expect.values) + ')'
-            logging.debug("Interact: expect '%s'" % value)
+            log_debug("Interact: expect '%s'" % value)
             try:
                 process.expect(value, timeout=expect.timeout)
                 all_output += process.before
                 all_output += process.after
             except pexpect.EOF:
                 if not early_out:
-                    logging.error("Interact: unexpected EOF")
+                    log_error("Interact: unexpected EOF")
                 process.close()
                 break
             except pexpect.TIMEOUT:
-                logging.error("Interact: TIMEDOUT")
+                log_error("Interact: TIMEDOUT")
                 if process.before:
                     all_output += process.before
                 process.close()
@@ -119,7 +119,7 @@ def interact(command, expected, cwd=None, early_out=False):
                 
         # Want to be able to send blank lines (use default value) hence not None check
         if expect.responses[last_option] is not None:
-            logging.debug("Interact: send '%s'" % expect.responses[last_option])
+            log_debug("Interact: send '%s'" % expect.responses[last_option])
             process.sendline(expect.responses[last_option])
 
         last_index += 1
@@ -129,7 +129,7 @@ def interact(command, expected, cwd=None, early_out=False):
         try:
             process.expect(pexpect.EOF)
         except pexpect.TIMEOUT:
-            logging.error("Interact: TIMEDOUT")
+            log_error("Interact: TIMEDOUT")
             process.close()
 
         if process.before:
@@ -140,27 +140,27 @@ def interact(command, expected, cwd=None, early_out=False):
 
     catch_errors(all_output)
     for line in all_output.split('\n'):
-        logging.debug(line.rstrip())
+        log_debug(line.rstrip())
 
     return (last_index, last_option)
 
 def catch_errors(lines):
     for line in lines:
         if re.search('^Traceback', line):
-            logging.error('Backtrace produced')
+            log_error('backtrace produced')
         if re.search('^fatal:', line):
-            logging.error('git error detected')
+            log_error('git error detected')
         if re.search('^ERROR:', line):
-            logging.error('xpd error detected')
+            log_error('xpd error detected (%s)' % line.rstrip())
         if re.search('\(ERROR/', line):
-            logging.error('document error detected')
+            log_error('document error detected')
 
 def check_exists(files):
     for f in files:
         if not os.path.exists(f):
-            logging.error("Missing %s" % f)
+            log_error("Missing %s" % f)
         else:
-            logging.debug("Found required file %s" % f)
+            log_debug("Found required file %s" % f)
 
 def get_apps_from_github(tests_folder):
     """ Clone all the public repos from github. If the folder already exists then simply
@@ -176,11 +176,11 @@ def get_apps_from_github(tests_folder):
         test_folder = os.path.join(test_name, repo.name)
 
         if os.path.exists(test_folder):
-            logging.info("Updating %s" % repo.name)
+            log_info("Updating %s" % repo.name)
             call(['git', 'pull'], cwd=os.path.join(tests_folder, test_folder))
 
         else:
-            logging.info("Cloning %s" % repo.name)
+            log_info("Cloning %s" % repo.name)
             if not os.path.exists(test_name):
                 os.mkdir(test_name)
             call(['git', 'clone', repo.clone_url], cwd=os.path.join(tests_folder, test_name))
@@ -201,4 +201,40 @@ def git_has_origin(folder):
         if re.search("origin/master", line):
             return True
     return False
+
+counts = {
+    'errors': 0,
+    'warnings' : 0
+}
+
+def log_error(message):
+    logging.error(message)
+    counts['errors'] += 1
+
+def log_warning(message):
+    logging.warning(message)
+    counts['warnings'] += 1
+
+def log_info(message):
+    logging.info(message)
+
+def log_debug(message):
+    logging.debug(message)
+
+def print_summary():
+    print "\nTotal warnings: %d, errors %d" % (counts['warnings'], counts['errors'])
+
+def setup_logging(folder):
+    """ Set up logging so only INFO and above go to the console but DEBUG and above go to
+        a log file.
+    """
+    # Always open the file using 'wb' so that it is the same on Windows as other platforms
+    logging.basicConfig(level=logging.DEBUG,
+            format='%(levelname)-8s: %(message)s',
+            filename=os.path.join(folder, 'tests.log'), filemode='wb')
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    formatter = logging.Formatter('%(levelname)-8s %(message)s')
+    console.setFormatter(formatter)
+    logging.getLogger('').addHandler(console)
 

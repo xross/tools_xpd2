@@ -1,7 +1,6 @@
 #! /usr/bin/env python
 
 import argparse
-import logging
 import os
 import platform
 import re
@@ -10,7 +9,7 @@ import subprocess
 import sys
 import shutil
 
-from TestUtils import call, get_apps_from_github, get_parent
+from TestUtils import *
 from XpdTest import *
 
 ostype = platform.system()
@@ -44,9 +43,9 @@ def patch_changelog(folder, version):
             f.write('\n')
             for line in lines[3:]:
                 f.write(line)
-        logging.debug("Added version %s to changelog (%s)" % (version, folder))
+        log_debug("Added version %s to changelog (%s)" % (version, folder))
     except:
-        logging.error("Error patching CHANGELOG.rst", exc_info=True)
+        log_error("Error patching CHANGELOG.rst", exc_info=True)
 
 def break_remote_link(folder):
     """ Break the 'url' line of the .git/config file so that the testing cannot
@@ -61,9 +60,9 @@ def break_remote_link(folder):
                 if re.search('^\s*url = ', line):
                     f.write('#')
                 f.write(line)
-        logging.debug("%s disconnected from remote git" % folder)
+        log_debug("%s disconnected from remote git" % folder)
     except:
-        logging.error("Error modifying .git/config", exc_info=True)
+        log_error("Error modifying .git/config", exc_info=True)
 
 def restore_remote_link(folder):
     """ Restore the 'url' line of the .git/config file so that the repo can
@@ -78,14 +77,14 @@ def restore_remote_link(folder):
                 if re.match('^#(\s*url = .*)$', line):
                     line = line[1:]
                 f.write(line)
-        logging.debug("%s re-connected to remote git" % folder)
+        log_debug("%s re-connected to remote git" % folder)
     except:
-        logging.error("Error modifying .git/config", exc_info=True)
+        log_error("Error modifying .git/config", exc_info=True)
 
 def clean_repo(parent, folder):
     """ Put the test folder back into a known clean state
     """
-    logging.debug("Clean %s, %s" % (parent, folder))
+    log_debug("Clean %s, %s" % (parent, folder))
     # Restore the git repo to not have any local files - need all the
     # commands due to some being only local repos and therefore not
     # having an origin/master
@@ -103,17 +102,17 @@ def clean_repo(parent, folder):
         fullname = os.path.join(parent, f)
         if not os.path.isdir(fullname) or (fullname == folder):
             continue
-        logging.debug("rmtree %s" % fullname)
+        log_debug("rmtree %s" % fullname)
         shutil.rmtree(fullname)
 
 def test_xpd_commands(folder, args):
     (parent, test_name) = os.path.split(folder)
-    logging.info('Test: %s' % test_name)
+    log_info('Test: %s' % test_name)
 
     # Ensure things start in a clean state
     clean_repo(parent, folder)
 
-    # Test xpd init - ensuring that there is no way it can get pushed
+    # Test xpd init doesn't break - ensuring that there is no way it can get pushed
     break_remote_link(folder)
     test_xpd_init(folder)
     restore_remote_link(folder)
@@ -126,14 +125,14 @@ def test_xpd_commands(folder, args):
     (stdout_lines, stderr_lines) = call(['xpd', 'list'], cwd=folder)
     versions = [line.rstrip() for line in stdout_lines + stderr_lines]
     if not versions:
-        logging.error('No versions')
+        log_warning('No versions')
         return
 
     break_remote_link(folder)
 
     # Ensure all versions can be checked out
     for version in versions[1:]:
-        logging.info('Try: %s' % version)
+        log_info('Try: %s' % version)
         test_xpd_getdeps(folder, version)
         call(['xpd', 'checkout', version])
         call(['xpd', 'status'])
@@ -141,7 +140,7 @@ def test_xpd_commands(folder, args):
     # xpd reverses the order of the releases so that the newest is the first
     latest_version = versions[0]
 
-    logging.info('Try: %s' % latest_version)
+    log_info('Try: %s' % latest_version)
     test_xpd_getdeps(folder, latest_version)
     call(['xpd', 'checkout', latest_version])
     call(['xpd', 'status'])
@@ -159,7 +158,6 @@ def test_xpd_commands(folder, args):
     
     restore_remote_link(folder)
 
-    logging.info('Done: %s' % test_name)
 
 def test_folders(top):
     for folder in os.listdir(top):
@@ -172,9 +170,10 @@ def test_folders(top):
             continue
 
         test_xpd_commands(os.path.join(top, folder, subfolder))
+    log_info('Done: %s' % test_name)
 
 def run_basic(tests_source_folder, tests_run_folder, test_name):
-    logging.info('Running basic test %s' % test_name)
+    log_info('Running basic test %s' % test_name)
     src = os.path.join(tests_source_folder, 'test_%s' % test_name, test_name)
     dst_folder = os.path.join(tests_run_folder, 'test_%s' % test_name)
     dst = os.path.join(dst_folder, test_name)
@@ -209,10 +208,10 @@ def run_basics(tests_source_folder, tests_run_folder, args):
     bin_path = os.path.join('app_basics_2_example', 'bin', 'app_basics_2_example.xe')
     (stdout_lines, stderr_lines) = call(['xsim', bin_path], cwd=folder)
     if ', '.join(stdout_lines) != "1, 2, 3, 1, 2, 3, 1.2.3, 1.2.3rc0":
-        logging.error("Release patching failed")
+        log_error("Release patching failed")
 
 def run_clone_xcore(tests_source_folder, tests_run_folder, args):
-    logging.info("Cloning github repos to %s" % tests_run_folder)
+    log_info("Cloning github repos to %s" % tests_run_folder)
     get_apps_from_github(tests_run_folder)
 
 def run_test_all(tests_source_folder, tests_run_folder, args):
@@ -220,20 +219,6 @@ def run_test_all(tests_source_folder, tests_run_folder, args):
     test_folders(tests_run_folder)
 
 supported_tests = ['basics', 'clone_xcore', 'test_all']
-
-def setup_logging(folder):
-    """ Set up logging so only INFO and above go to the console but DEBUG and above go to
-        a log file.
-    """
-    # Always open the file using 'wb' so that it is the same on Windows as other platforms
-    logging.basicConfig(level=logging.DEBUG,
-            format='%(levelname)-8s: %(message)s',
-            filename=os.path.join(folder, 'tests.log'), filemode='wb')
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(levelname)-8s %(message)s')
-    console.setFormatter(formatter)
-    logging.getLogger('').addHandler(console)
 
 def print_usage():
     (tests_source_folder, script_name) = os.path.split(os.path.realpath(__file__))
@@ -251,9 +236,11 @@ if __name__ == '__main__':
     setup_logging(os.getcwd())
     (tests_source_folder, script_name) = os.path.split(os.path.realpath(__file__))
     tests_run_folder = os.path.join(get_parent(get_parent(os.getcwd())), 'tests')
-    logging.info("Tests running in %s" % tests_run_folder)
+    log_info("Tests running in %s" % tests_run_folder)
 
     for arg in args.tests:
         run_fn = eval('run_%s' % arg)
         run_fn(tests_source_folder, tests_run_folder, args)
+
+    print_summary()
 

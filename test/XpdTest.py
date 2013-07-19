@@ -1,6 +1,5 @@
 #! /usr/bin/env python
 
-import logging
 import os
 import platform
 import re
@@ -12,16 +11,16 @@ from TestUtils import *
 
 def test_xpd_build_docs(folder):
     (parent, test_name) = os.path.split(folder)
-    logging.info("test_xpd_build_docs: %s" % test_name)
+    log_info("test_xpd_build_docs: %s" % test_name)
     xpd_contents = get_xpd_contents(folder)
 
     call(["xpd", "build_docs"])
 
-    logging.info("test_xpd_build_docs: %s done" % test_name)
+    log_info("test_xpd_build_docs: %s done" % test_name)
 
 def test_xpd_make_zip(folder, user, password):
     (parent, test_name) = os.path.split(folder)
-    logging.info("test_xpd_make_zip: %s" % test_name)
+    log_info("test_xpd_make_zip: %s" % test_name)
     xpd_contents = get_xpd_contents(folder)
 
     expected = [Expect(["Please enter cognidox username:"], [user]),
@@ -29,11 +28,11 @@ def test_xpd_make_zip(folder, user, password):
 
     interact(["xpd", "make_zip"], expected, cwd=folder, early_out=True, timeout=120)
 
-    logging.info("test_xpd_make_zip: %s done" % test_name)
+    log_info("test_xpd_make_zip: %s done" % test_name)
 
 def test_xpd_getdeps(folder, version=None):
     (parent, test_name) = os.path.split(folder)
-    logging.info("test_xpd_getdeps: %s" % test_name)
+    log_info("test_xpd_getdeps: %s" % test_name)
     xpd_contents = get_xpd_contents(folder)
     deps = []
     for line in xpd_contents:
@@ -48,14 +47,14 @@ def test_xpd_getdeps(folder, version=None):
 
     check_exists([os.path.join(parent, dep) for dep in deps])
 
-    logging.info("test_xpd_getdeps: %s done" % test_name)
+    log_info("test_xpd_getdeps: %s done" % test_name)
 
 def test_xpd_init(folder):
     """ Run xpd init. Expects different output depending on the current
         state of the repo that is having xpd init run on it.
     """
     (parent, test_name) = os.path.split(folder)
-    logging.info("test_xpd_init: %s" % test_name)
+    log_info("test_xpd_init: %s" % test_name)
 
     # Set of expected output from xpd init and the responses to give. It is built up
     # depending on the current state of the repo
@@ -118,13 +117,13 @@ def test_xpd_init(folder):
 
     check_exists(expected_files)
 
-    logging.info("test_xpd_init: %s done" % test_name)
+    log_info("test_xpd_init: %s done" % test_name)
 
 def test_xpd_update(folder):
     """ Run xpd update and check that the required files all exist.
     """
     (parent, test_name) = os.path.split(folder)
-    logging.info("test_xpd_update: %s" % test_name)
+    log_info("test_xpd_update: %s" % test_name)
 
     # Set of expected output from xpd init and the responses to give. It is built up
     # depending on the current state of the repo
@@ -145,7 +144,7 @@ def test_xpd_update(folder):
                   os.path.join(folder, 'module_test_%s' % test_name[-1], '.xproject'),
                   os.path.join(folder, 'module_test_%s' % test_name[-1], '.makefile')])
 
-    logging.info("test_xpd_update: %s done" % test_name)
+    log_info("test_xpd_update: %s done" % test_name)
 
 def test_xpd_create_release(folder, version_type, version_number):
     """ Test creating the specified release. If the create_release causes files to
@@ -153,7 +152,7 @@ def test_xpd_create_release(folder, version_type, version_number):
         changes after that are considered an error.
     """
     (parent, test_name) = os.path.split(folder)
-    logging.info("test_xpd_create_release: %s" % test_name)
+    log_info("test_xpd_create_release: %s" % test_name)
 
     # Set of expected output from xpd init and the responses to give. It is built up
     # depending on the current state of the repo
@@ -172,12 +171,12 @@ def test_xpd_create_release(folder, version_type, version_number):
 
         # Detect the case where modifications were created by the 'create_release'
         if i and option:
-            logging.error("xpd created modifications on second iteration")
+            log_error("xpd created modifications on second iteration")
         elif option:
             # Commit the changes and try again
             call(['git', 'commit', '-a', '-m', '"xpd"'], cwd=folder)
         else:
             break
 
-    logging.info("test_xpd_create_release: %s done" % test_name)
+    log_info("test_xpd_create_release: %s done" % test_name)
 
