@@ -158,18 +158,6 @@ def test_xpd_commands(folder, args):
     
     restore_remote_link(folder)
 
-
-def test_folders(top):
-    for folder in os.listdir(top):
-        if not os.path.isdir(os.path.join(top, folder)) or not folder.startswith('test_'):
-            continue
-
-        # Tests should be of the form test_x/x/
-        subfolder = re.sub('^test_', '', folder)
-        if not os.path.isdir(os.path.join(top, folder, subfolder)):
-            continue
-
-        test_xpd_commands(os.path.join(top, folder, subfolder))
     log_info('Done: %s' % test_name)
 
 def run_basic(tests_source_folder, tests_run_folder, test_name):
@@ -215,8 +203,17 @@ def run_clone_xcore(tests_source_folder, tests_run_folder, args):
     get_apps_from_github(tests_run_folder)
 
 def run_test_all(tests_source_folder, tests_run_folder, args):
-    logging.info("Running tests in %s" % tests_run_folder)
-    test_folders(tests_run_folder)
+    log_info("Running tests in %s" % tests_run_folder)
+    for folder in os.listdir(tests_run_folder):
+        if not os.path.isdir(os.path.join(tests_run_folder, folder)) or not folder.startswith('test_'):
+            continue
+
+        # Tests should be of the form test_x/x/
+        subfolder = re.sub('^test_', '', folder)
+        if not os.path.isdir(os.path.join(tests_run_folder, folder, subfolder)):
+            continue
+
+        test_xpd_commands(os.path.join(tests_run_folder, folder, subfolder), args)
 
 supported_tests = ['basics', 'clone_xcore', 'test_all']
 
