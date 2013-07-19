@@ -1453,17 +1453,8 @@ def xpd_gen_readme(repo, options, args):
 
 def xpd_checkout(repo, options, args):
     if not args:
+        log_error("Please specify a version to checkout (use 'xpd list' to get available versions)")
         return False
-
-    local_mod = False
-    for dep in repo.dependencies:
-        assert_exists(dep)
-        if dep.repo.has_local_modifications():
-            log_error("%s has local modifications" % dep.repo_name)
-            local_mod = True
-
-    if local_mod:
-        sys.exit(1)
 
     if args[0] == 'latest':
         rel = repo.latest_release()
@@ -1490,6 +1481,15 @@ def xpd_checkout(repo, options, args):
         log_error("Cannot find githash for version %s, maybe the git history has been modified" % str(version))
         sys.exit(1)
     vrepo = repo.get_versioned_repo(version)
+
+    local_mod = False
+    for dep in vrepo.dependencies:
+        assert_exists(dep)
+        if dep.repo.has_local_modifications():
+            log_error("%s has local modifications" % dep.repo_name)
+            local_mod = True
+    if local_mod:
+        sys.exit(1)
 
     vrepo.checkout(githash)
     for dep in vrepo.dependencies:
