@@ -96,7 +96,7 @@ def test_xpd_init(folder):
         expected += [Expect(["Would you like to license the code"], ["y"]),
                      Expect(["Enter copyright holder"], ["XMOS"])]
 
-    (index, option) = interact(["xpd", "init"], expected, cwd=folder)
+    (index, option, output) = interact(["xpd", "init"], expected, cwd=folder)
 
     expected_files = [os.path.join(folder, 'xpd.xml'),
                   os.path.join(folder, 'README.rst'), 
@@ -133,7 +133,7 @@ def test_xpd_update(folder):
     if not any("<partnumber>" in s for s in xpd_contents):
         expected += [Expect(["No part number found"], ["n"])]
 
-    interact(["xpd", "update"], expected, cwd=folder)
+    (index, option, output) = interact(["xpd", "update"], expected, cwd=folder)
 
     check_exists([os.path.join(folder, 'CHANGELOG.rst'),
                   os.path.join(folder, 'app_%s_example' % test_name, '.project'),
@@ -145,6 +145,8 @@ def test_xpd_update(folder):
                   os.path.join(folder, 'module_test_%s' % test_name[-1], '.makefile')])
 
     log_info("test_xpd_update: %s done" % test_name)
+
+    return output
 
 def test_xpd_create_release(folder, version_type, version_number):
     """ Test creating the specified release. If the create_release causes files to
@@ -167,7 +169,7 @@ def test_xpd_create_release(folder, version_type, version_number):
         expected += [Expect(["No part number found"], ["n"])]
 
     for i in range(2):
-        (index, option) = interact(["xpd", "create_release"], expected, cwd=folder, early_out=True)
+        (index, option, output) = interact(["xpd", "create_release"], expected, cwd=folder, early_out=True)
 
         # Detect the case where modifications were created by the 'create_release'
         if i and option:

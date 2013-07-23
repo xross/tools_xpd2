@@ -160,8 +160,8 @@ def test_xpd_commands(folder, args):
 
     log_info('Done: %s' % test_name)
 
-def run_basic(tests_source_folder, tests_run_folder, test_name):
-    log_info('Running basic test %s' % test_name)
+def create_basic(tests_source_folder, tests_run_folder, test_name):
+    log_info('Creating basic test %s' % test_name)
     src = os.path.join(tests_source_folder, 'test_%s' % test_name, test_name)
     dst_folder = os.path.join(tests_run_folder, 'test_%s' % test_name)
     dst = os.path.join(dst_folder, test_name)
@@ -177,6 +177,11 @@ def run_basic(tests_source_folder, tests_run_folder, test_name):
     call(['git', 'add', '.'], cwd=dst)
     call(['git', 'commit', '-m', '"Initial"'], cwd=dst)
 
+def run_basic(tests_run_folder, test_name):
+    dst_folder = os.path.join(tests_run_folder, 'test_%s' % test_name)
+    dst = os.path.join(dst_folder, test_name)
+
+    log_info('Running basic test %s' % test_name)
     # Run the test
     test_xpd_init(dst)
     test_xpd_update(dst)
@@ -186,8 +191,11 @@ def run_basic(tests_source_folder, tests_run_folder, test_name):
 
 def run_basics(tests_source_folder, tests_run_folder, args):
     # Run the basic xpd functionality tests
-    run_basic(tests_source_folder, tests_run_folder, 'basics_1')
-    run_basic(tests_source_folder, tests_run_folder, 'basics_2')
+    create_basic(tests_source_folder, tests_run_folder, 'basics_1')
+    run_basic(tests_run_folder, 'basics_1')
+
+    create_basic(tests_source_folder, tests_run_folder, 'basics_2')
+    run_basic(tests_run_folder, 'basics_2')
     
     # Test creating a release which patches version numbers into defines
     folder = os.path.join(tests_run_folder, 'test_basics_2', 'basics_2')
@@ -197,6 +205,25 @@ def run_basics(tests_source_folder, tests_run_folder, args):
     (stdout_lines, stderr_lines) = call(['xsim', bin_path], cwd=folder)
     if ', '.join(stdout_lines) != "1, 2, 3, 1, 2, 3, 1.2.3, 1.2.3rc0":
         log_error("Release patching failed")
+
+    # Test that xpd correctly detects errors in xpd.xml
+    expected_errors = ['ERROR: [^ ]+xpd.xml:4:8: Missing attribute description',
+                       'ERROR: [^ ]+xpd.xml:4:8: Missing attribute scope',
+                       'ERROR: [^ ]+xpd.xml:8:8: Missing attribute id',
+                       'ERROR: [^ ]+xpd.xml:8:8: Missing attribute path',
+                       'ERROR: [^ ]+xpd.xml:11:4: Missing attribute repo',
+                       'ERROR: [^ ]+xpd.xml:11:4: Missing node githash',
+                       'ERROR: [^ ]+xpd.xml:11:4: Missing node uri']
+
+    create_basic(tests_source_folder, tests_run_folder, 'basics_3')
+    set_ignore_errors(True)
+    output = test_xpd_update(os.path.join(tests_run_folder, 'test_%s' % 'basics_3', 'basics_3'))
+    set_ignore_errors(False)
+    for err in expected_errors:
+        if not re.search(err, output):
+            log_error("Missing error '%s'" % err)
+        else:
+            log_debug("Found error '%s'" % err)
 
 def run_clone_xcore(tests_source_folder, tests_run_folder, args):
     log_info("Cloning github repos to %s" % tests_run_folder)

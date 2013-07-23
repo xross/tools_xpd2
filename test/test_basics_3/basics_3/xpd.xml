@@ -1,0 +1,19 @@
+<?xml version="1.0" ?>
+<xpd>
+    <components>
+        <component type = "demoCode" path = "app_basics_3_example" local = "false" id = "app_test_basics_2_example" name = "app_test_basics_2_example">
+            <board>none</board>
+            <keyword>nothing</keyword>
+        </component>
+        <component description = "Test module" type = "demoCode" scope = "Early Development" local = "false" name = "Test Module">
+        </component>
+    </components>
+    <dependency>
+    </dependency>
+    <description>This is a test</description>
+    <location>origin</location>
+    <name>test_basics_3</name>
+    <maintainer>test</maintainer>
+    <vendor>XMOS</vendor>
+    <xpd_version>1.0</xpd_version>
+</xpd>

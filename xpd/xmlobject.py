@@ -365,7 +365,7 @@ class XmlObject(object):
                     _root.removeChild(x)
 
             if not tag.wrapper and tag.required and not vals:
-                log_error("%s:%d:%d: Missing attribute %s" % (src, root.line, root.column, tag.tagname))
+                log_error("%s:%d:%d: Missing node %s" % (src, root.line, root.column, tag.tagname))
 
             if tag.wrapper and _root:
                 root.removeChild(_root)

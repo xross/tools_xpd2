@@ -78,7 +78,7 @@ def interact(command, expected, cwd=None, early_out=False, timeout=30):
         The responses should be a list of the same length as the expected outputs.
 
         Returns the final index in the list of expected output and the option from
-        that entry that was matched.
+        that entry that was matched and all output produced by the process.
     """
     if cwd:
         os.chdir(cwd)
@@ -142,7 +142,7 @@ def interact(command, expected, cwd=None, early_out=False, timeout=30):
     for line in all_output.split('\n'):
         log_debug(line.rstrip())
 
-    return (last_index, last_option)
+    return (last_index, last_option, all_output)
 
 def catch_errors(lines):
     for line in lines:
@@ -202,14 +202,23 @@ def git_has_origin(folder):
             return True
     return False
 
+ignore_errors = False
+
+def set_ignore_errors(ignore):
+   ignore_errors = ignore
+
+# Logging counts
 counts = {
     'errors': 0,
     'warnings' : 0
 }
 
 def log_error(message):
-    logging.error(message)
-    counts['errors'] += 1
+    if ignore_errors:
+        logging.info(message)
+    else:
+        logging.error(message)
+        counts['errors'] += 1
 
 def log_warning(message):
     logging.warning(message)
