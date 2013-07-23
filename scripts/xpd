@@ -2591,6 +2591,9 @@ if __name__ == "__main__":
             if options.github:
                 repo.leave_github_mode()
             repo.save()
+
+        print_status_summary()
+
     else:
         matches = difflib.get_close_matches(command, commands)
         sys.stderr.write("Unknown command %s\n" % command)
