@@ -904,6 +904,7 @@ class Repo(XmlObject):
         return False
 
     def patch_version_defines(self, version):
+        patched_files = set()
         for root, dirs, files in os.walk(self.path):
             if self.excluded(root):
                 continue
@@ -911,18 +912,26 @@ class Repo(XmlObject):
             source_files = [f for f in files if is_source_file(f)]
 
             for f in source_files:
+                file_patched = False
                 filename = os.path.join(root, f)
                 with open(filename, "r") as f_ptr:
                     lines = f_ptr.readlines()
                 with open(filename, "wb") as f_ptr:
                     for line in lines:
-                        line = self.line_patch_version_defines(filename, line, version)
+                        (line, patched) = self.line_patch_version_defines(filename, line, version)
+                        file_patched |= patched
                         f_ptr.write(line)
+
+                if file_patched:
+                    patched_files.add(self.relative_filename(filename))
+
+        return patched_files
 
     def line_patch_version_defines(self, filename, line, version):
         if not re.search("^\s*#\s*define", line):
-            return line
+            return (line, False)
 
+        patched = False
         for version_define in self.version_defines:
             m = re.match('^(\s*)#(\s*)define(\s+)%s(\s+)[^\s]+(.*)$' % version_define.name, line)
             if m:
@@ -930,13 +939,17 @@ class Repo(XmlObject):
                 if version_define.type == "str":
                     value = '"' + value + '"'
 
-                relative_filename = re.sub("^%s%s" % (os.path.commonprefix([filename, self.path]), os.sep), '', filename)
-                log_debug("Patching %s %s = %s" % (relative_filename, version_define.name, value))
+                log_debug("Patching %s %s = %s" % (self.relative_filename(filename), version_define.name, value))
                 line = '%s#%sdefine%s%s%s%s%s\n' % (m.group(1), m.group(2), m.group(3),
                         version_define.name, m.group(4), value, m.group(5))
+                patched = True
                 break
 
-        return line
+        return (line, patched)
+
+    def relative_filename(self, filename):
+        relative_filename = re.sub("^%s%s" % (os.path.commonprefix([filename, self.path]), os.sep), '', filename)
+        return relative_filename
 
     def has_dependency_recursion(self):
         recursion = False

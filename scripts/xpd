@@ -465,7 +465,11 @@ def xpd_create_release(repo, options, args):
         log_error("... or add a <xsoftip_exclude> element to xpd.xml for the offending dir")
         return True
 
-    repo.patch_version_defines(version)
+    patched_files = repo.patch_version_defines(version)
+    log_info("Adding patched files:")
+    for f in patched_files:
+        log_info("  %s" % f)
+        call(["git", "add", f], cwd=repo.path, silent=True)
 
     log_info("Creating sandbox and checking build")
     repo.move_to_temp_sandbox()
