@@ -171,9 +171,9 @@ class Version(object):
 
 
 class Dependency(XmlObject):
-    repo_name = XmlAttribute(attrname="repo")
-    uri = XmlValue()
-    githash = XmlValue()
+    repo_name = XmlAttribute(attrname="repo", required=True)
+    uri = XmlValue(required=True)
+    githash = XmlValue(required=True)
     gitbranch = XmlValue()
     version_str = XmlValue(tagname="version")
 
@@ -238,8 +238,8 @@ class UseCase(XmlObject):
     
 
 class Release(XmlObject):
-    version_str = XmlAttribute(attrname="version")
-    parenthash = XmlAttribute()
+    version_str = XmlAttribute(attrname="version", required=True)
+    parenthash = XmlAttribute(required=True)
     githash = XmlAttribute()
     location = XmlValue()
     usecases = XmlNodeList(UseCase)
@@ -310,15 +310,16 @@ class VersionDefine(XmlObject):
         value_string = value_string.replace("%VERSION%", str(version))
         return value_string
 
+
 class Component(XmlObject):
-    id = XmlAttribute()
-    name = XmlAttribute()
-    description = XmlAttribute()
+    id = XmlAttribute(required=True)
+    name = XmlAttribute(required=True)
+    description = XmlAttribute(required=True)
     metainfo_path = XmlAttribute()
     buildresults_path = XmlAttribute()
-    scope = XmlAttribute()
-    path = XmlAttribute()
-    type = XmlAttribute()
+    scope = XmlAttribute(required=True)
+    path = XmlAttribute(required=True)
+    type = XmlAttribute(required=True)
     local = XmlAttribute()
     keywords = XmlValueList()
     boards = XmlValueList()

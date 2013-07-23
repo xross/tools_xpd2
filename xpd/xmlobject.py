@@ -1,8 +1,99 @@
+import xml.parsers.expat
 import xml.dom.minidom
 from xml.dom.minidom import parse, parseString
 import sys
 import xml.sax.saxutils
 from xpd.xpd_logging import *
+
+class ExpatParseNode(object):
+    """ Intermediate representation to convert from expat to a dom-like structure
+    """
+    def __init__(self, parent, name, attrs, line, column):
+        self.parent = parent
+        self.tagName = name
+        self.attrs = {}
+        self.childNodes = []
+        self.line = line
+        self.column = column
+        for (attname, value) in attrs.iteritems():
+            self.setAttribute(attname, value)
+
+    def addChild(self, child):
+        self.childNodes.append(child)
+
+    def setAttribute(self, name, value):
+        self.attrs[name] = value
+
+    def getAttribute(self, name):
+        if name in self.attrs:
+            return self.attrs[name]
+        else:
+            return ''
+
+    def cloneNode(self, deep, root=None):
+        clone = ExpatParseNode(root, self.tagName, {}, self.line, self.column)
+        for (attname, value) in self.attrs.iteritems():
+            clone.setAttribute(attname, value)
+        for child in self.childNodes:
+            clone.cloneNode(deep, clone)
+        if hasattr(self, 'wholeText'):
+            clone.wholeText = self.wholeText
+        return clone
+
+    def removeChild(self, child):
+        self.childNodes.remove(child)
+
+    def hasChildNodes(self):
+        if self.childNodes:
+            return True
+        return False
+
+
+def init_expat_parser():
+    """ The expat parser builds up a global structure using the three call-back functions
+        This function initialises everything required for that parsing and returns
+        the parser to use.
+    """
+    # Global to store the latest expat parsed structure
+    global expat_tree
+    expat_tree = ExpatParseNode(None, '_root', {}, 0, 0)
+
+    # Global expat parser - connected up to the callback functions
+    global expat_parser
+    expat_parser = xml.parsers.expat.ParserCreate()
+    expat_parser.StartElementHandler = expat_start_element
+    expat_parser.EndElementHandler = expat_end_element
+    expat_parser.CharacterDataHandler = expat_char_data
+    return expat_parser
+
+# Handler functions to convert from expat calls to a structure
+def expat_start_element(name, attrs):
+    """ On the start of an element make a node for that element and change the current root
+        to be that node. The nodes all remember their parent in order to unwind at the end
+        of an element.
+    """
+    global expat_tree
+    node = ExpatParseNode(expat_tree, name, attrs, expat_parser.CurrentLineNumber, expat_parser.CurrentColumnNumber)
+    if expat_tree:
+        expat_tree.addChild(node)
+    expat_tree = node
+
+def expat_end_element(name):
+    """ End of an element, move the global root back to the parent. The parent should never
+        be able to be None because of the initial _root node created in init_expat_parser()
+    """
+    global expat_tree
+    assert expat_tree.parent
+    expat_tree = expat_tree.parent
+
+def expat_char_data(data):
+    """ Data found. The DOM structure is to create a child node for that data with the
+        'wholeText' attribute containing the data.
+    """
+    global expat_tree
+    child = ExpatParseNode(expat_tree, '_textNode', {}, expat_parser.CurrentLineNumber, expat_parser.CurrentColumnNumber)
+    child.wholeText = data
+    expat_tree.addChild(child)
 
 def pp_xml(dom, elem, indent=''):
     if hasattr(elem,"tagName"):
@@ -39,39 +130,50 @@ def num(s):
         return float(s)
 
 
-class XmlValue(object):
-    def __init__(self, tagname=None, default=None, attrs={}):
+class XmlObject(object):
+    def __init__(self, required=None):
+        self.required = required
+
+
+class XmlValue(XmlObject):
+    def __init__(self, tagname=None, default=None, attrs={}, required=False):
+        super(XmlValue, self).__init__(required=required)
         self.default = default
         self.tagname = tagname
         self.attrs = attrs
 
 
-class XmlValueList(object):
-    def __init__(self, tagname=None):
+class XmlValueList(XmlObject):
+    def __init__(self, tagname=None, required=False):
+        super(XmlValueList, self).__init__(required=required)
         self.tagname = tagname
 
 
-class XmlAttribute(object):
-    def __init__(self, attrname=None, default=None):
+class XmlAttribute(XmlObject):
+    def __init__(self, attrname=None, default=None, required=False):
+        super(XmlAttribute, self).__init__(required=required)
         self.default=default
         self.attrname=attrname
         
 
-class XmlNode(object):
-    def __init__(self, typ, tagname=None):
+class XmlNode(XmlObject):
+    def __init__(self, typ, tagname=None, required=False):
+        super(XmlNode, self).__init__(required=required)
         self.typ = typ
         self.tagname=tagname
 
 
-class XmlNodeList(object):
-    def __init__(self, typ, tagname=None, wrapper=None):
+class XmlNodeList(XmlObject):
+    def __init__(self, typ, tagname=None, wrapper=None, required=False):
+        super(XmlNodeList, self).__init__(required=required)
         self.typ = typ
         self.tagname = tagname
         self.wrapper = wrapper
 
 
-class XmlTag(object):
-    def __init__(self, name, tagname=None, typ=str, plural=False, attrs={}, wrapper=None):
+class XmlTag(XmlObject):
+    def __init__(self, name, tagname=None, typ=str, plural=False, attrs={}, wrapper=None, required=False):
+        super(XmlTag, self).__init__(required=required)
         self.name = name
         if tagname:
             self.tagname = tagname
@@ -83,8 +185,9 @@ class XmlTag(object):
         self.wrapper = wrapper
 
 
-class XmlAttr(object):
-    def __init__(self, name, attrname=None):
+class XmlAttr(XmlObject):
+    def __init__(self, name, attrname=None, required=False):
+        super(XmlAttr, self).__init__(required=required)
         self.name = name
         if attrname:
             self.attrname = attrname
@@ -106,12 +209,12 @@ class XmlObject(object):
             if isinstance(val, XmlValue):
                 if val.tagname == None:
                     val.tagname = attr
-                self.tags.append(XmlTag(attr, tagname=val.tagname, attrs=val.attrs))
+                self.tags.append(XmlTag(attr, tagname=val.tagname, attrs=val.attrs, required=val.required))
                 setattr(self, attr, val.default)
             elif isinstance(val, XmlNode):
                 if val.tagname == None:
                     val.tagname = attr
-                self.tags.append(XmlTag(attr, tagname=val.tagname, typ=val.typ))
+                self.tags.append(XmlTag(attr, tagname=val.tagname, typ=val.typ, required=val.required))
                 setattr(self, attr, None)
             elif isinstance(val, XmlNodeList):
                 if val.tagname == None:
@@ -121,7 +224,7 @@ class XmlObject(object):
                         val.tagname = attr
                 self.tags.append(XmlTag(attr, tagname=val.tagname,
                                         typ=val.typ, plural=True,
-                                        wrapper=val.wrapper))
+                                        wrapper=val.wrapper, required=val.required))
                 setattr(self, attr, [])
             elif isinstance(val, XmlValueList):
                 if val.tagname == None:
@@ -129,13 +232,13 @@ class XmlObject(object):
                         val.tagname = attr[:-1]
                     else:
                         val.tagname = attr
-                self.tags.append(XmlTag(attr,tagname=val.tagname,
-                                        typ=str,plural=True))
+                self.tags.append(XmlTag(attr, tagname=val.tagname,
+                                        typ=str, plural=True, required=val.required))
                 setattr(self, attr, [])
             elif isinstance(val, XmlAttribute):
                 if val.attrname == None:
                     val.attrname = attr
-                self.attrs.append(XmlAttr(attr,attrname=val.attrname))
+                self.attrs.append(XmlAttr(attr,attrname=val.attrname, required=val.required))
                 setattr(self, attr, val.default)
 
     def pre_export(self):
@@ -202,9 +305,11 @@ class XmlObject(object):
         rootelem = dom.getElementsByTagName(root)[0]
         return '<?xml version=\"1.0\" ?>\n' + pp_xml(dom, rootelem).strip()
 
-    def _fromdom(self, dom, root):
+    def _fromdom(self, dom, root, src):
         for attr in self.attrs:
             attr_val = root.getAttribute(attr.attrname)
+            if attr.required and not attr_val:
+                log_error("%s:%d:%d: Missing attribute %s" % (src, root.line, root.column, attr.attrname))
             setattr(self, attr.name, attr_val)
 
         for tag in self.tags:
@@ -220,6 +325,9 @@ class XmlObject(object):
                         _root = x
                         break
 
+                if tag.required and not _root:
+                    log_error("%s:%d:%d: Missing node %s" % (src, root.line, root.column, tag.wrapper))
+
             for x in childNodes:
                 if hasattr(x,"tagName") and x.tagName == tag.tagname:
                     if tag.plural and hasattr(tag,"typ") and tag.typ == str:
@@ -231,13 +339,15 @@ class XmlObject(object):
                         vals.append(val)
                     elif hasattr(tag,"typ") and issubclass(tag.typ, XmlObject):
                         val = tag.typ(parent=self)
-                        val._fromdom(dom, x)
+                        val._fromdom(dom, x, src)
                         vals.append(val)
                     else:
                         if not x.hasChildNodes():
-                            log_warning("Expected %s to have content" % tag.tagname)
+                            log_warning("%s:%d:%d: Expected %s to have content" %
+                                        (src, root.line, root.column, tag.tagname))
                         elif len(x.childNodes)<1 or not hasattr(x.childNodes[0],"wholeText"):
-                            log_error("Parse error - expected %s to have text content" % tag.tagname)
+                            log_error("%s:%d:%d: Parse error - expected %s to have text content" %
+                                        (src, root.line, root.column, tag.tagname))
 			else:
                             val = x.childNodes[0].wholeText
                             val = val.strip()
@@ -254,9 +364,11 @@ class XmlObject(object):
                             vals.append(val)
                     _root.removeChild(x)
 
+            if not tag.wrapper and tag.required and not vals:
+                log_error("%s:%d:%d: Missing attribute %s" % (src, root.line, root.column, tag.tagname))
+
             if tag.wrapper and _root:
                 root.removeChild(_root)
-
 
             if tag.plural:
                 setattr(self, tag.name, vals)
@@ -274,22 +386,27 @@ class XmlObject(object):
         self._extra_xml = root.cloneNode(True)
         self.post_import()
 
-    def parseString(self, s, src = None):
+    def parseString(self, s, src='_internal'):
         try:
-            dom = xml.dom.minidom.parseString(s)
+            expat_parser = init_expat_parser()
+            expat_parser.Parse(s)
+            dom = expat_tree
         except xml.parsers.expat.ExpatError:
             if src:
-                log_error("XML parsing error: %s" % src)
+                log_error("XML parsing error: %s" % src, exc_info=True)
                 sys.exit(1)
             else:
-                log_error("XML parsing error")
+                log_error("XML parsing error", exc_info=True)
                 sys.exit(1)
 
-        self._fromdom(dom, dom.childNodes[0])
+        self._fromdom(dom, dom.childNodes[0], src)
 
-    def parse(self, f):
-        dom = xml.dom.minidom.parse(f)
-        self._fromdom(dom, dom.childNodes[0])
+    def parse(self, filename):
+        f = open(filename, 'r')
+        expat_parser = init_expat_parser()
+        expat_parser.ParseFile(f)
+        dom = expat_tree
+        self._fromdom(dom, dom.childNodes[0], filename)
 
 
 class TestXmlObject1(XmlObject):
