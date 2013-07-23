@@ -32,7 +32,7 @@ def pp_xml(dom, elem, indent=''):
 
     return s
 
-def num (s):
+def num(s):
     try:
         return int(s)
     except exceptions.ValueError:
