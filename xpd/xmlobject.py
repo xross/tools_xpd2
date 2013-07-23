@@ -190,7 +190,7 @@ class XmlObject(object):
 
     def todom(self, root):
         self.pre_export()
-        dom = xml.dom.minidom.parseString("<%s/>"%root)
+        dom = xml.dom.minidom.parseString("<%s/>" % root)
         rootelem = dom.getElementsByTagName(root)[0]
         self._add_attributes(dom, rootelem)
         self._add_children(dom, rootelem)
