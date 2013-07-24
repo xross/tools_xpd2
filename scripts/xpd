@@ -1108,10 +1108,16 @@ def rst_make_title(title, ch):
 def xpd_update_readme(repo, options, args,
                       xmos_package=False, write_back=True,
                       use_current_version=False, doclinks=False):
+    """ Updates the README.rst and returns the contents.
+    """
     log_info("Updating README in " + repo.name)
-    f = open(os.path.join(repo.path,'README.rst'))
-    lines = f.readlines()
-    f.close()
+
+    try:
+        with open(os.path.join(repo.path,'README.rst')) as f:
+            lines = f.readlines()
+    except IOError:
+        log_error("Missing top-level README.rst in %s (run 'xpd init' to create a default one)" % repo.name)
+        return []
 
     remove_items = ['Latest release','Stable release','Maintainer','Description','Status','Required packages']
 
@@ -1156,7 +1162,7 @@ def xpd_update_readme(repo, options, args,
         lines[i] = line
 
     if len(section_indices) < 1:
-        return
+        return []
 
     heading = lines[:section_indices[1]+1]
     if 2 in section_indices:
@@ -1258,17 +1264,12 @@ def xpd_update_readme(repo, options, args,
 
     lines = [x for x in lines if x != '-DELETED-\n']
 
-    #for line in lines:
-    #        sys.stdout.write(line)
+    if write_back:
+        with open(os.path.join(repo.path,"README.rst"), 'wb') as f:
+            for line in lines:
+                f.write(line)
 
-    if not write_back:
-        return lines
-    else:
-        f = open(os.path.join(repo.path,"README.rst"), 'wb')
-        for line in lines:
-            f.write(line)
-        f.close()
-    return False
+    return lines
 
 def check_swblock(repo, options, args, comp, verbose=True):
     valid = True
@@ -1284,7 +1285,7 @@ def check_swblock(repo, options, args, comp, verbose=True):
     if not comp.has_readme():
         log_error("Software block %s has no README.rst" % comp.path)
         valid = False
-        log_info("Creating new template README")
+        log_info("Creating and adding new template %s" % comp.readme_path())
         f = open(comp.readme_path(), 'wb')
         f.write(templates.swblock_readme)
         f.close()
@@ -1680,7 +1681,6 @@ A repository can contains modules that contain sets of source files than can be 
             f.write(templates.xcore_license % {'holder':holder})
             f.close()
 
-
     if not os.path.exists(os.path.join(repo.path,'README.rst')):
         maintainer = repo.maintainer
         if not maintainer or maintainer=='':
@@ -1691,12 +1691,15 @@ A repository can contains modules that contain sets of source files than can be 
         desc = repo.description
         if not desc or desc=='':
             desc = 'A brief description of the repo'
+
+        log_info('Creating and adding template top-level README.rst')
         f = open(os.path.join(repo.path,'README.rst'), 'wb')
         context = {'maintainer':maintainer,
                    'longname':longname,
                    'description':desc}
         f.write(templates.readme % context)
         f.close()
+        repo.git_add('README.rst')
 
     xpd_check_dep(repo, options, args)
 
