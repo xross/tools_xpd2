@@ -36,6 +36,6 @@ def configure_logging(console_level="INFO", file_level="DEBUG"):
 def print_status_summary():
     if counts['errors'] or counts['warnings']:
         print "%d ERROR%s and %d WARNING%s detected" % (
-            counts['errors'], ('s' if counts['errors'] else ''),
-            counts['warnings'], ('s' if counts['warnings'] else ''))
+            counts['errors'], ('' if counts['errors'] == 1 else 'S'),
+            counts['warnings'], ('' if counts['warnings'] == 1 else 'S'))
 
