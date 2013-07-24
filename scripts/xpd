@@ -469,7 +469,7 @@ def xpd_create_release(repo, options, args):
     log_info("Adding patched files:")
     for f in patched_files:
         log_info("  %s" % f)
-        call(["git", "add", f], cwd=repo.path, silent=True)
+        repo.git_add(f)
 
     log_info("Creating sandbox and checking build")
     repo.move_to_temp_sandbox()
@@ -503,7 +503,7 @@ def xpd_create_release(repo, options, args):
     log_info("Created release %s" % str(release.version))
 
     xpd_update_readme(repo, options, [])
-    call(["git", "add", "README.rst"], cwd=repo.path, silent=True)
+    repo.git_add('README.rst')
 
     repo.save_and_commit_release(release)
 
