@@ -469,6 +469,10 @@ class Repo(XmlObject):
         (stdout_lines, stderr_lines) = call_get_output(
                 ["git", "rev-parse", "--show-cdup"], cwd=path)
 
+        if any("fatal: Not a git repo" in s for s in stderr_lines):
+            log_error('No git repo found in %s' % path)
+            sys.exit(1)
+
         if self.git or stdout_lines == []:
             git_dir = path
         else:
