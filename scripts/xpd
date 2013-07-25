@@ -510,7 +510,7 @@ def xpd_create_release(repo, options, args):
     release.githash = repo.get_child_hash(release.parenthash)
 
     #if confirm("Do you want to make a zipfile ", default=True):
-    #    xpd_make_zip(repo,options,[])
+    #    xpd_make_zip(repo, options, [])
 
     if confirm("Do you want to push the commit of this release upstream", default=True):
         repo.git_push()
@@ -520,7 +520,7 @@ def xpd_create_release(repo, options, args):
 def do_exports(repo):
     for export in repo.exports:
         log_info("Exporting %s" % export)
-        call(["xmake","export"], cwd=os.path.join(repo.path,export))
+        call(["xmake", "export"], cwd=os.path.join(repo.path, export))
     return repo.exports
 
 def xpd_make_zip(repo, options, args, dest=None):
@@ -768,7 +768,7 @@ def xpd_make_zip(repo, options, args, dest=None):
         cognidox.assign_license(repo.subpartnumber, 'General Public')
         cognidox.assign_license_agreement(repo.subpartnumber, 6)
         log_info("Creating document holder")
-        xpd_make_docholder(repo, options, args, to_file = ".docholder.xml")
+        xpd_make_docholder(repo, options, args, to_file=".docholder.xml")
         log_info("Uploading document holder")
         cognidox.doCognidoxCheckIn(repo.partnumber,
                                    ".docholder.xml",
@@ -959,41 +959,41 @@ def insert_dep_docs_to_zip(main_zipfile, sub_zipfile, repo_name):
             s = zfile.read()
             zfile.close()
             if not name in existing:
-                main_zipfile.writestr(name,s)
+                main_zipfile.writestr(name, s)
     dep_zip.close()
 
-def insert_topdoc(repo,zipfile):
+def insert_topdoc(repo, zipfile):
     if repo.is_xmos_repo():
         htmlpath='xdehtml'
     else:
         htmlpath='html'
 
-    htmlpath = os.path.join(repo.topdoc_path,'_build',htmlpath)
+    htmlpath = os.path.join(repo.topdoc_path, '_build', htmlpath)
     zipdocpath = os.path.join(repo.name, 'doc')
     fs = find_files(htmlpath)
     for f in fs:
-        if not re.match('sphinx.output|\.doctree.*|objects.inv|.buildinfo',f):
+        if not re.match('sphinx.output|\.doctree.*|objects.inv|.buildinfo', f):
             src = os.path.join(htmlpath, f)
             dst = os.path.join(zipdocpath, f)
-            dst = dst.replace('_static','.static')
-            if re.match('[^/]*.html',f):
+            dst = dst.replace('_static', '.static')
+            if re.match('[^/]*.html', f):
                 index_str = open(src).read()
-                index_str = index_str.replace('_static','.static')
+                index_str = index_str.replace('_static', '.static')
                 if f == 'index.html':
                     rel = repo.current_release()
                     if repo.is_xmos_repo() and repo.subpartnumber and rel:
-                        xde_comment = '\n<!--XDE partnum="%s" version="%s"-->\n' % (repo.subpartnumber,str(rel.version))
-                        index_str = index_str.replace('<html','%s<html'%xde_comment)
+                        xde_comment = '\n<!--XDE partnum="%s" version="%s"-->\n' % (repo.subpartnumber, str(rel.version))
+                        index_str = index_str.replace('<html', '%s<html' % xde_comment)
 
-                zipfile.writestr(dst,index_str)
+                zipfile.writestr(dst, index_str)
 
                 readme = ''.join(open(src).readlines())
                 readme = readme.replace('"_static', '"doc' + os.path.sep + '.static')
                 readme = readme.replace('"././', '"doc/')
                 if f == 'index.html':
-                    zipfile.writestr(os.path.join(repo.name,'README.html'), readme)
+                    zipfile.writestr(os.path.join(repo.name, 'README.html'), readme)
                 else:
-                    zipfile.writestr(os.path.join(repo.name,f), readme)
+                    zipfile.writestr(os.path.join(repo.name, f), readme)
             else:
                 zipfile.write(src, arcname=dst)
 
@@ -1005,7 +1005,7 @@ def insert_doc(repo_name, path, zipfile, base=None, insert_pdf=True,
     config = xdoc.get_config(path)
     pdfname = config['SPHINX_MASTER_DOC'] + '.pdf'
 
-    pdfpath = os.path.join(path,'_build','xlatex',pdfname)
+    pdfpath = os.path.join(path, '_build', 'xlatex', pdfname)
     if not base:
         base = os.path.basename(path)
         if base == 'doc':
@@ -1015,25 +1015,25 @@ def insert_doc(repo_name, path, zipfile, base=None, insert_pdf=True,
         arcpdfname = repo_name + '.pdf'
     else:
         arcpdfname = base + '.pdf'
-    zipdocpath = os.path.join(repo_name, 'doc',base)
+    zipdocpath = os.path.join(repo_name, 'doc', base)
     if insert_pdf:
-        zipfile.write(pdfpath,arcname=os.path.join(repo_name,'doc',arcpdfname))
+        zipfile.write(pdfpath, arcname=os.path.join(repo_name, 'doc', arcpdfname))
     if is_xmos_repo:
-        htmlpath=os.path.join(path,'_build','xdehtml')
+        htmlpath=os.path.join(path, '_build', 'xdehtml')
     else:
-        htmlpath=os.path.join(path,'_build','html')
+        htmlpath=os.path.join(path, '_build', 'html')
 
     fs = find_files(htmlpath)
 
     for f in fs:
-        if not re.match('sphinx.output|\.doctree.*|.buildinfo|objects.inv',f):
+        if not re.match('sphinx.output|\.doctree.*|.buildinfo|objects.inv', f):
             src = os.path.join(htmlpath, f)
             dst = os.path.join(zipdocpath, f)
             x = open(src)
             src_str = x.read()
             x.close()
-            src_str = src_str.replace('_static','.static')
-            dst = dst.replace('_static','.static')
+            src_str = src_str.replace('_static', '.static')
+            dst = dst.replace('_static', '.static')
             zipfile.writestr(dst, src_str)
 
 def xpd_status(repo, options, args):
@@ -1094,7 +1094,7 @@ def xpd_show(repo, options, args):
             log_info("     %s" % export)
 
 def remove_indent(xs):
-    return [re.match(' *(.*)',x).groups(0)[0] for x in xs]
+    return [re.match(' *(.*)', x).groups(0)[0] for x in xs]
 
 def add_indent(n, xs):
     indent = ''.join([' ' for x in range(n)])
@@ -1102,7 +1102,7 @@ def add_indent(n, xs):
 
 def rst_make_title(title, ch):
     underline = ''.join([ch for x in title])
-    return [title,underline,'']
+    return [title, underline, '']
 
 
 def xpd_update_readme(repo, options, args,
@@ -1113,17 +1113,17 @@ def xpd_update_readme(repo, options, args,
     log_info("Updating README in " + repo.name)
 
     try:
-        with open(os.path.join(repo.path,'README.rst')) as f:
+        with open(os.path.join(repo.path, 'README.rst')) as f:
             lines = f.readlines()
     except IOError:
-        log_error("Missing top-level README.rst in %s (run 'xpd init' to create a default one)" % repo.name)
+        log_error("%s: Missing top-level README.rst (run 'xpd init' to create a default one)" % repo.name)
         return []
 
-    remove_items = ['Latest release','Stable release','Maintainer','Description','Status','Required packages']
+    remove_items = ['Latest release', 'Stable release', 'Maintainer', 'Description', 'Status', 'Required packages']
 
-    remove_sections = ['Required Modules','Required Repositories','Required software (dependencies)']
+    remove_sections = ['Required Modules', 'Required Repositories', 'Required software (dependencies)']
     if xmos_package:
-        remove_sections += ['Support','Documentation']
+        remove_sections += ['Support', 'Documentation']
 
     delete_until_next_section = False
     found_sections = 0
@@ -1132,9 +1132,9 @@ def xpd_update_readme(repo, options, args,
         line = lines[i]
 
         if xmos_package:
-            line = line.replace('XCORE.com','XMOS')
+            line = line.replace('XCORE.com', 'XMOS')
 
-        m = re.match(r':(.*): (.*)',line)
+        m = re.match(r':(.*): (.*)', line)
         if m:
             key = m.groups(0)[0]
             if key.upper() in [x.upper() for x in remove_items]:
@@ -1199,7 +1199,7 @@ def xpd_update_readme(repo, options, args,
         for x in desc[1:]:
             new_header += '  %s' % x
 
-    lines += ['\n','Required software (dependencies)\n','================================\n','\n']
+    lines += ['\n', 'Required software (dependencies)\n', '================================\n', '\n']
 
     if repo.dependencies == []:
         lines += ['  * None\n']
@@ -1212,9 +1212,9 @@ def xpd_update_readme(repo, options, args,
                 lines += ['  * xcommon (if using development tools earlier than 11.11.0)\n']
             else:
                 if xmos_package or not dep.uri:
-                    lines += ['  * %s\n'%dep.repo.name]
+                    lines += ['  * %s\n' % dep.repo.name]
                 else:
-                    lines += ['  * %s (%s)\n'%(dep.repo.name,dep.uri)]
+                    lines += ['  * %s (%s)\n' % (dep.repo.name, dep.uri)]
     lines += ['\n']
 
     doc_header = ''
@@ -1223,23 +1223,23 @@ def xpd_update_readme(repo, options, args,
             if doclinks:
                 import_xdoc()
                 doc_header += '\n\nSoftware Blocks\n===============\n\n\n'
-                components = sorted(repo.components,key=lambda x:x.id)
+                components = sorted(repo.components, key=lambda x:x.id)
                 for comp in components:
-                    doc_header += '%s (%s)\n %s\n'%(comp.name,comp.id,comp.description)
+                    doc_header += '%s (%s)\n %s\n' % (comp.name, comp.id, comp.description)
 
                 doc_header += '\n\nDocumentation\n===============\n\n\n'
                 for docdir in repo.docdirs:
-                    title = xdoc.get_title(os.path.join(repo.path,docdir))
+                    title = xdoc.get_title(os.path.join(repo.path, docdir))
                     base = os.path.basename(docdir)
                     if base == 'doc':
                         base = repo.name
-                    doc_header += '  * `%s <././%s/index.html>`_' % (title,base)
+                    doc_header += '  * `%s <././%s/index.html>`_' % (title, base)
                     doc_header += ' `PDF <././%s.pdf>`_ \n' % (base)
 
                 doc_header += '  * `Release Notes <././changelog.html>`_\n'
                 doc_header += '\n\n'
             else:
-                lines += ['Documentation\n','=============\n','\n',
+                lines += ['Documentation\n', '=============\n', '\n',
                           'You can find the documentation for this software in the doc/ directory of the package.\n\n']
 
         support = """Support
@@ -1265,7 +1265,7 @@ def xpd_update_readme(repo, options, args,
     lines = [x for x in lines if x != '-DELETED-\n']
 
     if write_back:
-        with open(os.path.join(repo.path,"README.rst"), 'wb') as f:
+        with open(os.path.join(repo.path, "README.rst"), 'wb') as f:
             for line in lines:
                 f.write(line)
 
@@ -1294,7 +1294,7 @@ def check_swblock(repo, options, args, comp, verbose=True):
         if comp.name=='' or comp.name[0] == '<':
            log_error("Software block %s title not specified, update README.rst" % comp.path)
            valid = False
-        if comp.description[0]=='<' or re.match('Software Block:',comp.description):
+        if comp.description[0]=='<' or re.match('Software Block:', comp.description):
            log_error("Software block %s description not specified, update README.rst" % comp.path)
            valid = False
 
@@ -1375,32 +1375,32 @@ def xpd_gen_readme(repo, options, args):
     if latest:
         full_version = latest.version
         full_version.rtype=''
-    header = ['.. class:: announce instapaper_body rst wikistyle readme.rst','']
+    header = ['.. class:: announce instapaper_body rst wikistyle readme.rst', '']
 
-    header.extend(rst_make_title(repo.longname,'.'))
+    header.extend(rst_make_title(repo.longname, '.'))
 
     if repo.description:
         header.extend(remove_indent(repo.description.split('\n')) + [''])
 
     if repo.vendor:
-        header.extend([':Vendor: %s'%repo.vendor,''])
+        header.extend([':Vendor: %s' % repo.vendor, ''])
 
     if repo.maintainer:
-        header.extend([':Maintainer: %s'%repo.maintainer,''])
+        header.extend([':Maintainer: %s' % repo.maintainer, ''])
 
     if latest:
-        header.extend([':Cur. Release: %(ver)s'%{'ver':full_version},''])
+        header.extend([':Cur. Release: %(ver)s' % {'ver':full_version}, ''])
 
     if repo.keywords and repo.keywords != []:
         keywords_str = ', '.join(repo.keywords)
-        header.extend([':Keywords: %s'%keywords_str,''])
+        header.extend([':Keywords: %s' % keywords_str, ''])
 
     release_details = []
     if latest:
         release_title = 'Current Release: %s' % full_version
 
-        release_details.extend(rst_make_title(release_title,'='))
-        release_details.extend([':RC: %d'%latest.version.rnumber,'',sep,''])
+        release_details.extend(rst_make_title(release_title, '='))
+        release_details.extend([':RC: %d'%latest.version.rnumber, '', sep, ''])
 
         rnotes = repo.get_release_notes(full_version)
 
@@ -1409,16 +1409,16 @@ def xpd_gen_readme(repo, options, args):
         else:
             notes = rnotes.wholeText
 
-        release_details.extend([':Release Notes:',''])
-        release_details.extend(add_indent(1,remove_indent(notes.split('\n')) + ['']))
-        release_details.extend([sep,''])
+        release_details.extend([':Release Notes:', ''])
+        release_details.extend(add_indent(1, remove_indent(notes.split('\n')) + ['']))
+        release_details.extend([sep, ''])
         ## use cases
 
         for uc in repo.usecases:
             if uc.usecase_type == 'invalid':
-                release_details.extend([':Invalid:',''])
+                release_details.extend([':Invalid:', ''])
             else:
-                release_details.extend([':Use Case:',''])
+                release_details.extend([':Use Case:', ''])
 
             usecase_details = []
             usecase_title = '**'+uc.name
@@ -1431,22 +1431,22 @@ def xpd_gen_readme(repo, options, args):
             usecase_details.append('')
 
             if uc.toolchain and uc.toolchain.tools and uc.toolchain.tools != []:
-                usecase_details.extend(['** Compatible Tools **',''])
-                usecase_details.extend([', '.join(uc.toolchain.tools),''])
+                usecase_details.extend(['** Compatible Tools **', ''])
+                usecase_details.extend([', '.join(uc.toolchain.tools), ''])
 
             if uc.devices and uc.devices.devices and uc.devices.devices != []:
-                usecase_details.extend(['** Compatible Devices **',''])
-                usecase_details.extend([', '.join(uc.devices.devices),''])
+                usecase_details.extend(['** Compatible Devices **', ''])
+                usecase_details.extend([', '.join(uc.devices.devices), ''])
 
-            release_details.extend(add_indent(4,usecase_details))
+            release_details.extend(add_indent(4, usecase_details))
 
     changelog = []
 
     if repo.changelog != []:
-        changelog = rst_make_title('Release History','=')
+        changelog = rst_make_title('Release History', '=')
 
         for x in sorted(repo.changelog):
-            changelog.extend([':%s:'%x.version_str,''])
+            changelog.extend([':%s:'%x.version_str, ''])
 
             log = x.wholeText.rstrip().split('\n')
 
@@ -1557,7 +1557,7 @@ def xpd_check_info(repo, options, args, check_icon=True):
             repo.maintainer = raw_input()
             update = True
 
-    if not repo.xcore_repo and re.match('.*github.com',repo.location):
+    if not repo.xcore_repo and re.match('.*github.com', repo.location):
         repo.xcore_repo = os.path.basename(repo.location)
         update = True
 
@@ -1581,7 +1581,7 @@ def xpd_tag(repo, options, args):
         log_error("Cannot determine release hash")
         sys.exit(1)
 
-    call(["git","tag","v%s"%str(v),relhash],cwd=Repo.path)
+    call(["git", "tag", "v%s"%str(v), relhash], cwd=Repo.path)
 
     log_info("Tagged")
 
@@ -1609,12 +1609,12 @@ def xpd_create_app(repo, options, args):
     appname = construct_name(repo, args, 'app')
 
     log_info("Creating %s" % appname)
-    os.mkdir(os.path.join(repo.path,appname))
-    os.mkdir(os.path.join(repo.path,appname,'src'))
-    f = open(os.path.join(repo.path,appname,'Makefile'), 'wb')
+    os.mkdir(os.path.join(repo.path, appname))
+    os.mkdir(os.path.join(repo.path, appname, 'src'))
+    f = open(os.path.join(repo.path, appname, 'Makefile'), 'wb')
     f.write(templates.app_makefile)
     f.close()
-    f = open(os.path.join(repo.path,appname,'README.rst'), 'wb')
+    f = open(os.path.join(repo.path, appname, 'README.rst'), 'wb')
     f.write(templates.swblock_readme)
     f.close()
     return False
@@ -1623,12 +1623,12 @@ def xpd_create_module(repo, options, args):
     modulename = construct_name(repo, args, 'module')
 
     log_info("Creating %s" % modulename)
-    os.mkdir(os.path.join(repo.path,modulename))
-    os.mkdir(os.path.join(repo.path,modulename,'src'))
-    f = open(os.path.join(repo.path,modulename,'module_build_info'), 'wb')
+    os.mkdir(os.path.join(repo.path, modulename))
+    os.mkdir(os.path.join(repo.path, modulename, 'src'))
+    f = open(os.path.join(repo.path, modulename, 'module_build_info'), 'wb')
     f.write(templates.module_build_info)
     f.close()
-    f = open(os.path.join(repo.path,modulename,'README.rst'), 'wb')
+    f = open(os.path.join(repo.path, modulename, 'README.rst'), 'wb')
     f.write(templates.swblock_readme)
     f.close()
     return False
@@ -1638,7 +1638,7 @@ def xpd_create_schema(repo, options, args):
     return false
 
 def xpd_init(repo, options, args):
-    xpd_check_info(repo, options, args,check_icon=False)
+    xpd_check_info(repo, options, args, check_icon=False)
 
     apps = [x for x in os.listdir(repo.path) if x[0:4] == 'app_']
 
@@ -1663,25 +1663,25 @@ A repository can contains modules that contain sets of source files than can be 
         if confirm("Would you like to create a module within this project", default=True):
             xpd_create_module(repo, options, [])
 
-    if not os.path.exists(os.path.join(repo.path,'Makefile')):
-        f = open(os.path.join(repo.path,'Makefile'), 'wb')
+    if not os.path.exists(os.path.join(repo.path, 'Makefile')):
+        f = open(os.path.join(repo.path, 'Makefile'), 'wb')
         f.write(templates.toplevel_makefile)
         f.close()
 
-    if not os.path.exists(os.path.join(repo.path,'doc')):
-        os.mkdir(os.path.join(repo.path,'doc'))
+    if not os.path.exists(os.path.join(repo.path, 'doc')):
+        os.mkdir(os.path.join(repo.path, 'doc'))
 
-    if not os.path.exists(os.path.join(repo.path,'LICENSE.txt')):
+    if not os.path.exists(os.path.join(repo.path, 'LICENSE.txt')):
         if confirm("Would you like to license the code in this repository under the XCore Open Source License", default=True):
             holder = ''
             while holder == '':
                 sys.stdout.write('Enter copyright holder: ')
                 holder = raw_input()
-            f = open(os.path.join(repo.path,'LICENSE.txt'), 'wb')
+            f = open(os.path.join(repo.path, 'LICENSE.txt'), 'wb')
             f.write(templates.xcore_license % {'holder':holder})
             f.close()
 
-    if not os.path.exists(os.path.join(repo.path,'README.rst')):
+    if not os.path.exists(os.path.join(repo.path, 'README.rst')):
         maintainer = repo.maintainer
         if not maintainer or maintainer=='':
             maintainer = '<github username of maintainer>'
@@ -1693,7 +1693,7 @@ A repository can contains modules that contain sets of source files than can be 
             desc = 'A brief description of the repo'
 
         log_info('Creating and adding template top-level README.rst')
-        f = open(os.path.join(repo.path,'README.rst'), 'wb')
+        f = open(os.path.join(repo.path, 'README.rst'), 'wb')
         context = {'maintainer':maintainer,
                    'longname':longname,
                    'description':desc}
@@ -1766,7 +1766,7 @@ def xpd_make_docholder(repo, options, args, to_file=None):
     import_xdoc()
     dh = DocumentHolder()
     if repo.tools:
-        toolstr = ','.join(repo.tools)
+        toolstr = ', '.join(repo.tools)
     else:
         toolstr = ''
     dh.introduction= """
@@ -1851,10 +1851,10 @@ h3. Description
 
 def import_xdoc():
     global xdoc, xmossphinx, xmos_xref
-    sys.path.append(os.path.abspath(os.path.join('..','xdoc')))
-    sys.path.append(os.path.abspath(os.path.join('..','infr_docs')))
-    sys.path.append(os.path.abspath(os.path.join('..','infr_docs','xmossphinx')))
-    sys.path.append(os.path.abspath(os.path.join('..','infr_docs','xmossphinx','builders')))
+    sys.path.append(os.path.abspath(os.path.join('..', 'xdoc')))
+    sys.path.append(os.path.abspath(os.path.join('..', 'infr_docs')))
+    sys.path.append(os.path.abspath(os.path.join('..', 'infr_docs', 'xmossphinx')))
+    sys.path.append(os.path.abspath(os.path.join('..', 'infr_docs', 'xmossphinx', 'builders')))
 #    try:
     xdoc = __import__("xdoc")
     xmossphinx = __import__("xmossphinx")
@@ -1868,7 +1868,7 @@ def xpd_build_dep_docs(dep):
 
 def xpd_build_topdoc(repo, options=None, args=None):
     doc_path = repo.path
-    readme = xpd_update_readme(repo,[],[],
+    readme = xpd_update_readme(repo, [], [],
                                write_back=False,
                                xmos_package=repo.is_xmos_repo(),
                                use_current_version=True,
@@ -1892,7 +1892,7 @@ def xpd_build_topdoc(repo, options=None, args=None):
     f.close()
     changelog_path = os.path.join(repo.path, 'CHANGELOG.rst')
     if os.path.exists(changelog_path):
-        shutil.copy(changelog_path,os.path.join(topdoc_path, 'changelog.rst'))
+        shutil.copy(changelog_path, os.path.join(topdoc_path, 'changelog.rst'))
     if repo.is_xmos_repo():
         xdoc.main('xdehtml', path=topdoc_path, config={'XDEHTML_UNPAGED_OUTPUT':'1'})
     else:
@@ -1906,7 +1906,7 @@ def xpd_create_doc_xrefs(repo, options, args):
     rstonlysuffix = '.__rstonlythisone__'
     if not options.github:
      for docdir in repo.docdirs:
-        docdir = os.path.join(repo.path,docdir)
+        docdir = os.path.join(repo.path, docdir)
         curdir = os.path.abspath(os.curdir)
         os.chdir(docdir)
         xdoc_config = {}
@@ -1914,12 +1914,12 @@ def xpd_create_doc_xrefs(repo, options, args):
         xdoc_config['FORCE_UPLOAD'] = '1'
         xdoc_config['COGNIDOX_PATH'] = "/Projects/Apps"
         xdoc.main('xref_all', config=xdoc_config)
-        build_dir = os.path.join(docdir,'_build')
+        build_dir = os.path.join(docdir, '_build')
         if os.path.exists(build_dir):
             shutil.rmtree(build_dir)
 
     for swblock in repo.components:
-        docdir = os.path.join(repo.path,swblock.path)
+        docdir = os.path.join(repo.path, swblock.path)
         curdir = os.path.abspath(os.curdir)
         os.chdir(docdir)
         xdoc_config = {}
@@ -1929,12 +1929,12 @@ def xpd_create_doc_xrefs(repo, options, args):
         xdoc_config['AUTO_CREATE'] = "1"
         xdoc_config['COGNIDOX_PATH'] = "/Projects/Apps"
         xdoc_config['SW_VERSION'] = repo.current_version_or_githash()
-        readme = os.path.join(docdir,'README.rst')
-        shutil.copy(readme,readme.replace('.rst',rstonlysuffix))
+        readme = os.path.join(docdir, 'README.rst')
+        shutil.copy(readme, readme.replace('.rst', rstonlysuffix))
 
         if repo.is_xmos_repo() or options.github:
             xdoc.main('xref_all', config=xdoc_config)
-        build_dir = os.path.join(docdir,'_build')
+        build_dir = os.path.join(docdir, '_build')
         if os.path.exists(build_dir):
             shutil.rmtree(build_dir)
 
@@ -1957,7 +1957,7 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
             log_error("%s: docdir '%s' does not exist" % (repo.name, docdir))
             break
 
-        docdir = os.path.join(repo.path,docdir)
+        docdir = os.path.join(repo.path, docdir)
         curdir = os.path.abspath(os.curdir)
         os.chdir(docdir)
 
@@ -1969,8 +1969,8 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
         if repo.is_xmos_repo():
             if options and options.upload:
                 partnum,issue = xdoc.main('issue', config=xdoc_config)
-                docnums.append((partnum,issue,docdir))
-                cognidox.assign_license(partnum,'General Public')
+                docnums.append((partnum, issue, docdir))
+                cognidox.assign_license(partnum, 'General Public')
             else:
                 xdoc.main('xdehtml', config=xdoc_config)
                 if buildlatex:
@@ -2000,8 +2000,6 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
     if repo.is_xmos_repo():
         xref = xmos_xref.XRefInfo('xpd')
 
-
-
     seealsos = []
     for (docnum, issue, docdir) in docnums:
         docinfo = xref.get_or_create_docinfo_from_dir(docdir, topdir = repo.name)
@@ -2013,12 +2011,11 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
             log_error("ERROR: Cannot determine title of %s" % docnum)
             sys.exit(1)
 
-        seealsos.append(('https://test.xmos.com/doc/%s/%s'%(docnum,issue),
+        seealsos.append(('https://test.xmos.com/doc/%s/%s' % (docnum, issue),
                          docinfo.title))
 
-
     for swblock in repo.components:
-        docdir = os.path.join(repo.path,swblock.path)
+        docdir = os.path.join(repo.path, swblock.path)
         curdir = os.path.abspath(os.curdir)
         os.chdir(docdir)
         xdoc_config = {}
@@ -2030,8 +2027,8 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
         xdoc_config['BASE_VERSION'] = repo.current_version_or_githash()
         xdoc_config['EXTRA_SEEALSOS'] = seealsos
         xdoc_config['SW_VERSION'] = repo.current_version_or_githash()
-        readme = os.path.join(docdir,'README.rst')
-        shutil.copy(readme,readme.replace('.rst',rstonlysuffix))
+        readme = os.path.join(docdir, 'README.rst')
+        shutil.copy(readme, readme.replace('.rst', rstonlysuffix))
 
         if repo.is_xmos_repo() or options.github:
             xdoc.main('text', config=xdoc_config)
@@ -2042,7 +2039,7 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
                     swblock.docVersion = lastversion
                 else:
                     swblock.docVersion = "latest"
-                cognidox.assign_license(partnum,'General Public')
+                cognidox.assign_license(partnum, 'General Public')
 
             else:
                 xdoc.main('xdehtml', config=xdoc_config)
@@ -2051,8 +2048,8 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
             if buildlatex:
                 xdoc.main('pdf')
 
-        readme = os.path.join(docdir,'README.rst')
-        os.remove(readme.replace('.rst',rstonlysuffix))
+        readme = os.path.join(docdir, 'README.rst')
+        os.remove(readme.replace('.rst', rstonlysuffix))
         os.chdir(curdir)
 
     if not options.github:
@@ -2336,7 +2333,7 @@ def xpd_install_local(repo, options, args):
                 shutil.rmtree(dst)
             shutil.copytree(os.path.join(repo.path, doc_dir, '_build', 'xdehtml'),
                             dst)
-            seealsos += '<li><a href="../../%s/index.html">%s</a></li>'%(local_name, title)
+            seealsos += '<li><a href="../../%s/index.html">%s</a></li>' % (local_name, title)
             log_info("Installed documentation from %s" % doc_dir)
 
         seealsos = """
@@ -2402,7 +2399,7 @@ def xpd_approve_latest(repo, options, args):
     for doc in docs:
         partnum = doc.getAttribute('partnum')
         issue = doc.getAttribute('issue')
-        log_info("Approving %s, issue %s" % (partnum,issue))
+        log_info("Approving %s, issue %s" % (partnum, issue))
         #cognidox.set_approval_notification(partnum)
         cognidox.publish_doc(partnum, comment="Publish to extranet via xpd")
         cognidox.approve_doc(partnum, issue, comment="Bulk approve from xpd")
@@ -2426,7 +2423,7 @@ def xpd_make_docmap(repo, options, args, return_str=False):
     import_xdoc()
     xref = xmos_xref.XRefInfo('xpd')
     dmap = DocMap()
-    dmap.parse(os.path.join(repo.path,"input_doc_map.xml"))
+    dmap.parse(os.path.join(repo.path, "input_doc_map.xml"))
     new_dmap = DocMap()
     for doc in dmap.docs:
         swblock = repo.find_swblock(doc.appname)
@@ -2452,49 +2449,49 @@ def xpd_make_docmap(repo, options, args, return_str=False):
         return False
 
 common_commands =  [
-            ("init","Initialize the xpd meta-information file"),
-            ("status","Show current status (can also use show or info)"),
-            ("update","Check and update metainformation for repository"),
-            ("create_release","Create a release"),
-            ("make_zip","Make zipfile of release"),
-            ("publish","Publish the current version to cognidox"),
-            ("publish_github","Publish the current version to cognidox as a github open source stub"),
-            ("list","List releases"),
-            ("create_doc_xrefs","Create document xrefs for testing")]
+            ("init", "Initialize the xpd meta-information file"),
+            ("status", "Show current status (can also use show or info)"),
+            ("update", "Check and update metainformation for repository"),
+            ("create_release", "Create a release"),
+            ("make_zip", "Make zipfile of release"),
+            ("publish", "Publish the current version to cognidox"),
+            ("publish_github", "Publish the current version to cognidox as a github open source stub"),
+            ("list", "List releases"),
+            ("create_doc_xrefs", "Create document xrefs for testing")]
 
 other_commands =[
-            ("info","Same as status"),
-            ("show","Same as status"),
-            ("checkout","Checkout release"),
-            ("getdeps","Clone the dependencies of this repository. Optionally takes a version."),
-            ("check_all","Check all meta information and infrastructure"),
-            ("check_info","Check related information"),
-            ("check_swblocks","Check swblocks"),
-            ("validate_swblock","Validate swblock"),
-            ("build_results","Build results for swblock"),
-            ("tag","Tag the repo with a version"),
-            ("show_dep","Show dependencies"),
-            ("add_dep","Add dependency"),
-            ("remove_dep","Remove dependency"),
-            ("check_dep","Check dependencies of the current repository"),
-            ("check_infr","Check infrastructure (Makefiles, eclipse projects)"),
-            ("check_makefiles","Check makefiles"),
-            ("update_readme","Update README.rst with latest metainformation"),
-            ("create_app","Create application within project"),
-            ("create_module","Create module within project"),
-            ("create_schema","Create a Relax NG schema file for xpd.xml"),
-            ("install_local","Install into local xsoftipexploer cache (DEBUG)"),
-            ("check_partinfo","Check part information (DEBUG)"),
-            ("make_docholder","Make docholder (DEBUG)"),
-            ("build_docs","Make docs (DEBUG)"),
-            ("build_topdoc","Make toplevel docs (DEBUG)"),
-            ("parse_release_notes","Parse release notes (DEBUG)"),
-            ("create_warnings","Create release warnings list (DEBUG)"),
-            ("gen_package_xml","Generate package xml (DEBUG)"),
-            ("show_project_deps","Show app/modules dependencies (DEBUG)"),
-            ("make_docmap","Create snippets doc map for website (DEBUG)")]
+            ("info", "Same as status"),
+            ("show", "Same as status"),
+            ("checkout", "Checkout release"),
+            ("getdeps", "Clone the dependencies of this repository. Optionally takes a version."),
+            ("check_all", "Check all meta information and infrastructure"),
+            ("check_info", "Check related information"),
+            ("check_swblocks", "Check swblocks"),
+            ("validate_swblock", "Validate swblock"),
+            ("build_results", "Build results for swblock"),
+            ("tag", "Tag the repo with a version"),
+            ("show_dep", "Show dependencies"),
+            ("add_dep", "Add dependency"),
+            ("remove_dep", "Remove dependency"),
+            ("check_dep", "Check dependencies of the current repository"),
+            ("check_infr", "Check infrastructure (Makefiles, eclipse projects)"),
+            ("check_makefiles", "Check makefiles"),
+            ("update_readme", "Update README.rst with latest metainformation"),
+            ("create_app", "Create application within project"),
+            ("create_module", "Create module within project"),
+            ("create_schema", "Create a Relax NG schema file for xpd.xml"),
+            ("install_local", "Install into local xsoftipexploer cache (DEBUG)"),
+            ("check_partinfo", "Check part information (DEBUG)"),
+            ("make_docholder", "Make docholder (DEBUG)"),
+            ("build_docs", "Make docs (DEBUG)"),
+            ("build_topdoc", "Make toplevel docs (DEBUG)"),
+            ("parse_release_notes", "Parse release notes (DEBUG)"),
+            ("create_warnings", "Create release warnings list (DEBUG)"),
+            ("gen_package_xml", "Generate package xml (DEBUG)"),
+            ("show_project_deps", "Show app/modules dependencies (DEBUG)"),
+            ("make_docmap", "Create snippets doc map for website (DEBUG)")]
 
-hidden_commands = [("approve_latest","Approved latest cognidox version")]
+hidden_commands = [("approve_latest", "Approved latest cognidox version")]
 
 
 def get_git_dir(path):
@@ -2514,46 +2511,46 @@ if __name__ == "__main__":
     usage = "usage: %prog command [options]"
     usage += "\n\nMost useful commands:\n\n"
     for c in common_commands:
-        usage += "%20s: %s"%(c[0],c[1])
+        usage += "%20s: %s"%(c[0], c[1])
 
         usage += "\n"
 
     usage += "\n\nOther commands:\n\n"
     for c in other_commands:
-        usage += "%20s: %s"%(c[0],c[1])
+        usage += "%20s: %s"%(c[0], c[1])
 
         usage += "\n"
 
     optparser = OptionParser(usage=usage)
 
-    optparser.add_option("-r","--release-version",dest="release_version",
+    optparser.add_option("-r", "--release-version", dest="release_version",
                          help="release version")
 
-    optparser.add_option("-t","--release-type",dest="release_type",
+    optparser.add_option("-t", "--release-type", dest="release_type",
                          help="release type: release, alpha, beta or rc")
 
-    optparser.add_option("-b","--branch",dest="release_branch",
+    optparser.add_option("-b", "--branch", dest="release_branch",
                          help="release branch name")
 
-    optparser.add_option("--force",dest="force",action="store_true",default=False,
+    optparser.add_option("--force", dest="force", action="store_true", default=False,
                          help="Ignore safety check")
 
-    optparser.add_option("--upload",dest="upload",action="store_true",default=False,
+    optparser.add_option("--upload", dest="upload", action="store_true", default=False,
                          help="Upload package to document management system")
 
-    optparser.add_option("--nobuild",dest="nobuild",action="store_true",default=False,
+    optparser.add_option("--nobuild", dest="nobuild", action="store_true", default=False,
                          help="Do not build when creating a release/package")
 
-    optparser.add_option("--nodocs",dest="nodocs",action="store_true",default=False,
+    optparser.add_option("--nodocs", dest="nodocs", action="store_true", default=False,
                          help="Do not build docs when creating a release/package")
 
-    optparser.add_option("--nocheckdep",dest="nocheckdep",action="store_true",default=False,
+    optparser.add_option("--nocheckdep", dest="nocheckdep", action="store_true", default=False,
                          help="Do not check repo dependencies on update")
 
-    optparser.add_option("--github",dest="github",action="store_true",default=False,
+    optparser.add_option("--github", dest="github", action="store_true", default=False,
                          help="Treat repo as an \"Open Source Community\" repo for publishing")
 
-    optparser.add_option("--code",dest="install_code",action="store_true",default=False,
+    optparser.add_option("--code", dest="install_code", action="store_true", default=False,
                          help="Install code when doing an install_local")
 
 
