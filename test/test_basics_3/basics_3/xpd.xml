@@ -16,4 +16,6 @@
     <maintainer>test</maintainer>
     <vendor>XMOS</vendor>
     <xpd_version>1.0</xpd_version>
+    <xsoftip_exclude>not_a_folder</xsoftip_exclude>
+    <docdir>not_a_docdir</docdir>
 </xpd>

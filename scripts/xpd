@@ -1953,6 +1953,9 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
 
     if not options.github:
      for docdir in docdirs:
+        if not os.path.exists(os.path.join(repo.path, docdir)):
+            log_error("%s: docdir '%s' does not exist" % (repo.name, docdir))
+            break
 
         docdir = os.path.join(repo.path,docdir)
         curdir = os.path.abspath(os.curdir)

@@ -214,7 +214,8 @@ def run_basics(tests_source_folder, tests_run_folder, args):
                        'ERROR: [^ ]+xpd.xml:11:4: Missing attribute repo',
                        'ERROR: [^ ]+xpd.xml:11:4: Missing node githash',
                        'ERROR: [^ ]+xpd.xml:11:4: Missing node uri',
-                       "ERROR: basics_3: xsoftip_exclude 'not_a_folder' does not exist"]
+                       "ERROR: basics_3: xsoftip_exclude 'not_a_folder' does not exist",
+                       "ERROR: basics_3: docdir 'not_a_docdir' does not exist"]
 
     create_basic(tests_source_folder, tests_run_folder, 'basics_3')
     set_ignore_errors(True)
