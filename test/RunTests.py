@@ -43,9 +43,9 @@ def patch_changelog(folder, version):
             f.write('\n')
             for line in lines[3:]:
                 f.write(line)
-        log_debug("Added version %s to changelog (%s)" % (version, folder))
+        log_debug('Added version %s to changelog (%s)' % (version, folder))
     except:
-        log_error("Error patching CHANGELOG.rst", exc_info=True)
+        log_error('Error patching CHANGELOG.rst', exc_info=True)
 
 def break_remote_link(folder):
     """ Break the 'url' line of the .git/config file so that the testing cannot
@@ -60,9 +60,9 @@ def break_remote_link(folder):
                 if re.search('^\s*url = ', line):
                     f.write('#')
                 f.write(line)
-        log_debug("%s disconnected from remote git" % folder)
+        log_debug('%s disconnected from remote git' % folder)
     except:
-        log_error("Error modifying .git/config", exc_info=True)
+        log_error('Error modifying .git/config', exc_info=True)
 
 def restore_remote_link(folder):
     """ Restore the 'url' line of the .git/config file so that the repo can
@@ -77,14 +77,14 @@ def restore_remote_link(folder):
                 if re.match('^#(\s*url = .*)$', line):
                     line = line[1:]
                 f.write(line)
-        log_debug("%s re-connected to remote git" % folder)
+        log_debug('%s re-connected to remote git' % folder)
     except:
-        log_error("Error modifying .git/config", exc_info=True)
+        log_error('Error modifying .git/config', exc_info=True)
 
 def clean_repo(parent, folder):
     """ Put the test folder back into a known clean state
     """
-    log_debug("Clean %s, %s" % (parent, folder))
+    log_debug('Clean %s, %s' % (parent, folder))
     # Restore the git repo to not have any local files - need all the
     # commands due to some being only local repos and therefore not
     # having an origin/master
@@ -102,7 +102,7 @@ def clean_repo(parent, folder):
         fullname = os.path.join(parent, f)
         if not os.path.isdir(fullname) or (fullname == folder):
             continue
-        log_debug("rmtree %s" % fullname)
+        log_debug('rmtree %s' % fullname)
         shutil.rmtree(fullname)
 
 def test_xpd_commands(folder, args):
@@ -203,8 +203,8 @@ def run_basics(tests_source_folder, tests_run_folder, args):
     call(['make'], cwd=folder)
     bin_path = os.path.join('app_basics_2_example', 'bin', 'app_basics_2_example.xe')
     (stdout_lines, stderr_lines) = call(['xsim', bin_path], cwd=folder)
-    if ', '.join(stdout_lines) != "1, 2, 3, 1, 2, 3, 1.2.3, 1.2.3rc0":
-        log_error("Release patching failed")
+    if ', '.join(stdout_lines) != '1, 2, 3, 1, 2, 3, 1.2.3, 1.2.3rc0':
+        log_error('Release patching failed')
 
     # Test that xpd correctly detects errors in xpd.xml
     expected_errors = ['ERROR: [^ ]+xpd.xml:4:8: Missing attribute description',
@@ -248,21 +248,21 @@ supported_tests = ['basics', 'clone_xcore', 'test_all']
 
 def print_usage():
     (tests_source_folder, script_name) = os.path.split(os.path.realpath(__file__))
-    print "%s: [TEST]+" % script_name
-    print "  Available tests are: %s" % ', '.join(supported_tests)
+    print '%s: [TEST]+' % script_name
+    print '  Available tests are: %s' % ', '.join(supported_tests)
     sys.exit(1)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Automated test')
-    parser.add_argument('user', help="cognidox user")
-    parser.add_argument('password', help="cognidox password")
+    parser.add_argument('user', help='cognidox user')
+    parser.add_argument('password', help='cognidox password')
     parser.add_argument('tests', nargs='+', help='tests', choices=supported_tests)
     args = parser.parse_args()
 
     setup_logging(os.getcwd())
     (tests_source_folder, script_name) = os.path.split(os.path.realpath(__file__))
     tests_run_folder = os.path.join(get_parent(get_parent(os.getcwd())), 'tests')
-    log_info("Tests running in %s" % tests_run_folder)
+    log_info('Tests running in %s' % tests_run_folder)
 
     for arg in args.tests:
         run_fn = eval('run_%s' % arg)
