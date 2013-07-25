@@ -189,11 +189,12 @@ def run_basic(tests_run_folder, test_name):
     # Check in everything after the update
     call(['git', 'commit', '-a', '-m', '"post update"'], cwd=dst)
 
-def run_basics(tests_source_folder, tests_run_folder, args):
+def run_basics_1(tests_source_folder, tests_run_folder):
     # Run the basic xpd functionality tests
     create_basic(tests_source_folder, tests_run_folder, 'basics_1')
     run_basic(tests_run_folder, 'basics_1')
 
+def run_basics_2(tests_source_folder, tests_run_folder):
     create_basic(tests_source_folder, tests_run_folder, 'basics_2')
     run_basic(tests_run_folder, 'basics_2')
     
@@ -206,6 +207,7 @@ def run_basics(tests_source_folder, tests_run_folder, args):
     if ', '.join(stdout_lines) != '1, 2, 3, 1, 2, 3, 1.2.3, 1.2.3rc0':
         log_error('Release patching failed')
 
+def run_basics_3(tests_source_folder, tests_run_folder):
     # Test that xpd correctly detects errors in xpd.xml
     expected_errors = ['ERROR: [^ ]+xpd.xml:4:8: Missing attribute description',
                        'ERROR: [^ ]+xpd.xml:4:8: Missing attribute scope',
@@ -214,18 +216,49 @@ def run_basics(tests_source_folder, tests_run_folder, args):
                        'ERROR: [^ ]+xpd.xml:11:4: Missing attribute repo',
                        'ERROR: [^ ]+xpd.xml:11:4: Missing node githash',
                        'ERROR: [^ ]+xpd.xml:11:4: Missing node uri',
-                       "ERROR: basics_3: xsoftip_exclude 'not_a_folder' does not exist",
-                       "ERROR: basics_3: docdir 'not_a_docdir' does not exist"]
+                       'ERROR: No git repo found in [^ ]+test_basics_3' # The lack of a uri causes this error
+                    ]
 
     create_basic(tests_source_folder, tests_run_folder, 'basics_3')
+    test_folder = os.path.join(tests_run_folder, 'test_basics_3', 'basics_3')
+
+    # Use the generic 'test_xpd_command' function because the errors in the repo
+    # mean the interaction won't occur
     set_ignore_errors(True)
-    output = test_xpd_update(os.path.join(tests_run_folder, 'test_%s' % 'basics_3', 'basics_3'))
+    output = test_xpd_command(test_folder, 'update')
     set_ignore_errors(False)
-    for err in expected_errors:
-        if not re.search(err, output):
-            log_error("Missing error '%s'" % err)
-        else:
-            log_debug("Found error '%s'" % err)
+    check_all_errors_seen_and_expected(output, expected_errors)
+
+    # Fix the xpd.xml errors by removing the <dependency>, </dependency> lines
+    lines = []
+    with open(os.path.join(test_folder, 'xpd.xml'), 'r') as f:
+        lines = f.readlines()
+    with open(os.path.join(test_folder, 'xpd.xml'), 'wb') as f:
+        for line in lines:
+            if not re.search('dependency', line):
+                f.write(line)
+
+    call(['git', 'add', 'xpd.xml'], cwd=test_folder)
+    call(['git', 'commit', '-m', '"Removed dependency"'], cwd=test_folder)
+
+    test_xpd_update(test_folder)
+    call(['git', 'add', 'xpd.xml'], cwd=test_folder)
+    call(['git', 'commit', '-m', '"Update fixed missing required attributes"'], cwd=test_folder)
+
+    # Now try running build_docs as that should have some other errors
+    expected_errors = ["ERROR: basics_3: xsoftip_exclude 'not_a_folder' does not exist",
+                       "ERROR: basics_3: docdir 'not_a_docdir' does not exist",
+                       "ERROR: basics_3: Missing top-level README.rst"]
+
+    set_ignore_errors(True)
+    output = test_xpd_command(test_folder, 'build_docs')
+    set_ignore_errors(False)
+    check_all_errors_seen_and_expected(output, expected_errors)
+
+def run_basics(tests_source_folder, tests_run_folder, args):
+    run_basics_1(tests_source_folder, tests_run_folder)
+    run_basics_2(tests_source_folder, tests_run_folder)
+    run_basics_3(tests_source_folder, tests_run_folder)
 
 def run_clone_xcore(tests_source_folder, tests_run_folder, args):
     log_info("Cloning github repos to %s" % tests_run_folder)

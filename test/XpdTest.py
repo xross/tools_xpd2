@@ -9,28 +9,45 @@ import sys
 
 from TestUtils import *
 
-def test_xpd_build_docs(folder):
+def test_xpd_command(folder, command):
+    """ Run any generic xpd command that doesn't require any specific interaction.
+    """
     (parent, test_name) = os.path.split(folder)
-    log_info("test_xpd_build_docs: %s" % test_name)
+    log_info('test_xpd_%s: %s' % (command, test_name))
     xpd_contents = get_xpd_contents(folder)
 
-    call(["xpd", "build_docs"])
+    (stdout_lines, stderr_lines) = call(['xpd', command], cwd=folder)
 
-    log_info("test_xpd_build_docs: %s done" % test_name)
+    log_info('test_xpd_%s: %s done' % (command, test_name))
+    return '\n'.join(stdout_lines + stderr_lines)
 
 def test_xpd_make_zip(folder, user, password):
+    """ Need to interact with xpd on 'make_zip' because if a released version of
+        a dependency exists then xpd will log into cognidox to download it.
+    """
     (parent, test_name) = os.path.split(folder)
-    log_info("test_xpd_make_zip: %s" % test_name)
+    log_info('test_xpd_make_zip: %s' % test_name)
     xpd_contents = get_xpd_contents(folder)
 
-    expected = [Expect(["Please enter cognidox username:"], [user]),
-                Expect(["Password"], [password])]
+    expected = []
+    in_dep = False
+    for line in xpd_contents:
+        if re.search('<dependency repo', line):
+            in_dep = True
+        if re.search('</dependency>', line):
+            in_dep = False
+
+        if in_dep and re.search('<version>', line):
+            expected += [Expect(['Please enter cognidox username:'], [user]),
+                         Expect(['Password'], [password])]
 
     interact(['xpd', 'make_zip'], expected, cwd=folder, early_out=True, timeout=120)
 
     log_info('test_xpd_make_zip: %s done' % test_name)
 
 def test_xpd_getdeps(folder, version=None):
+    """ Run 'getdeps' and then ensure that all the dependencies have been created
+    """
     (parent, test_name) = os.path.split(folder)
     log_info('test_xpd_getdeps: %s' % test_name)
     xpd_contents = get_xpd_contents(folder)

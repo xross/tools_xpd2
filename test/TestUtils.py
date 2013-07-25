@@ -144,16 +144,39 @@ def interact(command, expected, cwd=None, early_out=False, timeout=30):
 
     return (last_index, last_option, all_output)
 
+known_errors = {
+    '^Traceback' : 'backtrace produced',
+    '^fatal:'    : 'git error detected',
+    '^ERROR:'    : 'xpd error detected',
+    '\(ERROR/'   : 'document error detected'
+}
+
 def catch_errors(lines):
     for line in lines:
-        if re.search('^Traceback', line):
+        for (err, message) in known_errors.iteritems():
+            if re.search(err, line):
+                log_error(message)
+
+def check_all_errors_seen_and_expected(output, expected_errors):
+    """ Look through the output from a command and ensure that all expected errors exist
+        and also that all errors seen are expected.
+    """
+    # Ensure that all expected errors are seen
+    for err in expected_errors:
+        if not re.search(err, output):
+            log_error("Missing error '%s'" % err)
+        else:
+            log_debug("Found error '%s'" % err)
+
+    # Ensure that all errors seen are expected
+    for line in output.split('\n'):
+        if 'Traceback' in line:
             log_error('backtrace produced')
-        if re.search('^fatal:', line):
-            log_error('git error detected')
-        if re.search('^ERROR:', line):
-            log_error('xpd error detected (%s)' % line.rstrip())
-        if re.search('\(ERROR/', line):
-            log_error('document error detected')
+        for (err, message) in known_errors.iteritems():
+            if re.search(err, line):
+                found = [err for err in expected_errors if re.search(err, line)]
+                if not found:
+                    log_error("Found unexpected error '%s'" % line)
 
 def check_exists(files):
     for f in files:
@@ -205,7 +228,8 @@ def git_has_origin(folder):
 ignore_errors = False
 
 def set_ignore_errors(ignore):
-   ignore_errors = ignore
+    global ignore_errors
+    ignore_errors = ignore
 
 # Logging counts
 counts = {
@@ -215,7 +239,7 @@ counts = {
 
 def log_error(message):
     if ignore_errors:
-        logging.info(message)
+        logging.debug(message)
     else:
         logging.error(message)
         counts['errors'] += 1
