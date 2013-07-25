@@ -623,6 +623,10 @@ class Repo(XmlObject):
         # Prune out releases which are not valid - can't determine a version number or githash
         self.releases = [r for r in self.releases if r.version or r.githash]
 
+        for exclude in self.xsoftip_excludes:
+            if not os.path.exists(os.path.join(self.path, exclude)):
+                log_error("%s: xsoftip_exclude '%s' does not exist" % (self.name, exclude))
+
     def pre_export(self):
         self.xpd_version = xpd_version
 
