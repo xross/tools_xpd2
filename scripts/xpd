@@ -2028,6 +2028,10 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
         xdoc_config['EXTRA_SEEALSOS'] = seealsos
         xdoc_config['SW_VERSION'] = repo.current_version_or_githash()
         readme = os.path.join(docdir, 'README.rst')
+        if not os.path.exists(readme):
+            # This should only happen if the 'path' attribute of the component is wrong
+            log_error('%s: missing %s' % (swblock.id, readme))
+            continue
         shutil.copy(readme, readme.replace('.rst', rstonlysuffix))
 
         if repo.is_xmos_repo() or options.github:
