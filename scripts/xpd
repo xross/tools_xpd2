@@ -16,7 +16,7 @@ import xpd.check_project
 from xpd.xpd_subprocess import call, call_get_output
 import xpd.xmlobject
 from xpd import templates
-from xpd import cognidox
+import cognidox
 from xpd.docholder import DocumentHolder, DHSection, DHDocumentLink
 from xpd.xpd_logging import *
 import xdoc
