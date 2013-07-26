@@ -1,10 +1,10 @@
-import os, subprocess, sys, re
+import os, sys, re
 import difflib
 from xmlobject import XmlObject, XmlValue, XmlNode, XmlNodeList, XmlAttribute, XmlValueList
 from copy import copy
-from xpd.xpd_subprocess import call, call_get_output
+from xmos_subprocess import call, call_get_output
 from xpd.check_project import find_all_subprojects, get_project_immediate_deps
-from xpd.xpd_logging import *
+from xmos_logging import log_error, log_warning, log_info, log_debug
 import shutil
 import tempfile
 from docutils.core import publish_file

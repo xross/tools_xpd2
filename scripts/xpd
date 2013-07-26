@@ -3,7 +3,7 @@ from stat import ST_MODE
 from stat import S_IWRITE
 
 from optparse import OptionParser
-import os, subprocess, sys, re
+import os, sys, re
 import difflib
 import zipfile
 import tempfile
@@ -13,12 +13,12 @@ from xpd.xpd_data import Repo, Release, Version, Dependency
 from xpd.xpd_data import AllSoftwareDescriptor, SoftwareDescriptor
 from xpd.xpd_data import DocMap, Doc
 import xpd.check_project
-from xpd.xpd_subprocess import call, call_get_output
-import xpd.xmlobject
+import xmlobject
 from xpd import templates
 import cognidox
 from xpd.docholder import DocumentHolder, DHSection, DHDocumentLink
-from xpd.xpd_logging import *
+from xmos_logging import log_error, log_warning, log_info, log_debug, configure_logging, print_status_summary
+from xmos_subprocess import call, call_get_output
 import xdoc
 import xmossphinx
 import xmos_xref
@@ -29,30 +29,6 @@ ALLOWED_SCOPES=["Roadmap", "Example", "Early Development", "General Use"]
 xdoc = None
 xmossphinx = None
 xmos_xref = None
-
-# Allow the running of python code while capturing the output
-import contextlib
-from cStringIO import StringIO
-@contextlib.contextmanager
-def capture():
-    oldout,olderr = sys.stdout,sys.stderr
-    try:
-        out=[StringIO(), StringIO()]
-        sys.stdout,sys.stderr = out
-        yield out
-    finally:
-        sys.stdout,sys.stderr = oldout, olderr
-        out[0] = out[0].getvalue()
-        out[1] = out[1].getvalue()
-
-def run_xdoc(cmd, path='.', config={}):
-    log_info("Running 'xdoc %s' in %s" % (cmd, os.path.abspath(path)))
-    with capture() as (stdout, stderr):
-        xdoc.main(cmd, path=path, config=config)
-    for line in stdout.getvalue().split('\n'):
-        log_debug('  ' + line)
-    for line in stderr.getvalue().split('\n'):
-        log_debug('  ' + line)
 
 def assert_exists(dep):
     if not os.path.exists(dep.get_local_path()):
@@ -958,7 +934,7 @@ def zip_repo(repo, zipfile, exports, include_binaries=False, force=False, no_app
             comp.setAttribute("type", "communityCode")
 
     rootelem = xpd_dom.getElementsByTagName("xpd")[0]
-    xpd_str = '<?xml version=\"1.0\" ?>\n' + xpd.xmlobject.pp_xml(xpd_dom, rootelem).strip()
+    xpd_str = '<?xml version=\"1.0\" ?>\n' + xmlobject.pp_xml(xpd_dom, rootelem).strip()
 
     zipfile.writestr(os.path.join(repo.name, "xpd.xml"), xpd_str)
 
@@ -1918,9 +1894,9 @@ def xpd_build_topdoc(repo, options=None, args=None):
     if os.path.exists(changelog_path):
         shutil.copy(changelog_path, os.path.join(topdoc_path, 'changelog.rst'))
     if repo.is_xmos_repo():
-        run_xdoc('xdehtml', path=topdoc_path, config={'XDEHTML_UNPAGED_OUTPUT':'1'})
+        xdoc.main('xdehtml', path=topdoc_path, config={'XDEHTML_UNPAGED_OUTPUT':'1'})
     else:
-        run_xdoc('html', path=topdoc_path)
+        xdoc.main('html', path=topdoc_path)
     log_info("Top level document created in %s" % topdoc_path)
 
     repo.topdoc_path = topdoc_path
@@ -1937,7 +1913,7 @@ def xpd_create_doc_xrefs(repo, options, args):
         xdoc_config['AUTO_CREATE'] = "1"
         xdoc_config['FORCE_UPLOAD'] = '1'
         xdoc_config['COGNIDOX_PATH'] = "/Projects/Apps"
-        run_xdoc('xref_all', config=xdoc_config)
+        xdoc.main('xref_all', config=xdoc_config)
         build_dir = os.path.join(docdir, '_build')
         if os.path.exists(build_dir):
             shutil.rmtree(build_dir)
@@ -1957,7 +1933,7 @@ def xpd_create_doc_xrefs(repo, options, args):
         shutil.copy(readme, readme.replace('.rst', rstonlysuffix))
 
         if repo.is_xmos_repo() or options.github:
-            run_xdoc('xref_all', config=xdoc_config)
+            xdoc.main('xref_all', config=xdoc_config)
         build_dir = os.path.join(docdir, '_build')
         if os.path.exists(build_dir):
             shutil.rmtree(build_dir)
@@ -1996,13 +1972,13 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
                 docnums.append((partnum, issue, docdir))
                 cognidox.assign_license(partnum, 'General Public')
             else:
-                run_xdoc('xdehtml', config=xdoc_config)
+                xdoc.main('xdehtml', config=xdoc_config)
                 if buildlatex:
-                    run_xdoc('xmospdf', config=xdoc_config)
+                    xdoc.main('xmospdf', config=xdoc_config)
         else:
-            run_xdoc('html')
+            xdoc.main('html')
             if buildlatex:
-                run_xdoc('pdf')
+                xdoc.main('pdf')
         os.chdir(curdir)
 
         if repo.is_xmos_repo() and repo.partnumber:
@@ -2059,7 +2035,7 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
         shutil.copy(readme, readme.replace('.rst', rstonlysuffix))
 
         if repo.is_xmos_repo() or options.github:
-            run_xdoc('text', config=xdoc_config)
+            xdoc.main('text', config=xdoc_config)
             if options and options.upload:
                 partnum,lastversion = xdoc.main('issue', config=xdoc_config)
                 swblock.docPartNumber = partnum
@@ -2070,11 +2046,11 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
                 cognidox.assign_license(partnum, 'General Public')
 
             else:
-                run_xdoc('xdehtml', config=xdoc_config)
+                xdoc.main('xdehtml', config=xdoc_config)
         else:
-            run_xdoc('html')
+            xdoc.main('html')
             if buildlatex:
-                run_xdoc('pdf')
+                xdoc.main('pdf')
 
         readme = os.path.join(docdir, 'README.rst')
         os.remove(readme.replace('.rst', rstonlysuffix))
@@ -2534,7 +2510,7 @@ def get_git_dir(path):
 
 
 if __name__ == "__main__":
-    configure_logging(console_level="INFO", file_level="DEBUG")
+    configure_logging(level_console='INFO', level_file='DEBUG', filename='run_xpd.log')
 
     usage = "usage: %prog command [options]"
     usage += "\n\nMost useful commands:\n\n"

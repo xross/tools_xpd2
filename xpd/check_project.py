@@ -2,12 +2,11 @@ import os
 import xml.dom.minidom
 import sys
 import re
-import subprocess
 import random
 import shutil
 import hashlib
 from xpd import templates
-from xpd.xpd_logging import *
+from xmos_logging import log_error, log_warning, log_info, log_debug
 
 rst_title_regexp = r'[-=^~.][-=^~.]+'
 
