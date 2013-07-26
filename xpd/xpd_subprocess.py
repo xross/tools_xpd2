@@ -23,7 +23,7 @@ def Popen(*args, **kwargs):
     if concat_args:
         args = (' '.join(args[0]),) + args[1:]
     try:
-        log_debug("Run: %s" % ' '.join(args[0]))
+        log_debug("Run '%s'" % ' '.join(args[0]))
         return subprocess.Popen(*args, **kwargs)
     except:
         log_error("Cannot run command `%s'\n" % ' '.join(args[0]), exc_info=True)
