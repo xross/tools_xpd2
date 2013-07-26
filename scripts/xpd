@@ -30,6 +30,30 @@ xdoc = None
 xmossphinx = None
 xmos_xref = None
 
+# Allow the running of python code while capturing the output
+import contextlib
+from cStringIO import StringIO
+@contextlib.contextmanager
+def capture():
+    oldout,olderr = sys.stdout,sys.stderr
+    try:
+        out=[StringIO(), StringIO()]
+        sys.stdout,sys.stderr = out
+        yield out
+    finally:
+        sys.stdout,sys.stderr = oldout, olderr
+        out[0] = out[0].getvalue()
+        out[1] = out[1].getvalue()
+
+def run_xdoc(cmd, path='.', config={}):
+    log_info("Running 'xdoc %s' in %s" % (cmd, os.path.abspath(path)))
+    with capture() as (stdout, stderr):
+        xdoc.main(cmd, path=path, config=config)
+    for line in stdout.getvalue().split('\n'):
+        log_debug('  ' + line)
+    for line in stderr.getvalue().split('\n'):
+        log_debug('  ' + line)
+
 def assert_exists(dep):
     if not os.path.exists(dep.get_local_path()):
         log_error("Dependency missing for update: %s" % dep.repo_name)
@@ -1894,9 +1918,9 @@ def xpd_build_topdoc(repo, options=None, args=None):
     if os.path.exists(changelog_path):
         shutil.copy(changelog_path, os.path.join(topdoc_path, 'changelog.rst'))
     if repo.is_xmos_repo():
-        xdoc.main('xdehtml', path=topdoc_path, config={'XDEHTML_UNPAGED_OUTPUT':'1'})
+        run_xdoc('xdehtml', path=topdoc_path, config={'XDEHTML_UNPAGED_OUTPUT':'1'})
     else:
-        xdoc.main('html', path=topdoc_path)
+        run_xdoc('html', path=topdoc_path)
     log_info("Top level document created in %s" % topdoc_path)
 
     repo.topdoc_path = topdoc_path
@@ -1913,7 +1937,7 @@ def xpd_create_doc_xrefs(repo, options, args):
         xdoc_config['AUTO_CREATE'] = "1"
         xdoc_config['FORCE_UPLOAD'] = '1'
         xdoc_config['COGNIDOX_PATH'] = "/Projects/Apps"
-        xdoc.main('xref_all', config=xdoc_config)
+        run_xdoc('xref_all', config=xdoc_config)
         build_dir = os.path.join(docdir, '_build')
         if os.path.exists(build_dir):
             shutil.rmtree(build_dir)
@@ -1933,7 +1957,7 @@ def xpd_create_doc_xrefs(repo, options, args):
         shutil.copy(readme, readme.replace('.rst', rstonlysuffix))
 
         if repo.is_xmos_repo() or options.github:
-            xdoc.main('xref_all', config=xdoc_config)
+            run_xdoc('xref_all', config=xdoc_config)
         build_dir = os.path.join(docdir, '_build')
         if os.path.exists(build_dir):
             shutil.rmtree(build_dir)
@@ -1972,13 +1996,13 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
                 docnums.append((partnum, issue, docdir))
                 cognidox.assign_license(partnum, 'General Public')
             else:
-                xdoc.main('xdehtml', config=xdoc_config)
+                run_xdoc('xdehtml', config=xdoc_config)
                 if buildlatex:
-                    xdoc.main('xmospdf', config=xdoc_config)
+                    run_xdoc('xmospdf', config=xdoc_config)
         else:
-            xdoc.main('html')
+            run_xdoc('html')
             if buildlatex:
-                xdoc.main('pdf')
+                run_xdoc('pdf')
         os.chdir(curdir)
 
         if repo.is_xmos_repo() and repo.partnumber:
@@ -2008,7 +2032,7 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
 
         if docinfo.title == None:
             log_error("Problem with seealso cross reference.")
-            log_error("ERROR: Cannot determine title of %s" % docnum)
+            log_error("Cannot determine title of %s" % docnum)
             sys.exit(1)
 
         seealsos.append(('https://test.xmos.com/doc/%s/%s' % (docnum, issue),
@@ -2035,7 +2059,7 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
         shutil.copy(readme, readme.replace('.rst', rstonlysuffix))
 
         if repo.is_xmos_repo() or options.github:
-            xdoc.main('text', config=xdoc_config)
+            run_xdoc('text', config=xdoc_config)
             if options and options.upload:
                 partnum,lastversion = xdoc.main('issue', config=xdoc_config)
                 swblock.docPartNumber = partnum
@@ -2046,11 +2070,11 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
                 cognidox.assign_license(partnum, 'General Public')
 
             else:
-                xdoc.main('xdehtml', config=xdoc_config)
+                run_xdoc('xdehtml', config=xdoc_config)
         else:
-            xdoc.main('html')
+            run_xdoc('html')
             if buildlatex:
-                xdoc.main('pdf')
+                run_xdoc('pdf')
 
         readme = os.path.join(docdir, 'README.rst')
         os.remove(readme.replace('.rst', rstonlysuffix))
