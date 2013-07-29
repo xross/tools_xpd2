@@ -2191,7 +2191,6 @@ def call_xsoftip(command, comp, repo):
     args[3] = repo.path
 
     cmd = ["xsoftip", command] + args
-    log_info(" ".join(cmd))
     return call(cmd, cwd=repo.path)
 
 def xpd_build_results(repo, options, args, return_valid=False):
