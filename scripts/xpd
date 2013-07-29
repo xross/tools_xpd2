@@ -2252,13 +2252,14 @@ def xpd_validate_swblock(repo, options, args, return_valid=False):
 def get_tools_version():
     (stdout_lines, stderr_lines) = call_get_output(["xcc", "--version"])
 
-    try:
-        m = re.match("(\d+\.\d+\.\d+).*", stdout_lines[0])
-        if m:
-            log_info("VERSION:" + m.groups(1)[0])
-            return m.groups(1)[0]
-    except e:
-        return "development"
+    if not stdout_lines:
+        log_error("Failed to determine tools version using 'xcc --version'")
+        sys.exit(1)
+
+    m = re.match("(\d+\.\d+\.\d+).*", stdout_lines[0])
+    if m:
+        log_info("Using tools verion:" + m.groups(1)[0])
+        return m.groups(1)[0]
 
     return "development"
 
