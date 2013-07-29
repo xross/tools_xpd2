@@ -7,6 +7,7 @@ import shutil
 import hashlib
 from xpd import templates
 from xmos_logging import log_error, log_warning, log_info, log_debug
+from xmos_subprocess import call_get_output
 
 rst_title_regexp = r'[-=^~.][-=^~.]+'
 
@@ -25,6 +26,14 @@ def prompt(force, prompt, default):
         return x.upper() not in ['N', 'NO']
     else:
         return x.upper() not in ['Y', 'YES']
+
+def file_changed(path):
+    (folder, filename) = os.path.split(path)
+    (stdout_lines, stderr_lines) = call_get_output(["git", "status", '--porcelain', filename], cwd=folder)
+    if not stdout_lines and not stderr_lines:
+        return False
+    else:
+        return True
 
 def new_id(m):
      return "id = \"" + m.groups(0)[0] + "." + str(rand.randint(0,100000000)) + "\""
@@ -102,7 +111,8 @@ def _check_project(repo, path=None, force_creation=False):
                 line = line.replace('%PROJECT%', name)
                 f.write(line+"\n")
             f.close()
-            log_info("New .project created in %s" % name)
+            if file_changed(project_path):
+                log_info("New .project created in %s" % name)
             project_ok = True
 
     repo.git_add(project_path)
@@ -469,7 +479,8 @@ def _check_cproject(repo, makefiles, project_deps, path=None, force_creation=Fal
         if prompt(force_creation, "There is a problem with the eclipse .cproject file.\n" + 
                                   "Do you want xpd to create a new one", True):
             create_cproject(repo, path, name, configs, all_includes, is_module=is_module)
-            log_info("New .cproject created in %s" % name)
+            if file_changed(cproject_path):
+                log_info("New .cproject created in %s" % name)
 
     repo.git_add(cproject_path)
     repo.git_add(cproject_path.replace('.cproject','.xproject'))
@@ -642,7 +653,8 @@ def check_toplevel_makefile(repo, force_creation=False):
              f = open(os.path.join(repo.path,'Makefile'), 'wb')
              f.write(templates.toplevel_makefile)
              f.close()
-             log_info("New toplevel Makefile created")
+             if file_changed(path, name):
+                 log_info("New toplevel Makefile created")
 
     return updates_required
 
