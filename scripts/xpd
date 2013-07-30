@@ -18,7 +18,8 @@ from xpd import templates
 import cognidox
 from xpd.docholder import DocumentHolder, DHSection, DHDocumentLink
 from xmos_logging import log_error, log_warning, log_info, log_debug, configure_logging, print_status_summary
-from xmos_subprocess import call, call_get_output
+import subprocess
+from xmos_subprocess import call, call_get_output, Popen
 import xdoc
 import xmossphinx
 import xmos_xref
@@ -1001,7 +1002,6 @@ def insert_doc(repo_name, path, zipfile, base=None, insert_pdf=True,
                is_xmos_repo=True, repo=None):
 
     import_xdoc()
-    log_info(path)
     config = xdoc.get_config(path)
     pdfname = config['SPHINX_MASTER_DOC'] + '.pdf'
 
@@ -2191,7 +2191,22 @@ def call_xsoftip(command, comp, repo):
     args[3] = repo.path
 
     cmd = ["xsoftip", command] + args
-    return call(cmd, cwd=repo.path)
+    process = Popen(cmd, cwd=repo.path, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    while True:
+        line = process.stdout.readline()
+        if not line:
+            break
+
+        if 'ERROR' in line:
+            log_error('    ' + line.rstrip())
+        elif 'WARNING' in line:
+            log_warning('    ' + line.rstrip())
+        elif re.search('Configuration \d+/\d+', line):
+            log_info('    ' + line.rstrip())
+        else:
+            log_debug('    ' + line.rstrip())
+
+    return process.wait()
 
 def xpd_build_results(repo, options, args, return_valid=False):
     if args == []:
@@ -2209,6 +2224,7 @@ def xpd_build_results(repo, options, args, return_valid=False):
                     f.write("<buildresults></buildresults>");
                     f.close()
                 else:
+                    log_info("Generating buildresults for %s" % comp.id)
                     ret = call_xsoftip("buildresults", comp, repo)
                     if ret != 0:
                         return False
@@ -2238,6 +2254,7 @@ def xpd_validate_swblock(repo, options, args, return_valid=False):
             comp.init_from_path(repo, comp.path)
             check_swblock(repo, options, args, comp)
             if comp.metainfo_path:
+                log_info("Validating metadata for %s" % comp.id)
                 ret = call_xsoftip("validate", comp, repo)
                 if ret != 0:
                     return False
@@ -2281,7 +2298,7 @@ def xpd_install_local_xml(repo, cache_path, github=False):
                         os.path.join(cache_path, package.name + "-" + component.id + ".buildresults"))
         elif component.buildresults_path:
             if component.scope != "Roadmap":
-                log_warning("%s has no buildresults!" % component.name)
+                log_warning("%s has no buildresults!" % component.id)
             f = open(os.path.join(cache_path, package.name + "-" + component.id + ".buildresults"), 'wb')
             f.write("<buildresults></buildresults>");
             f.close()
