@@ -2199,6 +2199,8 @@ def call_xsoftip(command, comp, repo):
 
         if 'ERROR' in line:
             log_error('    ' + line.rstrip())
+        elif 'Exception in thread' in line:
+            log_error('    ' + line.rstrip())
         elif 'WARNING' in line:
             log_warning('    ' + line.rstrip())
         elif re.search('Configuration \d+/\d+', line):
