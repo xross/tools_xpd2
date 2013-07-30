@@ -653,7 +653,7 @@ def check_toplevel_makefile(repo, force_creation=False):
              f = open(os.path.join(repo.path,'Makefile'), 'wb')
              f.write(templates.toplevel_makefile)
              f.close()
-             if file_changed(path, name):
+             if file_changed(path):
                  log_info("New toplevel Makefile created")
 
     return updates_required
