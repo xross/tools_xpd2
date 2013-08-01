@@ -646,7 +646,7 @@ class Repo(XmlObject):
                 ["git", "diff-index", "--name-only", "HEAD", "--"], cwd=self.path)
 
         # Ignore files which are changed by xpd
-        stdout_lines = [ x for x in stdout_lines if not re.search("(^fatal:|\.xproject|\.cproject|xpd.xml)", x) ]
+        stdout_lines = [ x for x in stdout_lines if not re.search("(^fatal:|\.xproject|\.cproject|\.project|xpd.xml)", x) ]
 
         if stdout_lines:
             return True
