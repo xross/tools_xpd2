@@ -1516,6 +1516,9 @@ def xpd_getdeps(repo, options, args):
         if os.path.exists(dep_path):
             log_info("Dependency %s already exists" % dep_path)
 
+        elif not dep.uri:
+            log_error("Can't clone dependency %s due to missing uri" % dep.repo_name)
+
         else:
             log_info("Cloning " + dep.repo_name)
             call(["git", "clone", dep.uri, dep_path])
