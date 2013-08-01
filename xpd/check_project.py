@@ -362,13 +362,6 @@ def create_cproject(repo, path=None, name=None, configs=None, all_includes=[],
 
    create_xproject(repo, path)
 
-def remove_repo_from_include(include):
-     m = re.match('[^/]*/(.*)',include)
-     if m:
-          return m.groups(0)[0]
-     else:
-          return include
-
 def valid_include_path(relpath):
      if re.match('^doc.*', relpath):
           return False
