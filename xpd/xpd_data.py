@@ -897,16 +897,22 @@ class Repo(XmlObject):
         return None
 
     def excluded(self, path):
-        # If there are any include_dirs then they take preference
+        # Matches need to be either an exact match on the entire path
+        # or a match with the trailing / to prevent folders which are
+        # the same but then longer (e.g. test and test1) matching
+
         if self.include_dirs:
+            # If there are any include_dirs then they take preference
             for include in self.include_dirs:
-                match_path = os.path.join(self.path, exclude, '.*')
+                match_path = os.path.join(self.path, include)
+                match_path += '($|/.*)'
                 if re.match(match_path, path):
                     return False
             return True
 
         for exclude in self.exclude_dirs:
-            match_path = os.path.join(self.path, exclude, '.*')
+            match_path = os.path.join(self.path, exclude)
+            match_path += '($|/.*)'
             if re.match(match_path, path):
                 return True
         return False
