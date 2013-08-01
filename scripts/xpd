@@ -467,10 +467,11 @@ def xpd_create_release(repo, options, args):
         return True
 
     patched_files = repo.patch_version_defines(version)
-    log_info("Adding patched files:")
-    for f in patched_files:
-        log_info("  %s" % f)
-        repo.git_add(f)
+    if patched_files:
+        log_info("Adding patched files:")
+        for f in patched_files:
+            log_info("  %s" % f)
+            repo.git_add(f)
 
     log_info("Creating sandbox and checking build")
     repo.move_to_temp_sandbox()
