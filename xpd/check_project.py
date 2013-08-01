@@ -7,7 +7,7 @@ import shutil
 import hashlib
 from xpd import templates
 from xmos_logging import log_error, log_warning, log_info, log_debug
-from xmos_subprocess import call_get_output
+from xmos_subprocess import call_get_output, platform_is_windows
 
 rst_title_regexp = r'[-=^~.][-=^~.]+'
 
@@ -311,7 +311,7 @@ def create_cproject(repo, path=None, name=None, configs=None, all_includes=[],
    includes = ['<listOptionValue builtIn="false" value=\'%s\' />\n'%x for x in sorted(all_includes)]
    includes = ''.join(includes)
 
-   if sys.platform.startswith('win'):
+   if platform_is_windows():
        # On Windows need to write out paths with '/' instead of '\'
        includes = includes.replace('\\','/')
 
