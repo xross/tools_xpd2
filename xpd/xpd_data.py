@@ -905,14 +905,14 @@ class Repo(XmlObject):
             # If there are any include_dirs then they take preference
             for include in self.include_dirs:
                 match_path = os.path.join(self.path, include)
-                match_path += '($|/.*)'
+                match_path += '(' + re.escape(os.path.sep) + '.*)?$'
                 if re.match(match_path, path):
                     return False
             return True
 
         for exclude in self.exclude_dirs:
             match_path = os.path.join(self.path, exclude)
-            match_path += '($|/.*)'
+            match_path += '(' + re.escape(os.path.sep) + '.*)?$'
             if re.match(match_path, path):
                 return True
         return False

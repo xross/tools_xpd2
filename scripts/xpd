@@ -114,7 +114,7 @@ def get_current_modules(repo):
             continue
         if re.match('.*\.doxygen.*', root):
             continue
-        if re.search('%s__' % os.path.sep, root):
+        if re.search(re.escape(os.path.sep) + '__', root):
             continue
         if repo.excluded(root):
             continue
@@ -693,7 +693,7 @@ def xpd_make_zip(repo, options, args, dest=None):
 
         f = zipfile.ZipFile(fname, "r")
         for name in f.namelist():
-            m = re.match("[^/]*/([^/]*)/(.*)$", name)
+            m = re.match("[^/]*/([^/]*)/(.*)$".replace('/', re.escape(os.path.sep)), name)
             if not m:
                 continue
             id = m.groups(0)[0]
@@ -799,22 +799,22 @@ def zip_repo(repo, zipfile, exports, include_binaries=False, force=False, no_app
     excludes = []
 
     for docdir in repo.docdirs:
-        excludes.append(docdir + os.path.sep + '*')
+        excludes.append(docdir + re.escape(os.path.sep) + '*')
 
-    excludes.append('toplevel_doc' + os.path.sep + '*')
-    excludes.append('*_build' + os.path.sep + '*')
+    excludes.append('toplevel_doc' + re.escape(os.path.sep) + '*')
+    excludes.append('*_build' + re.escape(os.path.sep) + '*')
     excludes.append('__*')
     excludes.append('*app_description')
     excludes.append('*module_description')
     excludes.append('.zipinfo')
     excludes.append('*issue.zip')
     excludes.append('*.build_*')
-    excludes.append('*.build' + os.path.sep + '*')
+    excludes.append('*.build' + re.escape(os.path.sep) + '*')
     excludes.append('input_doc_map.xml')
-    excludes.append('*' + os.path.sep + '__*')
+    excludes.append('*' + re.escape(os.path.sep) + '__*')
 
     for component in repo.components:
-        excludes.append('*' + component.path + os.path.sep + 'README.rst')
+        excludes.append('*' + component.path + re.escape(os.path.sep) + 'README.rst')
 
     if xpd.check_project.flat_projects:
         excludes.append('.cproject')
@@ -857,8 +857,8 @@ def zip_repo(repo, zipfile, exports, include_binaries=False, force=False, no_app
                     fh.close()
                     makefile_str = xpd.check_project.patch_makefile(makefile_str)
                     zipfile.writestr(arcname, makefile_str)
-            elif re.match('(.*)' + os.path.sep + '\.xproject', f):
-                m = re.match('(.*)' + os.path.sep + '\.xproject', f)
+            elif re.match('(.*)' + re.escape(os.path.sep) + '\.xproject', f):
+                m = re.match('(.*)' + re.escape(os.path.sep) + '\.xproject', f)
                 dirname = os.path.basename(m.groups(0)[0])
                 lines = open(os.path.join(repo.path, f)).readlines()
                 new_xproject = ''.join(lines)
@@ -954,7 +954,7 @@ def insert_dep_docs_to_zip(main_zipfile, sub_zipfile, repo_name):
     dep_zip = zipfile.ZipFile(sub_zipfile, mode='r')
     existing = main_zipfile.namelist()
     for name in dep_zip.namelist():
-        m = re.match(repo_name + os.path.sep + 'doc' + os.path.sep + '.*', name)
+        m = re.match(repo_name + re.escape(os.path.sep) + 'doc' + re.escape(os.path.sep) + '.*', name)
         if m or name == repo_name + os.path.sep + 'README.html':
             zfile = dep_zip.open(name)
             s = zfile.read()
@@ -977,7 +977,7 @@ def insert_topdoc(repo, zipfile):
             src = os.path.join(htmlpath, f)
             dst = os.path.join(zipdocpath, f)
             dst = dst.replace('_static', '.static')
-            if re.match('[^/]*.html', f):
+            if re.match('[^' + re.escape(os.path.sep) + ']*.html', f):
                 index_str = open(src).read()
                 index_str = index_str.replace('_static', '.static')
                 if f == 'index.html':

@@ -373,22 +373,22 @@ def valid_include_path(relpath):
      if re.match('^doc.*', relpath):
           return False
 
-     if re.match('.*/doc$', relpath):
+     if re.match('.*' + re.escape(os.path.sep) + 'doc$', relpath):
           return False
 
      if re.match('^__.*', relpath):
           return False
 
-     if re.match('.*/__.*', relpath):
+     if re.match('.*' + re.escape(os.path.sep) + '__.*', relpath):
           return False
 
-     if re.match('(^|.*/)_build.*', relpath):
+     if re.match('(^|.*' + re.escape(os.path.sep) + ')_build.*', relpath):
           return False
 
-     if re.search('(^|.*/)\.build', relpath):
+     if re.search('(^|.*' + re.escape(os.path.sep) + ')\.build', relpath):
           return False
 
-     if re.search('(^|.*/)bin', relpath):
+     if re.search('(^|.*' + re.escape(os.path.sep) + ')bin', relpath):
           return False
 
      return True
