@@ -34,7 +34,7 @@ xmos_xref = None
 def assert_exists(dep):
     if not os.path.exists(dep.get_local_path()):
         log_error("Dependency missing for update: %s" % dep.repo_name)
-        log_error("  - Use 'xpd getdeps' to get dependent repositories")
+        log_error("  - Use 'xpd get_deps' to get dependent repositories")
         sys.exit(1)
 
 def samefile(fileA, fileB):
@@ -68,7 +68,7 @@ def xpd_dep_iter(repo, command, output_repo_names=True):
         os.system(command)
         os.chdir(cwd)
 
-def xpd_show_dep(repo, options, args):
+def xpd_show_deps(repo, options, args):
     if repo.dependencies == []:
         log_info("No dependencies")
     else:
@@ -184,9 +184,7 @@ def xpd_add_dep(repo, options, args):
     log_info("Added")
     return True
 
-def xpd_check_dep(repo, options, args, return_current_ok=False,
-        allow_updates=True, force_changes=True):
-
+def xpd_check_deps(repo, options, args, return_current_ok=False, allow_updates=True):
     deps = [d.repo_name for d in repo.dependencies]
 
     current_ok = True
@@ -196,8 +194,7 @@ def xpd_check_dep(repo, options, args, return_current_ok=False,
     update = False
     for dep_repo in repos:
 
-        if allow_updates and \
-           (force_changes or confirm("Add %s to dependencies" % dep_repo, default=True)):
+        if allow_updates:
             dep = Dependency(parent=repo)
             dep.repo_name = dep_repo
             dep.repo = Repo(dep.get_local_path())
@@ -210,8 +207,7 @@ def xpd_check_dep(repo, options, args, return_current_ok=False,
             log_info("Added")
             update = True
         else:
-            if not allow_updates:
-                log_warning("Dependency %s is not up to date" % dep_repo)
+            log_warning("Dependency %s is not up to date" % dep_repo)
             if dep_repo != "xcommon":
                 current_ok = False
 
@@ -219,8 +215,7 @@ def xpd_check_dep(repo, options, args, return_current_ok=False,
         rel = dep.repo.current_release()
         if dep.githash != dep.repo.current_githash() or \
            (rel and dep.version_str != str(rel.version)):
-            if allow_updates and \
-                    (force_changes or confirm("%s has new local version. Update metainformation" % dep.repo_name, default=True)):
+            if allow_updates:
                 dep.githash = dep.repo.current_githash()
                 if rel:
                     dep.version_str = str(rel.version)
@@ -228,8 +223,7 @@ def xpd_check_dep(repo, options, args, return_current_ok=False,
                     dep.version_str = None
                 update = True
             else:
-                if not allow_updates:
-                    log_warning("Dependency %s is not up to date" % dep.repo_name)
+                log_warning("Dependency %s is not up to date" % dep.repo_name)
                 current_ok = False
 
     if len(repos) == 0 and current_ok and not update:
@@ -441,7 +435,7 @@ def xpd_create_release(repo, options, args):
         log_error("Try a 'git pull'")
         sys.exit(1)
 
-    current_ok = xpd_check_dep(repo, options, args, return_current_ok=True)
+    current_ok = xpd_check_deps(repo, options, args, return_current_ok=True)
 
     if not current_ok:
         log_error("Cannot create release: dependencies not up to date")
@@ -552,8 +546,7 @@ def xpd_make_zip(repo, options, args, dest=None):
         log_error("Cannot make zip: uncommitted modifications")
         sys.exit(1)
 
-    current_ok = xpd_check_dep(repo, options, args, return_current_ok=True,
-                                allow_updates=False)
+    current_ok = xpd_check_deps(repo, options, args, return_current_ok=True, allow_updates=False)
 
     if not current_ok:
         log_warning("Current dependency versions do not match meta-data")
@@ -1100,7 +1093,7 @@ def xpd_show(repo, options, args):
         print_software_block_details(module)
 
     log_info("\nDEPENDENCIES:\n")
-    xpd_show_dep(repo, options, args)
+    xpd_show_deps(repo, options, args)
 
     if repo.exports != []:
         log_info("\nEXPORTS:\n")
@@ -1514,7 +1507,7 @@ def xpd_checkout(repo, options, args):
     for dep in vrepo.dependencies:
         dep.repo.checkout(dep.githash)
 
-def xpd_getdeps(repo, options, args):
+def xpd_get_deps(repo, options, args):
     if args:
         if args[0] == 'master':
             vrepo = repo
@@ -1718,7 +1711,7 @@ A repository can contains modules that contain sets of source files than can be 
         f.close()
         repo.git_add('README.rst')
 
-    xpd_check_dep(repo, options, args)
+    xpd_check_deps(repo, options, args)
 
     return True
 
@@ -2082,7 +2075,7 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
 def xpd_check_all(repo, options, args):
     ok = True
     if not (options.nocheckdep):
-        res = xpd_check_dep(repo, options, args, return_current_ok=True)
+        res = xpd_check_deps(repo, options, args, return_current_ok=True)
         ok = ok and res
         if res:
             log_info("DEPENDENCIES OK")
@@ -2503,17 +2496,17 @@ other_commands =[
             ("info", "Same as status"),
             ("show", "Same as status"),
             ("checkout", "Checkout release"),
-            ("getdeps", "Clone the dependencies of this repository. Optionally takes a version."),
             ("check_all", "Check all meta information and infrastructure"),
             ("check_info", "Check related information"),
             ("check_swblocks", "Check swblocks"),
             ("validate_swblock", "Validate swblock"),
             ("build_results", "Build results for swblock"),
             ("tag", "Tag the repo with a version"),
-            ("show_dep", "Show dependencies"),
             ("add_dep", "Add dependency"),
             ("remove_dep", "Remove dependency"),
-            ("check_dep", "Check dependencies of the current repository"),
+            ("show_deps", "Show dependencies"),
+            ("check_deps", "Check dependencies of the current repository"),
+            ("get_deps", "Clone the dependencies of this repository. Optionally takes a version."),
             ("check_infr", "Check infrastructure (Makefiles, eclipse projects)"),
             ("check_makefiles", "Check makefiles"),
             ("update_readme", "Update README.rst with latest metainformation"),
@@ -2611,8 +2604,8 @@ if __name__ == "__main__":
 
     command = args[0]
 
-    # Do not expect dependencies to exist if running getdeps
-    if command not in ["getdeps", "list"]:
+    # Do not expect dependencies to exist if running get_deps
+    if command not in ["get_deps", "list"]:
         for dep in repo.dependencies:
             if not os.path.exists(dep.get_local_path()):
                 log_warning("Cannot find dependency: %s" % dep.repo_name)
