@@ -638,7 +638,7 @@ class Repo(XmlObject):
             return Version(0,0,0)
         return rels[-1].version
 
-    def has_local_modifications(self):
+    def get_local_modifications(self):
         (stdout_lines, stderr_lines) = call_get_output(
                 ["git", "update-index", "-q", "--refresh"], cwd=self.path)
 
@@ -646,9 +646,12 @@ class Repo(XmlObject):
                 ["git", "diff-index", "--name-only", "HEAD", "--"], cwd=self.path)
 
         # Ignore files which are changed by xpd
-        stdout_lines = [ x for x in stdout_lines if not re.search("(^fatal:|\.xproject|\.cproject|\.project|xpd.xml)", x) ]
+        stdout_lines = [ x.rstrip() for x in stdout_lines if not re.search("(^fatal:|\.xproject|\.cproject|\.project|xpd.xml)", x) ]
 
-        if stdout_lines:
+        return stdout_lines
+
+    def has_local_modifications(self):
+        if self.get_local_modifications():
             return True
         return False
 
@@ -934,7 +937,7 @@ class Repo(XmlObject):
                     for line in lines:
                         (line, patched) = self.line_patch_version_defines(filename, line, version)
                         file_patched |= patched
-                        f_ptr.write(line)
+                        f_ptr.write(line.rstrip() + '\n')
 
                 if file_patched:
                     patched_files.add(self.relative_filename(filename))

@@ -473,6 +473,19 @@ def xpd_create_release(repo, options, args):
             log_info("  %s" % f)
             repo.git_add(f)
 
+    modified_files = r.get_local_modifications()
+    if modified_files:
+        log_info("Adding files updated to unix line endings:")
+        for f in modified_files:
+            if is_source_file(f):
+                log_info("  %s" % f)
+                repo.git_add(f)
+
+    if local_mod and not options.force:
+        # Sanity check that should never fail
+        log_error("Cannot create release: uncommitted modifications")
+        sys.exit(1)
+
     log_info("Creating sandbox and checking build")
     repo.move_to_temp_sandbox()
     xpd_build_sw(repo, options)
