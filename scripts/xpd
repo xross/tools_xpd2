@@ -342,17 +342,12 @@ def xpd_create_release(repo, options, args):
                 rtype = 'beta'
             elif x in ['r', 'rc']:
                 rtype = 'rc'
-            elif x in ['release']:
-                rtype = 'release'
 
             if rtype:
                 break
             else:
                 log_error("Unknown release type '%s'" % x)
 
-        if rtype in ['release', '']:
-            log_error("Cannot create release directly - must upgrade an rc")
-            sys.exit(1)
 
     if create_branch:
         pass
