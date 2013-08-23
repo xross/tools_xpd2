@@ -348,6 +348,13 @@ def xpd_create_release(repo, options, args):
             else:
                 log_error("Unknown release type '%s'" % x)
 
+    notes = xpd_parse_release_notes(repo, options, args, return_notes=True)
+    if not notes:
+        log_error("No versions found in CHANGELOG.rst, please update file first")
+        sys.exit(1)
+
+    check_order_of_versions(notes)
+    (latest_in_changelog, items) = notes[0]
 
     if create_branch:
         pass
@@ -372,7 +379,10 @@ def xpd_create_release(repo, options, args):
 
         version = None
         while True:
-            x = raw_input("Enter version number: ")
+            x = raw_input("Enter version number [%s]:" % latest_in_changelog)
+            if not x:
+                x = latest_in_changelog
+
             try:
                 version = Version(version_str=x)
                 break
@@ -390,21 +400,26 @@ def xpd_create_release(repo, options, args):
     if not confirm("Create release %s. Are you sure" % version, default=True):
         return False
 
-    notes = xpd_parse_release_notes(repo, options, args, return_notes = True)
-
     fstr = version.final_version_str()
-    if not fstr in notes:
+    found = False
+    for (notes_version, items) in notes:
+        if notes_version == fstr:
+            if found:
+                log_error("Duplicate release note entries for %s" % fstr)
+
+            print "RELEASE NOTES FOR %s:" % fstr
+            print "----"
+            for item in items:
+                print item
+                print "----"
+            if not confirm("Are these notes up to date", default=True):
+                print "Please update notes and try again"
+                return True
+            found = True
+
+    if not found:
         log_error("Cannot find release notes for %s, please update CHANGELOG.rst" % fstr)
         return True
-    else:
-        print "RELEASE NOTES FOR %s:" % fstr
-        print "----"
-        for item in notes[fstr]:
-            print item
-            print "----"
-        if not confirm("Are these notes up to date", default=True):
-            print "Please update notes and try again"
-            return True
 
     release = Release()
     release.version = version
@@ -2139,7 +2154,7 @@ def xpd_parse_release_notes(repo, options, args, return_notes=False):
     item = ''
     new_item = False
     current_version = None
-    notes = {}
+    notes = []
     for i, line in enumerate(lines):
         if i < len(lines)-1:
             next = lines[i+1]
@@ -2157,7 +2172,7 @@ def xpd_parse_release_notes(repo, options, args, return_notes=False):
         if v:
             if current_version:
                 items.append(item.strip())
-                notes[str(current_version)] = items
+                notes.append((str(current_version), items))
             current_version = v
             new_item = True
             items = []
@@ -2180,14 +2195,28 @@ def xpd_parse_release_notes(repo, options, args, return_notes=False):
 
     if current_version:
         items.append(item.strip())
-        notes[str(current_version)] = items
-
-#       log_info(line.strip())
+        notes.append((str(current_version), items))
 
     if not return_notes:
         log_info(notes)
         return False
     return notes
+
+def check_order_of_versions(notes):
+    ''' Ensure that the order of the releases in the CHANGELOG is actually increasing numerically
+    '''
+    changelog_versions = [ v for (v, i) in notes ]
+    versions = []
+    for v in changelog_versions:
+        try:
+            versions.append(Version(version_str=v+'rc0'))
+        except:
+            log_error("Can't parse version string %s in CHANGELOG" % v)
+    sorted_versions = [ v.final_version_str() for v in sorted(versions, reverse=True) ]
+    if changelog_versions != sorted_versions:
+        log_error("The order of versions in the CHANGELOG.rst is not sorted correctly")
+        log_info("Found %s" % str(changelog_versions))
+        log_info("Expected %s" % str(sorted_versions))
 
 def call_xsoftip(command, comp, repo):
     args = ['', '', '', '']
