@@ -235,6 +235,9 @@ def get_configs(mkfile_path):
             else:
                 in_config_branch = ''
 
+    if not configs:
+        configs.add('Default')
+
     return flag_types, configs
 
 def get_all_configs(makefiles):
@@ -427,8 +430,6 @@ def _check_cproject(repo, makefiles, project_deps, path=None, force_creation=Fal
     all_includes = ['&quot;${workspace_loc:/%s}&quot;' % i \
                          for i in all_includes if i != '']
 
-#    sys_includes = ['&quot;${XMOS_DOC_PATH}/../target/include&quot;']
-#                    '&quot;${XMOS_TOOL_PATH}/target/include&quot;']
     sys_includes = []
 
     log_debug("%s: checking .cproject file" % name)
