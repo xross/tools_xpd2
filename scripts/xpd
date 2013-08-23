@@ -72,25 +72,29 @@ def xpd_show_deps(repo, options, args):
     if repo.dependencies == []:
         log_info("No dependencies")
     else:
-        log_info("Actual:")
+        log_info("Dependencies:")
         for dep in repo.dependencies:
+            if dep.version_str:
+                expected = dep.version_str
+            else:
+                expected = dep.githash
+
+            local_mod = ""
+            actual = "???"
             if dep.repo:
                 rel = dep.repo.current_release()
                 if dep.repo.has_local_modifications():
                     local_mod = "(local modifications)"
-                else:
-                    local_mod = ""
-                if rel:
-                    log_info("%20s: %s %s" % (dep.repo, rel.version, local_mod))
-                else:
-                    log_info("%20s: %s %s" % (dep.repo, dep.repo.current_githash(), local_mod))
 
-        log_info("\nExpected:")
-        for dep in repo.dependencies:
-            if dep.version_str:
-                log_info("%20s: %s" % (dep.repo_name, dep.version_str))
+                if rel:
+                    actual = str(rel.version)
+                else:
+                    actual = dep.repo.current_githash()
+
+            if actual == expected:
+                log_info("%20s: %s (ok) %s" % (dep.repo_name, expected, local_mod))
             else:
-                log_info("%20s: %s" % (dep.repo_name, dep.githash))
+                log_info("%20s: %s (found %s) %s" % (dep.repo_name, expected, actual, local_mod))
 
 def xpd_remove_dep(repo, options, args):
     if len(args) < 1:
