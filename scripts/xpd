@@ -2572,15 +2572,11 @@ if __name__ == "__main__":
     usage = "usage: %prog command [options]"
     usage += "\n\nMost useful commands:\n\n"
     for c in common_commands:
-        usage += "%20s: %s"%(c[0], c[1])
-
-        usage += "\n"
+        usage += "%20s: %s\n" % (c[0], c[1])
 
     usage += "\n\nOther commands:\n\n"
     for c in other_commands:
-        usage += "%20s: %s"%(c[0], c[1])
-
-        usage += "\n"
+        usage += "%20s: %s\n" % (c[0], c[1])
 
     optparser = OptionParser(usage=usage)
 
@@ -2623,7 +2619,7 @@ if __name__ == "__main__":
     (options, args) = optparser.parse_args()
 
     if len(args) < 1:
-        optparser.error("incorrect number of arguments")
+        optparser.error("Please specify a command")
 
     git_dir = get_git_dir('.')
     os.chdir(git_dir)
