@@ -12,6 +12,7 @@ from copy import copy
 from xpd.xpd_data import Repo, Release, Version, Dependency
 from xpd.xpd_data import AllSoftwareDescriptor, SoftwareDescriptor
 from xpd.xpd_data import DocMap, Doc
+from xpd.xpd_data import is_source_file
 import xpd.check_project
 import xmlobject
 from xpd import templates
@@ -483,7 +484,7 @@ def xpd_create_release(repo, options, args):
 
     modified_files = r.get_local_modifications()
     if modified_files:
-        log_info("Adding files updated to unix line endings:")
+        log_info("Adding files with whitespace changes:")
         for f in modified_files:
             if is_source_file(f):
                 log_info("  %s" % f)
@@ -1124,7 +1125,6 @@ def add_indent(n, xs):
 def rst_make_title(title, ch):
     underline = ''.join([ch for x in title])
     return [title, underline, '']
-
 
 def xpd_update_readme(repo, options, args,
                       xmos_package=False, write_back=True,
@@ -1961,7 +1961,6 @@ def xpd_create_doc_xrefs(repo, options, args):
         build_dir = os.path.join(docdir, '_build')
         if os.path.exists(build_dir):
             shutil.rmtree(build_dir)
-
 
 def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
                    local_only=False):

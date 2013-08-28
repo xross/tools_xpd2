@@ -99,16 +99,19 @@ class Version(object):
             raise VersionParseError
 
     def major_increment(self):
-        return Version(self.major+1,0,0)
+        return Version(self.major+1, 0, 0)
 
     def minor_increment(self):
-        return Version(self.major,self.minor+1,0)
+        return Version(self.major, self.minor+1, 0)
 
     def point_increment(self):
-        return Version(self.major,self.minor,self.point+1)
+        return Version(self.major, self.minor, self.point+1)
+
+    def is_rc(self):
+        return self.rtype == 'rc'
 
     def is_full(self):
-        return (not self.branch and (self.rtype == 'release' or self.rtype==''))
+        return not self.branch and self.rtype in ['', 'release']
 
     def __cmp__(self, other):
         if other == None:
@@ -127,7 +130,7 @@ class Version(object):
             else:            
                 return cmp(self.rtype, other.rtype)
         else:
-            if self.rtype in ['','release']:
+            if self.rtype in ['', 'release']:
                 return 0
             else:
                 return cmp(self.rnumber, other.rnumber)
@@ -135,7 +138,7 @@ class Version(object):
     def __str__(self):
         vstr = ""
         rtype = self.rtype
-        if rtype=="release" or rtype=="":
+        if rtype in ['', 'release']:
             vstr = "%d.%d.%d" % (self.major, self.minor, self.point)
         else:
             vstr = "%d.%d.%d%s%d" % (self.major, self.minor, self.point,
