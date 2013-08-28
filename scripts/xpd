@@ -401,6 +401,22 @@ def xpd_create_release(repo, options, args):
     if not confirm("Create release %s. Are you sure" % version, default=True):
         return False
 
+    if version.is_rc():
+        errors = []
+        for dep in repo.dependencies:
+            rel = dep.repo.current_release()
+            if not rel:
+                errors.append("Dependency '%s' is not on a specified version" % dep.repo.name)
+            elif not dep.repo.partnumber:
+                errors.append("Dependency '%s' is not a published component" % dep.repo.name)
+            elif not rel.version.is_rc():
+                errors.append("Dependency '%s' is not an rc" % dep.repo.name)
+
+        for error in errors:
+            log_error(error)
+        if errors:
+            sys.exit(1)
+
     fstr = version.final_version_str()
     found = False
     for (notes_version, items) in notes:
