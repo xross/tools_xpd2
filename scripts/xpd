@@ -2567,8 +2567,6 @@ def get_git_dir(path):
 
 
 if __name__ == "__main__":
-    configure_logging(level_console='INFO', level_file='DEBUG', filename='run_xpd.log')
-
     usage = "usage: %prog command [options]"
     usage += "\n\nMost useful commands:\n\n"
     for c in common_commands:
@@ -2610,6 +2608,9 @@ if __name__ == "__main__":
     optparser.add_option("--code", dest="install_code", action="store_true", default=False,
                          help="Install code when doing an install_local")
 
+    default_logfile = 'run_xpd.log'
+    optparser.add_option("--logfile", dest="logfile", default=default_logfile,
+                         help="Log file to be used for xpd output (default=%s)" % default_logfile)
 
     if len(sys.argv) > 1 and sys.argv[1] == 'git':
         repo = Repo(".")
@@ -2620,6 +2621,8 @@ if __name__ == "__main__":
 
     if len(args) < 1:
         optparser.error("Please specify a command")
+
+    configure_logging(level_console='INFO', level_file='DEBUG', filename=options.logfile)
 
     git_dir = get_git_dir('.')
     os.chdir(git_dir)
