@@ -176,18 +176,19 @@ def xpd_add_dep(repo, options, args):
         if dep.repo_name == args[0]:
             log_error("dependency already exists")
             sys.exit(1)
-
-    dep = Dependency(parent=repo)
-    dep.repo_name = args[0]
-    dep.repo = Repo(dep.get_local_path())
-    dep.uri = dep.repo.uri()
-    dep.githash = dep.repo.current_githash()
-    rel = dep.repo.current_release()
-    if rel:
-        dep.version_str = str(rel.version)
-    repo.dependencies.append(dep)
-    log_info("Added")
+    
+    repo.add_dep(args[0])
     return True
+
+def get_date(repo, githash):
+    (stdout_lines, stderr_lines) = call_get_output(
+         ['git', 'diff-tree', '-s', '--pretty=%at', githash], cwd=repo.path)
+    try:
+        date = int(stdout_lines[0])
+    except:
+        log_warning("%s: Failed to determine date of githash '%s'" % (repo.name, githash))
+        date = 0
+    return date
 
 def xpd_check_deps(repo, options, args, return_current_ok=False, allow_updates=True):
     deps = [d.repo_name for d in repo.dependencies]
@@ -198,18 +199,8 @@ def xpd_check_deps(repo, options, args, return_current_ok=False, allow_updates=T
     repos = repos - set(deps)
     update = False
     for dep_repo in repos:
-
         if allow_updates:
-            dep = Dependency(parent=repo)
-            dep.repo_name = dep_repo
-            dep.repo = Repo(dep.get_local_path())
-            dep.uri = dep.repo.uri()
-            dep.githash = dep.repo.current_githash()
-            rel = dep.repo.current_release()
-            if rel:
-                dep.version_str = str(rel.version)
-            repo.dependencies.append(dep)
-            log_info("Added")
+            repo.add_dep(dep_repo)
             update = True
         else:
             log_warning("Dependency %s is not up to date" % dep_repo)
@@ -221,6 +212,17 @@ def xpd_check_deps(repo, options, args, return_current_ok=False, allow_updates=T
         if dep.githash != dep.repo.current_githash() or \
            (rel and dep.version_str != str(rel.version)):
             if allow_updates:
+                from_date = get_date(dep.repo, dep.githash)
+                to_date = get_date(dep.repo, dep.repo.current_githash())
+
+                message = 'Dependency %s: moving from %s to %s' % (dep.repo.name,
+                                 dep.version_str if dep.version_str else dep.githash,
+                                 str(rel.version) if rel else dep.repo.current_githash())
+                if from_date > to_date:
+                    log_warning(message + ' (moving backwards)')
+                else:
+                    log_info(message)
+
                 dep.githash = dep.repo.current_githash()
                 if rel:
                     dep.version_str = str(rel.version)

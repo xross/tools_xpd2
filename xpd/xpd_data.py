@@ -686,6 +686,18 @@ class Repo(XmlObject):
     def all_repos(self):
         return [d.repo for d in self.dependencies] + [self]
 
+    def add_dep(self, name):
+        dep = Dependency(parent=self)
+        dep.repo_name = name
+        dep.repo = Repo(dep.get_local_path())
+        dep.uri = dep.repo.uri()
+        dep.githash = dep.repo.current_githash()
+        rel = dep.repo.current_release()
+        if rel:
+            dep.version_str = str(rel.version)
+        self.dependencies.append(dep)
+        log_info("%s added %s as dependency" % (self.name, name))
+
     def get_child_hash(self, parenthash):
         return exec_and_match(["git","rev-list","--parents","--all"],
                               r'(.*) %s' % parenthash,
