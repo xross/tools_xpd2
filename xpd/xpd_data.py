@@ -641,20 +641,21 @@ class Repo(XmlObject):
             return Version(0,0,0)
         return rels[-1].version
 
-    def get_local_modifications(self):
+    def get_local_modifications(self, is_dependency=False):
         (stdout_lines, stderr_lines) = call_get_output(
                 ["git", "update-index", "-q", "--refresh"], cwd=self.path)
 
         (stdout_lines, stderr_lines) = call_get_output(
                 ["git", "diff-index", "--name-only", "HEAD", "--"], cwd=self.path)
 
-        # Ignore files which are changed by xpd
-        stdout_lines = [ x.rstrip() for x in stdout_lines if not re.search("(^fatal:|\.xproject|\.cproject|\.project|xpd.xml)", x) ]
+        # Ignore files which are changed by xpd unless it is a dependent repo which must have no changes
+        if not is_dependency:
+            stdout_lines = [ x.rstrip() for x in stdout_lines if not re.search("(^fatal:|\.xproject|\.cproject|\.project|xpd.xml)", x) ]
 
         return stdout_lines
 
-    def has_local_modifications(self):
-        if self.get_local_modifications():
+    def has_local_modifications(self, is_dependency=False):
+        if self.get_local_modifications(is_dependency=is_dependency):
             return True
         return False
 

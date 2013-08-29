@@ -84,7 +84,7 @@ def xpd_show_deps(repo, options, args):
             actual = "???"
             if dep.repo:
                 rel = dep.repo.current_release()
-                if dep.repo.has_local_modifications():
+                if dep.repo.has_local_modifications(is_dependency=True):
                     local_mod = "(local modifications)"
 
                 if rel:
@@ -569,7 +569,7 @@ def xpd_make_zip(repo, options, args, dest=None):
 
     local_mod = False
     for r in repo.all_repos():
-        if r and r.has_local_modifications():
+        if r and r.has_local_modifications(is_dependency=(False if r == repo else True)):
             log_warning("%s has local modifications" % r)
             local_mod = True
 
@@ -1527,7 +1527,7 @@ def xpd_checkout(repo, options, args):
     local_mod = False
     for dep in vrepo.dependencies:
         assert_exists(dep)
-        if dep.repo.has_local_modifications():
+        if dep.repo.has_local_modifications(is_dependency=True):
             log_error("%s has local modifications" % dep.repo_name)
             local_mod = True
     if local_mod:
