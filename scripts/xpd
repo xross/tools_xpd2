@@ -12,7 +12,7 @@ from copy import copy
 from xpd.xpd_data import Repo, Release, Version, Dependency
 from xpd.xpd_data import AllSoftwareDescriptor, SoftwareDescriptor
 from xpd.xpd_data import DocMap, Doc
-from xpd.xpd_data import is_source_file
+from xpd.xpd_data import is_source_file, changelog_str_to_version
 import xpd.check_project
 import xmlobject
 from xpd import templates
@@ -346,6 +346,37 @@ def xpd_build_sw(repo, options):
     log_info("Building repo ok")
 
 def xpd_create_release(repo, options, args):
+    errors = get_dep_errors(repo)
+    if errors and not options.force:
+        sys.exit(1)
+
+    if repo.is_detached_head():
+        log_error("Cannot create release from detached head.")
+        sys.exit(1)
+
+    # Do some checks
+    local_mod = False
+    for r in repo.all_repos():
+        if r.has_local_modifications(is_dependency=(False if r == repo else True)):
+            log_warning("%s has local modifications" % r)
+            local_mod = True
+
+    if local_mod and not options.force:
+        log_error("Cannot create release: uncommitted modifications")
+        sys.exit(1)
+
+    repo.git_fetch()
+    if repo.behind_upstream():
+        log_error("Upstream changes not merged in. Cannot create release")
+        log_error("Try a 'git pull'")
+        sys.exit(1)
+
+    current_ok = xpd_check_deps(repo, options, args, return_current_ok=True)
+
+    if not current_ok:
+        log_error("Cannot create release: dependencies not up to date")
+        sys.exit(1)
+
     if hasattr(options, 'release_branch') and options.release_branch:
         create_branch = True
     else:
@@ -481,33 +512,6 @@ def xpd_create_release(repo, options, args):
     log_info("Running checks")
 
     xpd_check_all(repo, options, [])
-
-    if repo.is_detached_head():
-        log_error("Cannot create release from detached head.")
-        sys.exit(1)
-
-    # Do some checks
-    local_mod = False
-    for r in repo.all_repos():
-        if r.has_local_modifications():
-            log_warning("%s has local modifications" % r)
-            local_mod = True
-
-    if local_mod and not options.force:
-        log_error("Cannot create release: uncommitted modifications")
-        sys.exit(1)
-
-    repo.git_fetch()
-    if repo.behind_upstream():
-        log_error("Upstream changes not merged in. Cannot create release")
-        log_error("Try a 'git pull'")
-        sys.exit(1)
-
-    current_ok = xpd_check_deps(repo, options, args, return_current_ok=True)
-
-    if not current_ok:
-        log_error("Cannot create release: dependencies not up to date")
-        sys.exit(1)
 
     xpd_check_info(repo, options, args)
 
@@ -2177,8 +2181,6 @@ def xpd_create_warnings(repo, options, args, return_warnings=False):
     if not rel:
         warnings.append("Repository is not at a specified version")
     for dep in repo.dependencies:
-        if dep.repo.name == 'xcommon':
-            continue
         log_info("Checking dependency %s" % dep.repo.name)
         rel = dep.repo.current_release()
         if not rel:
