@@ -564,20 +564,6 @@ def xpd_create_release(repo, options, args):
 
     repo.delete_temp_sandbox()
 
-    # deps = []
-
-    # for head_dep in repo.dependencies:
-    #     dep = copy(head_dep)
-    #     path = dep.get_local_path()
-    #     dep.gitbranch = dep.repo.current_gitbranch()
-    #     dep.githash = dep.repo.current_githash()
-    #     dep.uri = dep.repo.uri()
-    #     if dep.repo.current_release():
-    #         dep.version_str = str(dep.repo.current_release().version)
-    #     deps.append(dep)
-
-    # release.dependencies = deps
-
     release.parenthash = repo.current_githash()
 
     repo.releases.append(release)
@@ -590,9 +576,6 @@ def xpd_create_release(repo, options, args):
     repo.save_and_commit_release(release)
 
     release.githash = repo.get_child_hash(release.parenthash)
-
-    #if confirm("Do you want to make a zipfile ", default=True):
-    #    xpd_make_zip(repo, options, [])
 
     if confirm("Do you want to push the commit of this release upstream", default=True):
         repo.git_push()
