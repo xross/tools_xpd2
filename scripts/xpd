@@ -387,12 +387,11 @@ def xpd_create_release(repo, options, args):
             else:
                 log_error("Unknown release type '%s'" % x)
 
-    notes = xpd_parse_release_notes(repo, options, args, return_notes=True)
+    notes = repo.changelog_entries
     if not notes:
         log_error("No versions found in CHANGELOG.rst, please update file first")
         sys.exit(1)
 
-    check_order_of_versions(notes)
     (latest_in_changelog, items) = notes[0]
 
     if create_branch:
@@ -455,22 +454,22 @@ def xpd_create_release(repo, options, args):
         if errors:
             sys.exit(1)
 
+    xpd_update_changelog(repo, options, args)
+    repo.git_add('CHANGELOG.rst')
+
     fstr = version.final_version_str()
     found = False
     for (notes_version, items) in notes:
         if notes_version == fstr:
-            if found:
-                log_error("Duplicate release note entries for %s" % fstr)
-
+            found = True
             print "RELEASE NOTES FOR %s:" % fstr
             print "----"
             for item in items:
                 print item
-                print "----"
+            print "----"
             if not confirm("Are these notes up to date", default=True):
                 print "Please update notes and try again"
                 return True
-            found = True
 
     if not found:
         log_error("Cannot find release notes for %s, please update CHANGELOG.rst" % fstr)
@@ -2196,80 +2195,148 @@ def xpd_create_warnings(repo, options, args, return_warnings=False):
     else:
         return warnings
 
-def xpd_parse_release_notes(repo, options, args, return_notes=False):
-    changelog_path = os.path.join(repo.path, 'CHANGELOG.rst')
-    if not os.path.exists(changelog_path):
-        log_error("Cannot find CHANGELOG.rst")
-        sys.exit(1)
-    f = open(changelog_path)
-    lines = f.readlines()
-    f.close()
-    item = ''
-    new_item = False
-    current_version = None
-    notes = []
-    for i, line in enumerate(lines):
-        if i < len(lines)-1:
-            next = lines[i+1]
-        else:
-            next = ''
+def notes_version_matches(notes_version_str, version):
+    if notes_version_str == version.final_version_str():
+        return True
 
-        if re.match(xpd.check_project.rst_title_regexp, line):
+    notes_version = changelog_str_to_version(notes_version_str)
+    if not notes_version:
+        return False
+    return notes_version == version
+
+def get_version_diff(repo, from_version, to_version):
+    notes = repo.changelog_entries
+    diff = []
+    started = False
+    for (notes_version, items) in notes:
+        if notes_version_matches(notes_version, to_version):
+            started = True
+        if started:
+            if notes_version_matches(notes_version, from_version):
+                break
+            diff.extend(items)
+
+    return diff
+
+def choose_oldest_release(expected):
+    oldest = None
+    for version_str in expected:
+        try:
+            rel = Version(version_str=version_str)
+            if not oldest:
+                oldest = rel
+            elif rel < oldest:
+                oldest = rel
+        except xpd.xpd_data.VersionParseError:
+            pass
+
+    return oldest
+
+def strip_existing_changes_lines(lines):
+    new_lines = []
+    ignore = False
+    for line in lines:
+        # Ignore a set of dependency changes (from start to blank line)
+        if ignore:
+            if re.match('^\s*$', line):
+                ignore = False
             continue
 
-        try:
-            v = Version(version_str=line.strip())
-        except xpd.xpd_data.VersionParseError:
-            v = None
+        if re.match('.*Changes to dependencies:', line):
+            ignore = True
+            continue
 
-        if v:
-            if current_version:
-                items.append(item.strip())
-                notes.append((str(current_version), items))
-            current_version = v
-            new_item = True
-            items = []
-            item = ''
-            line = ''
+        new_lines.append(line)
 
-        m = re.match('\s*[-*] (.*)', line)
-        if m:
-            new_item = True
-            line = m.groups(0)[0]
+    return new_lines
 
-        if new_item:
-            item = item.strip()
-            if item != '':
-                items.append(item)
-            item = ''
-            new_item = False
-
-        item += line
-
-    if current_version:
-        items.append(item.strip())
-        notes.append((str(current_version), items))
-
-    if not return_notes:
-        log_info(notes)
-        return False
-    return notes
-
-def check_order_of_versions(notes):
-    ''' Ensure that the order of the releases in the CHANGELOG is actually increasing numerically
+def xpd_update_changelog(repo, options, args):
+    ''' Detect all changes in dependencies and add their changes to the changelog.
     '''
-    changelog_versions = [ v for (v, i) in notes ]
-    versions = []
-    for v in changelog_versions:
+    if not repo.changelog_entries or len(repo.changelog_entries) < 2:
+        log_debug("update_changelog: not enough entries to have a diff")
+        return
+
+    (previous, items) = repo.changelog_entries[1]
+    previous_rel = repo.latest_release(release_filter=lambda r: r.version.final_version_str() == previous)
+    log_debug("update_changelog: previous version %s" % previous_rel)
+
+    vrepo = repo.get_versioned_repo(previous_rel.version)
+
+    diffs = {}
+    versions = {}
+
+    # Can't work in the state where there are multiple version of a dependency
+    if get_dep_errors(repo):
+       sys.exit(1)
+
+    to_releases = {}
+    from_releases = {}
+
+    for (dep_name, expected) in get_all_deps(repo).iteritems():
+        # Having run get_dep_errors() there should now only be one version
+        version_str = iter(expected).next()
         try:
-            versions.append(Version(version_str=v+'rc0'))
-        except:
-            log_error("Can't parse version string %s in CHANGELOG" % v)
-    sorted_versions = [ v.final_version_str() for v in sorted(versions, reverse=True) ]
-    if changelog_versions != sorted_versions:
-        log_error("The order of versions in the CHANGELOG.rst is not sorted correctly")
-        log_info("Found %s" % str(changelog_versions))
-        log_info("Expected %s" % str(sorted_versions))
+            rel = Version(version_str=version_str)
+            to_releases[dep_name] = rel
+        except xpd.xpd_data.VersionParseError:
+            log_debug("update_changelog: can't determine current version dep for '%s'" % dep_name)
+
+    for (dep_name, expected) in get_all_deps(vrepo).iteritems():
+        log_debug("update_changelog: choosing from old versions %s for '%s'" % (str(expected), dep_name))
+        release = choose_oldest_release(expected)
+        if release:
+            log_debug("update_changelog: chose %s" % release)
+            from_releases[dep_name] = release
+        else:
+            log_debug("update_changelog: can't determine previous version dep for '%s'" % dep_name)
+
+    for dep in repo.dependencies:
+        dep_name = dep.repo.name
+        if dep_name not in to_releases:
+            log_debug("update_changelog: ignore '%s' as not currently on a version" % dep_name)
+            continue
+        if dep_name not in from_releases:
+            log_debug("update_changelog: ignore '%s' as could not determine previous version" % dep_name)
+            continue
+
+        vrel = from_releases[dep_name]
+        rel = to_releases[dep_name]
+        diff = get_version_diff(dep.repo, vrel, rel)
+        if diff:
+            diffs[dep.repo.name] = diff
+            versions[dep.repo.name] = "%s -> %s" % (vrel, rel)
+
+    if not diffs:
+        log_debug("update_changelog: no changes detected")
+        return
+
+    # Add the changes to the dependencies latest version
+    (version, items) = repo.changelog_entries[0]
+    items[:] = strip_existing_changes_lines(items)
+    items.append("  * Changes to dependencies:")
+    for (dep, changes) in diffs.iteritems():
+        items.append("    - %s: %s" % (dep, versions[dep]))
+        changes = strip_existing_changes_lines(changes)
+        for line in changes:
+            # Only copy in lines which are bullet points (no blank lines)
+            m = re.match('\s*[-*+] (.*)', line)
+            if m:
+                items.append("      + %s" % m.group(1))
+    items.append("")
+
+    # Write out the changelog with the changes to dependencies included
+    changelog_path = os.path.join(repo.path, 'CHANGELOG.rst')
+    with open(changelog_path, 'wb') as f:
+        xpd.check_project.write_changelog_title(repo, f)
+
+        for (version, items) in repo.changelog_entries:
+            f.write(version + '\n')
+            f.write('-'*len(version) + '\n')
+            f.write(line)
+
+            for item in items:
+                f.write(item + '\n')
 
 def call_xsoftip(command, comp, repo):
     args = ['', '', '', '']
@@ -2599,7 +2666,7 @@ other_commands =[
             ("make_docholder", "Make docholder (DEBUG)"),
             ("build_docs", "Make docs (DEBUG)"),
             ("build_topdoc", "Make toplevel docs (DEBUG)"),
-            ("parse_release_notes", "Parse release notes (DEBUG)"),
+            ("update_changelog", "Update the CHANGELOG.rst as the release will (DEBUG)"),
             ("create_warnings", "Create release warnings list (DEBUG)"),
             ("gen_package_xml", "Generate package xml (DEBUG)"),
             ("show_project_deps", "Show app/modules dependencies (DEBUG)"),

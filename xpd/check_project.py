@@ -676,6 +676,11 @@ def check_makefiles(repo, force_creation=False):
 
     return (not updates_required)
 
+def write_changelog_title(repo, f):
+    title = "%s Change Log" % repo.name 
+    f.write(title + '\n')
+    f.write(('=' * len(title)) + '\n\n')
+
 def check_changelog(repo, force_creation=False):
     ok = True
     changelog_path = os.path.join(repo.path, 'CHANGELOG.rst')
@@ -714,7 +719,7 @@ def check_changelog(repo, force_creation=False):
 
             # The title must have a section line after it
             if i < (len(lines) - 1):
-                if re.match(rst_title_regexp,lines[i+1]):
+                if re.match(rst_title_regexp, lines[i+1]):
                     replace_title = True
                     break
 
@@ -726,10 +731,8 @@ def check_changelog(repo, force_creation=False):
             log_warning('Title section in %s CHANGELOG.rst not valid' % repo.name)
             ok = False
             if prompt(force_creation, "Add valid title section", True):
-                title = "%s Change Log" % repo.name 
                 f = open(changelog_path, 'wb')
-                f.write(title + '\n')
-                f.write(('=' * len(title)) + '\n')
+                write_changelog_title(repo, f)
 
                 if replace_title:
                     start_line = 2

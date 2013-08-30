@@ -3,7 +3,7 @@ import difflib
 from xmlobject import XmlObject, XmlValue, XmlNode, XmlNodeList, XmlAttribute, XmlValueList
 from copy import copy
 from xmos_subprocess import call, call_get_output
-from xpd.check_project import find_all_subprojects, get_project_immediate_deps
+from xpd.check_project import find_all_subprojects, get_project_immediate_deps, rst_title_regexp
 from xmos_logging import log_error, log_warning, log_info, log_debug
 import shutil
 import tempfile
@@ -39,6 +39,17 @@ def is_source_file(filename):
         filename.endswith(".in")):
            return True
     return False
+
+def changelog_str_to_version(version_str):
+    try:
+        version = Version(version_str=version_str)
+    except VersionParseError:
+        try:
+            version = Version(version_str=version_str+'rc0')
+        except VersionParseError:
+            log_error("Can't parse version string %s in CHANGELOG" % v_str)
+            return None
+    return version
 
 
 class VersionParseError(Exception):
@@ -509,8 +520,8 @@ class Repo(XmlObject):
                 self.parseString("<xpd></xpd>")
             
         if not master and not parenthash:
-            master_repo = Repo(self.path, master=True)
-            self.merge_releases(master_repo)
+            self.master_repo = Repo(self.path, master=True)
+            self.merge_releases(self.master_repo)
 
     def merge_releases(self, other):
         for rel_other in other.releases:
@@ -625,6 +636,8 @@ class Repo(XmlObject):
 
         # Prune out releases which are not valid - can't determine a version number or githash
         self.releases = [r for r in self.releases if r.version or r.githash]
+
+        self.parse_changelog()
 
         for exclude in self.xsoftip_excludes:
             if not os.path.exists(os.path.join(self.path, exclude)):
@@ -802,6 +815,12 @@ class Repo(XmlObject):
 
     def get_modules(self):
         return [x for x in self.get_software_blocks() if x.is_module()]
+
+    def get_dependency(self, dep_name):
+        for dep in self.dependencies:
+            if dep.repo.name == dep_name:
+                return dep
+        return None
 
     def create_dummy_package(self, version_str):
         package = Package()
@@ -997,6 +1016,66 @@ class Repo(XmlObject):
 
         return (recursion, names)
 
+    def parse_changelog(self):
+        ''' Parse the changelog file and convert it to a map list of (version, items) entries.
+            Also checks that there are no duplicate entries for the same version number
+            and that the order of versions in the CHANGELOG is correct.
+        '''
+        changelog_path = os.path.join(self.path, 'CHANGELOG.rst')
+        if not os.path.exists(changelog_path):
+            log_error("Cannot find CHANGELOG.rst in %s" % self.name)
+            sys.exit(1)
+        with open(changelog_path) as f:
+            lines = f.readlines()
+
+        all_versions = set()
+        current_version = None
+        self.changelog_entries = []
+        items = []
+        for (i, line) in enumerate(lines):
+            if i < len(lines)-1:
+                next = lines[i+1]
+            else:
+                next = ''
+
+            if re.match(rst_title_regexp, line):
+                continue
+
+            try:
+                v = Version(version_str=line.strip())
+                if v in all_versions:
+                    log_error("Duplicate release note entries for %s" % fstr)
+                all_versions.add(v)
+            except VersionParseError:
+                v = None
+
+            if v:
+                if current_version:
+                    self.changelog_entries.append((str(current_version), items))
+                current_version = v
+                items = []
+            else:
+                items.append(line.rstrip())
+
+        if current_version:
+            self.changelog_entries.append((str(current_version), items))
+
+        self.check_changelog_version_order()
+
+    def check_changelog_version_order(self):
+        ''' Ensure that the order of the releases in the CHANGELOG is actually increasing numerically
+        '''
+        changelog_versions = [ v_str for (v_str, i) in self.changelog_entries ]
+        versions = []
+        for v_str in changelog_versions:
+            v = changelog_str_to_version(v_str)
+            if v:
+                versions.append(v)
+        sorted_versions = [ v.final_version_str() for v in sorted(versions, reverse=True) ]
+        if changelog_versions != sorted_versions:
+            log_error("The order of versions in the CHANGELOG.rst is not sorted correctly")
+            log_info("Found %s" % str(changelog_versions))
+            log_info("Expected %s" % str(sorted_versions))
 
 class Package(XmlObject):
     name = XmlAttribute()
