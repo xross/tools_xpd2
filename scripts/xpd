@@ -69,33 +69,69 @@ def xpd_dep_iter(repo, command, output_repo_names=True):
         os.system(command)
         os.chdir(cwd)
 
-def xpd_show_deps(repo, options, args):
-    if repo.dependencies == []:
-        log_info("No dependencies")
-    else:
-        log_info("Dependencies:")
-        for dep in repo.dependencies:
-            if dep.version_str:
-                expected = dep.version_str
+def get_all_deps(repo):
+    ''' Get the set of all versions of a repo there are expected in the dependencies.
+    '''
+    deps = {}
+    for dep in repo.dependencies:
+        if dep.version_str:
+            expected = dep.version_str
+        else:
+            expected = dep.githash
+        deps[dep.repo_name] = set([expected])
+
+    for dep in repo.dependencies:
+        dep_deps = get_all_deps(dep.repo)
+        for (d, v) in dep_deps.iteritems():
+            existing = deps.get(d, set([]))
+            deps[d] = existing | v
+
+    return deps
+
+def get_dep_errors(repo):
+    errors = 0
+    for (dep_name, expected) in get_all_deps(repo).iteritems():
+        if len(expected) != 1:
+            indent = '         '
+            versions = ("\n%s" % indent).join(expected)
+            log_error("Module %s depends on versions:\n%s%s" % (dep_name, indent, versions))
+            errors += 1
+
+    return errors
+
+def show_deps(repo, indent, prefix):
+    log_info("%s%s%s:%s" % (indent, prefix, repo.name, " has no dependencies" if not repo.dependencies else ''))
+
+    for dep in repo.dependencies:
+        if dep.version_str:
+            expected = dep.version_str
+        else:
+            expected = dep.githash
+
+        local_mod = ""
+        actual = "???"
+        if dep.repo:
+            rel = dep.repo.current_release()
+            if dep.repo.has_local_modifications(is_dependency=True):
+                local_mod = "(local modifications)"
+
+            if rel:
+                actual = str(rel.version)
             else:
-                expected = dep.githash
+                actual = dep.repo.current_githash()
 
-            local_mod = ""
-            actual = "???"
-            if dep.repo:
-                rel = dep.repo.current_release()
-                if dep.repo.has_local_modifications(is_dependency=True):
-                    local_mod = "(local modifications)"
+        if actual == expected:
+            log_info("%s%s  +- %s %s (ok) %s" % (indent, prefix, dep.repo_name, expected, local_mod))
+        else:
+            log_info("%s%s  +- %s %s (found %s) %s" % (indent, prefix, dep.repo_name, expected, actual, local_mod))
 
-                if rel:
-                    actual = str(rel.version)
-                else:
-                    actual = dep.repo.current_githash()
+        space = ' '*len(dep.repo.name)
+        show_deps(dep.repo, indent, '%s  %s%s' % (prefix, ' ' if dep == repo.dependencies[-1] else '|', space))
 
-            if actual == expected:
-                log_info("%20s: %s (ok) %s" % (dep.repo_name, expected, local_mod))
-            else:
-                log_info("%20s: %s (found %s) %s" % (dep.repo_name, expected, actual, local_mod))
+def xpd_show_deps(repo, options, args, prefix=None):
+    log_info("Dependencies:")
+    show_deps(repo, '  ', '')
+    get_dep_errors(repo)
 
 def xpd_remove_dep(repo, options, args):
     if len(args) < 1:
