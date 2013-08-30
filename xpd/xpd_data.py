@@ -702,6 +702,9 @@ class Repo(XmlObject):
     def add_dep(self, name):
         dep = Dependency(parent=self)
         dep.repo_name = name
+        if not os.path.isdir(dep.get_local_path()):
+            log_error("Cannot add dependency '%s' as folder '%s' does not exist" % (name, dep.get_local_path()))
+            return
         dep.repo = Repo(dep.get_local_path())
         dep.uri = dep.repo.uri()
         dep.githash = dep.repo.current_githash()
