@@ -103,6 +103,7 @@ def show_deps(repo, indent, prefix):
     log_info("%s%s%s:%s" % (indent, prefix, repo.name, " has no dependencies" if not repo.dependencies else ''))
 
     for dep in repo.dependencies:
+        assert_exists(dep)
         if dep.version_str:
             expected = dep.version_str
         else:
