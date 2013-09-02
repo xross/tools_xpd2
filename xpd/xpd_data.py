@@ -1024,16 +1024,18 @@ class Repo(XmlObject):
             Also checks that there are no duplicate entries for the same version number
             and that the order of versions in the CHANGELOG is correct.
         '''
+        self.changelog_entries = []
+
         changelog_path = os.path.join(self.path, 'CHANGELOG.rst')
         if not os.path.exists(changelog_path):
             log_error("Cannot find CHANGELOG.rst in %s" % self.name)
-            sys.exit(1)
+            return
+
         with open(changelog_path) as f:
             lines = f.readlines()
 
         all_versions = set()
         current_version = None
-        self.changelog_entries = []
         items = []
         for (i, line) in enumerate(lines):
             if i < len(lines)-1:
