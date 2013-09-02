@@ -1028,7 +1028,7 @@ class Repo(XmlObject):
 
         changelog_path = os.path.join(self.path, 'CHANGELOG.rst')
         if not os.path.exists(changelog_path):
-            log_error("Cannot find CHANGELOG.rst in %s" % self.name)
+            log_warning("Cannot find CHANGELOG.rst in %s" % self.name)
             return
 
         with open(changelog_path) as f:
