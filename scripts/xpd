@@ -228,6 +228,23 @@ def get_date(repo, githash):
         date = 0
     return date
 
+def check_deps_visible(repo, is_rc):
+    errors = 0
+    for dep in repo.dependencies:
+        (stdout_lines, stderr_lines) = call_get_output(
+             ['git', 'log', 'origin/master..master'], cwd=dep.repo.path)
+        if any([line for line in stdout_lines if dep.githash in line]):
+            message = '%s of dependency %s has not been pushed yet' % (
+                                dep.version_str if dep.version_str else dep.githash, dep.repo.name)
+
+            if is_rc:
+                log_error(message)
+                errors += 1
+            else:
+                log_warning(message)
+
+    return errors
+
 def xpd_check_deps(repo, options, args, return_current_ok=False, allow_updates=True):
     deps = [d.repo_name for d in repo.dependencies]
 
@@ -486,6 +503,10 @@ def xpd_create_release(repo, options, args):
             log_error(error)
         if errors:
             sys.exit(1)
+
+    errors = check_deps_visible(repo, version.is_rc())
+    if errors and not options.force:
+        sys.exit(1)
 
     xpd_update_changelog(repo, options, args)
     repo.git_add('CHANGELOG.rst')
