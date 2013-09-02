@@ -219,7 +219,7 @@ def xpd_add_dep(repo, options, args):
 
 def get_date(repo, githash):
     (stdout_lines, stderr_lines) = call_get_output(
-         ['git', 'diff-tree', '-s', '--pretty=%at', githash], cwd=repo.path)
+         ['git', 'show', '-s', '--pretty=%at', githash], cwd=repo.path)
     try:
         date = int(stdout_lines[0])
     except:
