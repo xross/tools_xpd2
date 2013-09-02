@@ -95,7 +95,7 @@ def get_dep_errors(repo):
         if len(expected) != 1:
             indent = '         '
             versions = ("\n%s" % indent).join(expected)
-            log_error("Module %s depends on versions:\n%s%s" % (dep_name, indent, versions))
+            log_error("Multiple version of %s are used:\n%s%s" % (dep_name, indent, versions))
             errors += 1
 
     return errors
