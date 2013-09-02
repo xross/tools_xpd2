@@ -81,6 +81,7 @@ def get_all_deps(repo):
         deps[dep.repo_name] = set([expected])
 
     for dep in repo.dependencies:
+        assert_exists(dep)
         dep_deps = get_all_deps(dep.repo)
         for (d, v) in dep_deps.iteritems():
             existing = deps.get(d, set([]))
