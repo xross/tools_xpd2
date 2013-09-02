@@ -712,7 +712,7 @@ class Repo(XmlObject):
         if rel:
             dep.version_str = str(rel.version)
         self.dependencies.append(dep)
-        log_info("%s added %s as dependency" % (self.name, name))
+        log_info("%s added %s as dependency with uri: %s" % (self.name, name, dep.uri))
 
     def get_child_hash(self, parenthash):
         return exec_and_match(["git","rev-list","--parents","--all"],
