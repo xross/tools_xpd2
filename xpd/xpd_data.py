@@ -1063,22 +1063,6 @@ class Repo(XmlObject):
         if current_version:
             self.changelog_entries.append((str(current_version), items))
 
-        self.check_changelog_version_order()
-
-    def check_changelog_version_order(self):
-        ''' Ensure that the order of the releases in the CHANGELOG is actually increasing numerically
-        '''
-        changelog_versions = [ v_str for (v_str, i) in self.changelog_entries ]
-        versions = []
-        for v_str in changelog_versions:
-            v = changelog_str_to_version(v_str)
-            if v:
-                versions.append(v)
-        sorted_versions = [ v.final_version_str() for v in sorted(versions, reverse=True) ]
-        if changelog_versions != sorted_versions:
-            log_error("The order of versions in the CHANGELOG.rst is not sorted correctly")
-            log_info("Found %s" % str(changelog_versions))
-            log_info("Expected %s" % str(sorted_versions))
 
 class Package(XmlObject):
     name = XmlAttribute()
