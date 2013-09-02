@@ -2254,8 +2254,9 @@ def xpd_update_changelog(repo, options, args):
     versions = {}
 
     # Can't work in the state where there are multiple version of a dependency
-    if get_dep_errors(repo):
-       sys.exit(1)
+    errors = get_dep_errors(repo)
+    if errors and not options.force:
+        sys.exit(1)
 
     to_releases = {}
     from_releases = {}
