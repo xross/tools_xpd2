@@ -137,18 +137,10 @@ def xpd_show_deps(repo, options, args, prefix=None):
 
 def xpd_remove_dep(repo, options, args):
     if len(args) < 1:
-        return False
-    to_remove = args[0]
-    deps = repo.dependencies
+        log_error("required repo name")
+        sys.exit(1)
 
-    for d in deps:
-        if d.repo_name == to_remove:
-            deps.remove(d)
-            log_info("Removed")
-            return True
-
-    log_error("%s is not a current dependency" % to_remove)
-    return False
+    return repo.remove_dep(args[0])
 
 def get_current_modules(repo):
     makefiles = []
@@ -210,13 +202,7 @@ def xpd_add_dep(repo, options, args):
         log_error("required repo name")
         sys.exit(1)
 
-    for dep in repo.dependencies:
-        if dep.repo_name == args[0]:
-            log_error("dependency already exists")
-            sys.exit(1)
-    
-    repo.add_dep(args[0])
-    return True
+    return repo.add_dep(args[0])
 
 def get_date(repo, githash):
     (stdout_lines, stderr_lines) = call_get_output(

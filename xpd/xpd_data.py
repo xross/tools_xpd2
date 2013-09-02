@@ -700,19 +700,36 @@ class Repo(XmlObject):
         return [d.repo for d in self.dependencies] + [self]
 
     def add_dep(self, name):
+        if self.get_dependency(name):
+            log_error("dependency already exists")
+            return False
+
         dep = Dependency(parent=self)
         dep.repo_name = name
         if not os.path.isdir(dep.get_local_path()):
             log_error("Cannot add dependency '%s' as folder '%s' does not exist" % (name, dep.get_local_path()))
-            return
+            return False
+
         dep.repo = Repo(dep.get_local_path())
         dep.uri = dep.repo.uri()
         dep.githash = dep.repo.current_githash()
         rel = dep.repo.current_release()
         if rel:
             dep.version_str = str(rel.version)
+
         self.dependencies.append(dep)
         log_info("%s added %s as dependency with uri: %s" % (self.name, name, dep.uri))
+        return True
+
+    def remove_dep(self, name):
+        for dep in self.dependencies:
+            if dep.repo_name == name:
+                self.dependencies.remove(dep)
+                log_info("%s removed %s as dependency" % (self.name, name))
+                return True
+
+        log_error("%s is not a current dependency of %s" % (name, self.name))
+        return False
 
     def get_child_hash(self, parenthash):
         return exec_and_match(["git","rev-list","--parents","--all"],
