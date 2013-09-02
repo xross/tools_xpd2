@@ -593,7 +593,7 @@ def xpd_create_release(repo, options, args):
 def do_exports(repo):
     for export in repo.exports:
         log_info("Exporting %s" % export)
-        call(["xmake", "export"], cwd=os.path.join(repo.path, export))
+        call(["xmake", "export"], cwd=os.path.join(repo.path, export), silent=True)
     return repo.exports
 
 def xpd_make_zip(repo, options, args, dest=None):
