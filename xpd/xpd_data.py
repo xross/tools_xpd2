@@ -828,6 +828,8 @@ class Repo(XmlObject):
                       if m:
                           comp.dependencies += [x.strip() for x in m.groups(0)[0].split(' ')]
 
+              log_debug("Component %s has dependencies: %s" % (comp, comp.dependencies))
+
         return components
 
     def get_apps(self):
