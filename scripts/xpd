@@ -2167,28 +2167,6 @@ def xpd_check_all(repo, options, args):
 def xpd_update(repo, options, args):
     return xpd_check_all(repo, options, args)
 
-def xpd_create_warnings(repo, options, args, return_warnings=False):
-    warnings = []
-    rel = repo.current_release()
-    if not rel:
-        warnings.append("Repository is not at a specified version")
-    for dep in repo.dependencies:
-        log_info("Checking dependency %s" % dep.repo.name)
-        rel = dep.repo.current_release()
-        if not rel:
-            warning = "Dependency '%s' is not on a specified version" % dep.repo.name
-            warnings.append(warning)
-        elif not dep.repo.partnumber:
-            warning = "Dependency '%s' is not a published component" % dep.repo.name
-            warnings.append(warning)
-
-    if not return_warnings:
-        for warning in warnings:
-            log_warning(warning)
-        return False
-    else:
-        return warnings
-
 def notes_version_matches(notes_version_str, version):
     if notes_version_str == version.final_version_str():
         return True
@@ -2662,8 +2640,6 @@ other_commands =[
             ("build_docs", "Make docs (DEBUG)"),
             ("build_topdoc", "Make toplevel docs (DEBUG)"),
             ("update_changelog", "Update the CHANGELOG.rst as the release will (DEBUG)"),
-            ("create_warnings", "Create release warnings list (DEBUG)"),
-            ("gen_package_xml", "Generate package xml (DEBUG)"),
             ("show_project_deps", "Show app/modules dependencies (DEBUG)"),
             ("make_docmap", "Create snippets doc map for website (DEBUG)")]
 
