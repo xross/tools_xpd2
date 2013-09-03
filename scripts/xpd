@@ -2336,7 +2336,7 @@ def xpd_update_changelog(repo, options, args):
 def call_xsoftip(command, comp, repo):
     args = ['', '', '', '']
     tmp = tempfile.mkdtemp()
-    package = xpd_install_local_xml(repo, tmp)
+    package = xpd_install_local_xml(repo, tmp, doing_buildresults=True)
 
     args[0] = comp.id
     args[1] = os.path.join(repo.path, comp.metainfo_path)
@@ -2435,7 +2435,7 @@ def get_tools_version():
 
     return "development"
 
-def xpd_install_local_xml(repo, cache_path, github=False):
+def xpd_install_local_xml(repo, cache_path, github=False, doing_buildresults=False):
     package = repo.create_dummy_package(repo.current_version_or_githash(short=True))
     for component in package.components:
         component.local = "true"
@@ -2452,7 +2452,7 @@ def xpd_install_local_xml(repo, cache_path, github=False):
             shutil.copy(os.path.join(repo.path, component.buildresults_path),
                         os.path.join(cache_path, package.name + "-" + component.id + ".buildresults"))
         elif component.buildresults_path:
-            if component.scope != "Roadmap":
+            if not doing_buildresults and component.scope != "Roadmap":
                 log_warning("%s has no buildresults!" % component.id)
             f = open(os.path.join(cache_path, package.name + "-" + component.id + ".buildresults"), 'wb')
             f.write("<buildresults></buildresults>");
