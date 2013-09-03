@@ -109,13 +109,10 @@ def get_all_dep_versions(repo):
     '''
     deps = {}
     for dep in get_all_deps(repo):
-        if dep.version_str:
-            version = dep.version_str
-        else:
-            version = dep.githash
+        version = dep.version_str if dep.version_str else dep.githash
 
         name = dep.repo_name
-        existing = deps.get(name, set([]))
+        existing = deps.get(name, set())
         deps[name] = existing | set([version])
 
     return deps
