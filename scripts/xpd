@@ -120,13 +120,31 @@ def get_all_dep_versions(repo):
 
     return deps
 
+def get_all_repos_using_dep_version(repo, dep_name, expected):
+    repos = set()
+    for dep in repo.dependencies:
+        assert_exists(dep)
+        repos |= get_all_repos_using_dep_version(dep.repo, dep_name, expected)
+
+        if dep.repo_name != dep_name:
+            continue
+
+        version = dep.version_str if dep.version_str else dep.githash
+        if version != expected:
+            continue
+
+        repos.add(repo.name)
+
+    return repos
+
 def get_multiple_version_errors(repo, print_help=True):
     errors = 0
     for (dep_name, expected) in get_all_dep_versions(repo).iteritems():
         if len(expected) != 1:
-            indent = '         '
-            versions = ("\n%s" % indent).join(expected)
-            log_error("Multiple versions of %s are used:\n%s%s" % (dep_name, indent, versions))
+            error_message = ''
+            for e in expected:
+                error_message += '\n         %s by %s' % (e, ', '.join(get_all_repos_using_dep_version(repo, dep_name, e)))
+            log_error("Multiple versions of %s are used:%s" % (dep_name, error_message))
             errors += 1
 
     if errors and print_help:
