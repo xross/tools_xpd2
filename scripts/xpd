@@ -12,7 +12,7 @@ from copy import copy
 from xpd.xpd_data import Repo, Release, Version, Dependency
 from xpd.xpd_data import AllSoftwareDescriptor, SoftwareDescriptor
 from xpd.xpd_data import DocMap, Doc
-from xpd.xpd_data import is_source_file, changelog_str_to_version
+from xpd.xpd_data import changelog_str_to_version
 import xpd.check_project
 import xmlobject
 from xpd import templates
@@ -192,7 +192,7 @@ def xpd_remove_dep(repo, options, args):
     return repo.remove_dep(args[0])
 
 def find_current_dependencies(repo):
-    modules = repo.get_software_blocks()
+    modules = repo.get_software_blocks(ignore_xsoftip_excludes=True)
     used_modules = set()
     for m in modules:
         used_modules = used_modules | set(m.dependencies)
@@ -582,18 +582,12 @@ def xpd_create_release(repo, options, args):
             log_info("  %s" % f)
             repo.git_add(f)
 
-    modified_files = r.get_local_modifications()
+    modified_files = r.get_local_modifications(unstaged_only=True)
     if modified_files:
         log_info("Adding files with whitespace changes:")
         for f in modified_files:
-            if is_source_file(f):
-                log_info("  %s" % f)
-                repo.git_add(f)
-
-    if local_mod and not options.force:
-        # Sanity check that should never fail
-        log_error("Cannot create release: uncommitted modifications")
-        sys.exit(1)
+            log_info("  %s" % f)
+            repo.git_add(f)
 
     log_info("Creating sandbox and checking build")
     repo.move_to_temp_sandbox()

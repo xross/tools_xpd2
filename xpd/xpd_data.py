@@ -654,12 +654,16 @@ class Repo(XmlObject):
             return Version(0,0,0)
         return rels[-1].version
 
-    def get_local_modifications(self, is_dependency=False):
+    def get_local_modifications(self, is_dependency=False, unstaged_only=False):
         (stdout_lines, stderr_lines) = call_get_output(
                 ["git", "update-index", "-q", "--refresh"], cwd=self.path)
 
-        (stdout_lines, stderr_lines) = call_get_output(
-                ["git", "diff-index", "--name-only", "HEAD", "--"], cwd=self.path)
+        if unstaged_only:
+            (stdout_lines, stderr_lines) = call_get_output(
+                    ["git", "diff", "--name-only"], cwd=self.path)
+        else:
+            (stdout_lines, stderr_lines) = call_get_output(
+                    ["git", "diff-index", "--name-only", "HEAD", "--"], cwd=self.path)
 
         # Ignore files which are changed by xpd unless it is a dependent repo which must have no changes
         if not is_dependency:
@@ -797,7 +801,7 @@ class Repo(XmlObject):
                 dep.repo._restore_path()
         shutil.rmtree(self.sb)
 
-    def get_software_blocks(self):
+    def get_software_blocks(self, ignore_xsoftip_excludes=False):
         path = self.path
         components = []
         for x in os.listdir(path):
@@ -807,7 +811,7 @@ class Repo(XmlObject):
               continue
           if x in self.docdirs:
               continue
-          if x in self.xsoftip_excludes:
+          if not ignore_xsoftip_excludes and x in self.xsoftip_excludes:
               continue
           if x.startswith('__'):
               continue
