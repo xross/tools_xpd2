@@ -2233,9 +2233,9 @@ def strip_existing_changes_lines(lines):
     new_lines = []
     ignore = False
     for line in lines:
-        # Ignore a set of dependency changes (from start to blank line)
+        # Ignore a set of dependency changes (from start to new bullet starting with *)
         if ignore:
-            if re.match('^\s*$', line):
+            if re.match('^\s*\*', line):
                 ignore = False
             continue
 
@@ -2314,7 +2314,7 @@ def xpd_update_changelog(repo, options, args):
     items[:] = strip_existing_changes_lines(items)
     items.append("  * Changes to dependencies:")
     for (dep, changes) in diffs.iteritems():
-        items.append("    - %s: %s" % (dep, versions[dep]))
+        items.append("\n    - %s: %s\n" % (dep, versions[dep]))
         changes = strip_existing_changes_lines(changes)
         for line in changes:
             # Only copy in lines which are bullet points (no blank lines)
