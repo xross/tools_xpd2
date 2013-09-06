@@ -32,10 +32,11 @@ xdoc = None
 xmossphinx = None
 xmos_xref = None
 
-def assert_exists(dep):
+def assert_exists(repo, dep):
     if not os.path.exists(dep.get_local_path()):
-        log_error("Dependency missing for update: %s" % dep.repo_name)
-        log_error("  - Use 'xpd get_deps' to get dependent repositories")
+        rel = repo.latest_release()
+        log_error("Dependency missing: %s for %s version %s" % (dep.repo_name, repo.name, rel.version))
+        log_error("  - Use 'xpd get_deps %s' to get dependent repositories" % rel.version)
         sys.exit(1)
 
 def samefile(fileA, fileB):
@@ -83,12 +84,12 @@ def get_all_deps(repo, clone_missing=False):
                 else:
                     log_info("Cloning " + dep.repo_name)
                     call(["git", "clone", dep.uri, dep_path])
-                    assert_exists(dep)
+                    assert_exists(repo, dep)
 
             if not dep.repo:
                 dep.post_import()
         else:
-            assert_exists(dep)
+            assert_exists(repo, dep)
 
         yield dep
         for d in get_all_deps(dep.repo, clone_missing=clone_missing):
@@ -120,7 +121,7 @@ def get_all_dep_versions(repo):
 def get_all_repos_using_dep_version(repo, dep_name, expected):
     repos = set()
     for dep in repo.dependencies:
-        assert_exists(dep)
+        assert_exists(repo, dep)
         repos |= get_all_repos_using_dep_version(dep.repo, dep_name, expected)
 
         if dep.repo_name != dep_name:
@@ -153,7 +154,7 @@ def show_deps(repo, indent, prefix):
     log_info("%s%s%s:%s" % (indent, prefix, repo.name, " has no dependencies" if not repo.dependencies else ''))
 
     for dep in repo.dependencies:
-        assert_exists(dep)
+        assert_exists(repo, dep)
         if dep.version_str:
             expected = dep.version_str
         else:
@@ -1587,7 +1588,7 @@ def xpd_checkout(repo, options, args):
 
     local_mod = False
     for dep in get_all_deps_once(vrepo):
-        assert_exists(dep)
+        assert_exists(vrepo, dep)
         if dep.repo.has_local_modifications(is_dependency=True):
             log_error("%s has local modifications" % dep.repo_name)
             local_mod = True
