@@ -88,6 +88,9 @@ def get_all_deps(repo, clone_missing=False):
 
             if not dep.repo:
                 dep.post_import()
+                if not dep.repo:
+                    log_error("Failed to create repo for dependency %s" % dep.repo_name)
+                    continue
         else:
             assert_exists(repo, dep)
 
