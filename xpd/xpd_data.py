@@ -942,7 +942,7 @@ class Repo(XmlObject):
                             if y != '':
                                 deps.add(y)
 
-                        return (repo,deps)
+                        return (repo, deps)
 
             return None,None
 
@@ -964,7 +964,7 @@ class Repo(XmlObject):
 
                 if update:
                     something_changed = True
-                    projs[update[0]] = (update[1],update[2])
+                    projs[update[0]] = (update[1], update[2])
                     break
 
                 if not to_add.issubset(deps):
