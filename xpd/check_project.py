@@ -77,14 +77,6 @@ def _check_project(repo, path=None, force_creation=False):
             log_warning("%s: .project file is invalid" % name)
             project_ok = False
 
-        if not '<name>com.xmos.cdt.core.ModulePathBuilder</name>' in names:
-             log_warning("%s: .project file is invalid (no module path builder)" % name)
-             project_ok = False
-
-        if not '<name>com.xmos.cdt.core.IncludePathBuilder</name>' in names:
-             log_warning("%s: .project file is invalid (no module path builder)" % name)
-             project_ok = False
-
         if project_ok:
             name_node = getFirstChild(root, 'name')
 
