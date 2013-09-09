@@ -560,16 +560,6 @@ dotproject = '''<?xml version="1.0" encoding="UTF-8"?>
     </projects>
     <buildSpec>
         <buildCommand>
-            <name>com.xmos.cdt.core.IncludePathBuilder</name>
-            <arguments>
-            </arguments>
-        </buildCommand>
-        <buildCommand>
-            <name>com.xmos.cdt.core.ModulePathBuilder</name>
-            <arguments>
-            </arguments>
-        </buildCommand>
-        <buildCommand>
             <name>org.eclipse.cdt.managedbuilder.core.genmakebuilder</name>
             <triggers>clean,full,incremental,</triggers>
             <arguments>
