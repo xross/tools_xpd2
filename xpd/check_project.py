@@ -129,6 +129,8 @@ def find_all_subprojects(repo,exclude_apps=False):
                continue
           if exclude_apps and x.startswith('app_'):
                continue
+          if repo.is_untracked(x):
+              continue
           mkfile = os.path.join(path,x,'Makefile')
           modinfo = os.path.join(path,x,'module_build_info')
           if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or (x in repo.extra_eclipse_projects) or re.match('^module_.*',x):

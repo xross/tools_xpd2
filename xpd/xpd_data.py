@@ -676,6 +676,23 @@ class Repo(XmlObject):
             return True
         return False
 
+    def is_untracked(self, path):
+        (stdout_lines, stderr_lines) = call_get_output(
+                ["git", "status", "--porcelain"], cwd=self.path)
+
+        lines = []
+        for line in stdout_lines + stderr_lines:
+            m = re.match('^\?\? (.*)', line)
+            if m:
+                lines.append(m.group(1))
+
+        if os.path.isdir(path):
+            path = path + '/'
+
+        if any([l for l in lines if path == l]):
+            return True
+        return False
+
     def uri(self):
         return exec_and_match(["git","remote","show","-n","origin"],
                               r'.*Fetch URL: (.*)',
@@ -814,6 +831,8 @@ class Repo(XmlObject):
           if not ignore_xsoftip_excludes and x in self.xsoftip_excludes:
               continue
           if x.startswith('__'):
+              continue
+          if self.is_untracked(x):
               continue
           mkfile = os.path.join(path,x,'Makefile')
           modinfo = os.path.join(path,x,'module_build_info')
