@@ -935,13 +935,13 @@ class Repo(XmlObject):
         call(["git","add",path], cwd=self.path, silent=True)
 
     def git_push(self):
-        call(["git","push"], cwd=self.path, silent=True)
+        call(["git", "push"], cwd=self.path, silent=True)
 
     def git_fetch(self):
-        call(["git","fetch"], cwd=self.path, silent=True)
+        call(["git", "fetch"], cwd=self.path, silent=True)
 
     def git_remove(self, path):
-        call(["git","rm","-f",path], cwd=self.path, silent=True)
+        call(["git", "rm", "-f", path], cwd=self.path, silent=True)
 
     def behind_upstream(self):
         (stdout_lines, stderr_lines) = call_get_output(
