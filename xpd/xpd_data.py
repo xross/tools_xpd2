@@ -932,7 +932,9 @@ class Repo(XmlObject):
         return package
 
     def git_add(self, path):
-        call(["git","add",path], cwd=self.path, silent=True)
+        retval = call(["git", "add", path], cwd=self.path, silent=True)
+        if retval:
+            log_error("'git add %s' failed" % path)
 
     def git_push(self):
         call(["git", "push"], cwd=self.path, silent=True)
