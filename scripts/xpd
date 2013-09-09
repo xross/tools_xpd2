@@ -193,29 +193,23 @@ def xpd_remove_dep(repo, options, args):
     return repo.remove_dep(args[0])
 
 def find_current_dependencies(repo):
-    modules = repo.get_software_blocks(ignore_xsoftip_excludes=True)
+    components = repo.get_software_blocks(ignore_xsoftip_excludes=True)
     used_modules = set()
-    for m in modules:
-        used_modules = used_modules | set(m.dependencies)
-
-    root_dir = os.path.join(repo.path, "..")
+    for comp in components:
+        used_modules = used_modules | set([dep.module_name for dep in comp.dependencies])
 
     repos = set([])
-    for dep_repo in os.listdir(root_dir):
-        repo_path = os.path.join(root_dir, dep_repo)
-        if os.path.isdir(repo_path):
-            for module_dir in os.listdir(repo_path):
-                if os.path.isdir(os.path.join(repo_path, module_dir)):
-                    if module_dir in used_modules:
-                        log_debug('Dependency %s found in repo %s' % (module_dir, dep_repo))
-                        used_modules.remove(module_dir)
-                        if not samefile(repo_path, repo.path):
-                            repos.add(dep_repo)
+    for m in used_modules:
+        repo_name = repo.find_repo_containing_module(m)
 
-    if used_modules:
-        log_warning("Can't find repos for the following modules:")
-        for m in used_modules:
-            log_warning("   " + m)
+        # Don't become dependent on self
+        if repo_name == repo.name:
+            continue
+
+        if repo_name:
+            repos.add(repo_name)
+        else:
+            log_warning("Can't find repo for %s" % m)
 
     return repos
 
@@ -470,7 +464,8 @@ def xpd_create_release(repo, options, args):
             if rtype:
                 break
             else:
-                log_error("Unknown release type '%s'" % x)
+                # No need to make an error that is logged
+                print "ERROR: Unknown release type '%s'" % x
 
     notes = repo.changelog_entries
     if not notes:
@@ -1378,7 +1373,7 @@ def check_swblock(repo, options, args, comp, verbose=True):
         log_info("   Type: %s" % comp.type)
         log_info("   Dependencies:")
         for d in comp.dependencies:
-            log_info("      "+d)
+            log_info("      "+str(d))
         log_info("")
 
     if not comp.has_readme():

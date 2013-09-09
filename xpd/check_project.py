@@ -129,24 +129,6 @@ def find_all_subprojects(repo,exclude_apps=False):
                subs.add(x)
      return subs
 
-def get_project_immediate_deps(repo, project):
-     mkfile = os.path.join(repo.path,project,'Makefile')
-     modinfo = os.path.join(repo.path,project,'module_build_info')
-     deps = []
-     if os.path.exists(modinfo):
-          for line in open(modinfo).readlines():
-               m = re.match('.*DEPENDENT_MODULES\s*=\s*(.*)',line)
-               if m:
-                    deps += [x.strip() for x in m.groups(0)[0].split(' ')]
-
-     if os.path.exists(mkfile):
-          for line in open(mkfile).readlines():
-               m = re.match('.*USED_MODULES\s*=\s*(.*)',line)
-               if m:
-                    deps += [x.strip() for x in m.groups(0)[0].split(' ')]
-
-     return deps
-
 def check_project(repo, force_creation=False):
      ok = True
      if flat_projects:
@@ -404,17 +386,17 @@ def _check_cproject(repo, makefiles, project_deps, path=None, force_creation=Fal
 
     (_,deps) = project_deps[os.path.basename(path)]
     for dep in deps:
-         if not dep in project_deps:
+         if not dep.module_name in project_deps:
               log_error("%s: cannot find %s" % (name, dep))
               sys.exit(1)
-         dep_repo = project_deps[dep][0]
-         dep_path = os.path.join(dep_repo.path, dep)
-         all_includes.add(dep)
+         dep_repo = project_deps[dep.module_name][0]
+         dep_path = os.path.join(dep_repo.path, dep.module_name)
+         all_includes.add(dep.module_name)
          for root, dirs, files in os.walk(dep_path):
               for d in dirs:
                    relpath = os.path.join(root,d)[len(dep_path)+1:]
                    if valid_include_path(relpath):
-                        all_includes.add(os.path.join(dep,relpath))
+                        all_includes.add(os.path.join(dep.module_name,relpath))
 
     if makefiles != set():
          is_module = False

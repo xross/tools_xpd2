@@ -1,9 +1,9 @@
 import os, sys, re
 import difflib
-from xmlobject import XmlObject, XmlValue, XmlNode, XmlNodeList, XmlAttribute, XmlValueList
+from xmlobject import XmlObject, XmlValue, XmlNode, XmlNodeList, XmlAttribute, XmlValueList, XmlText
 from copy import copy
 from xmos_subprocess import call, call_get_output
-from xpd.check_project import find_all_subprojects, get_project_immediate_deps, rst_title_regexp
+from xpd.check_project import find_all_subprojects, rst_title_regexp
 from xmos_logging import log_error, log_warning, log_info, log_debug
 import shutil
 import tempfile
@@ -50,6 +50,37 @@ def changelog_str_to_version(version_str):
             log_error("Can't parse version string %s in CHANGELOG" % v_str)
             return None
     return version
+
+def get_project_immediate_deps(repo, project):
+    def create_component_dependencies(modules_str):
+      deps = []
+      for module_name in modules_str.split(' '):
+        if module_name == '':
+            continue
+        dep = ComponentDependency()
+        dep.module_name = module_name
+        version_str = repo.get_module_version(module_name)
+        if version_str:
+            dep.version_str = version_str
+        deps.append(dep)
+      return deps
+
+    mkfile = os.path.join(repo.path,project,'Makefile')
+    modinfo = os.path.join(repo.path,project,'module_build_info')
+    deps = []
+    if os.path.exists(modinfo):
+        for line in open(modinfo).readlines():
+            m = re.match('.*DEPENDENT_MODULES\s*=\s*(.*)',line)
+            if m:
+                deps += create_component_dependencies(m.groups(0)[0])
+
+    if os.path.exists(mkfile):
+        for line in open(mkfile).readlines():
+            m = re.match('.*USED_MODULES\s*=\s*(.*)',line)
+            if m:
+                deps += create_component_dependencies(m.groups(0)[0])
+
+    return deps
 
 
 class VersionParseError(Exception):
@@ -182,6 +213,17 @@ class Version(object):
             self.rnumber = 0
         else:
             self.rnumber = rels[-1].version.rnumber + 1
+
+
+class ComponentDependency(XmlObject):
+    version_str = XmlAttribute(attrname="version")
+    module_name = XmlText()
+
+    def __str__(self):
+        if self.version_str:
+            return "%s (%s)" % (self.module_name, self.version_str)
+        else:
+            return "%s" % self.module_name
 
 
 class Dependency(XmlObject):
@@ -339,7 +381,7 @@ class Component(XmlObject):
     boards = XmlValueList()
     docPartNumber = XmlAttribute()
     docVersion = XmlAttribute()
-    dependencies = XmlValueList(tagname="componentDependency")
+    dependencies = XmlNodeList(ComponentDependency, tagname="componentDependency")
     zip_partnumber = XmlAttribute()
 
     def init_from_path(self, repo, path):
@@ -818,6 +860,24 @@ class Repo(XmlObject):
                 dep.repo._restore_path()
         shutil.rmtree(self.sb)
 
+    def get_module_version(self, module_name):
+        repo_name = self.find_repo_containing_module(module_name)
+        if not repo_name:
+            log_error('Unable to find repo containing depedency %s' % module_name)
+            return None
+
+        rel = None
+        if repo_name == self.name:
+            rel = self.latest_release()
+        else:
+            repo_dep = self.get_dependency(repo_name)
+            if repo_dep and repo_dep.repo:
+                rel = repo_dep.repo.latest_release()
+
+        if rel:
+            return rel.version.final_version_str()
+        return None
+
     def get_software_blocks(self, ignore_xsoftip_excludes=False):
         path = self.path
         components = []
@@ -840,17 +900,7 @@ class Repo(XmlObject):
               comp = Component()
               comp.init_from_path(self, x)
               components.append(comp)
-              if os.path.exists(modinfo):
-                  for line in open(modinfo).readlines():
-                      m = re.match('.*DEPENDENT_MODULES\s*=\s*(.*)',line)
-                      if m:
-                          comp.dependencies += [x.strip() for x in m.groups(0)[0].split(' ')]
-              if os.path.exists(mkfile):
-                  for line in open(mkfile).readlines():
-                      m = re.match('.*USED_MODULES\s*=\s*(.*)',line)
-                      if m:
-                          comp.dependencies += [x.strip() for x in m.groups(0)[0].split(' ')]
-
+              comp.dependencies = get_project_immediate_deps(self, x)
               log_debug("Component %s has dependencies: %s" % (comp, comp.dependencies))
 
         return components
@@ -927,24 +977,22 @@ class Repo(XmlObject):
 
         for proj, (repo, deps) in projs.iteritems():
             for x in get_project_immediate_deps(repo, proj):
-                if x != '':
-                    deps.add(x)
+                deps.add(x)
 
         def find_untracked_deps(sub):
             parent_dir = os.path.join(self.path,'..')
             possible_repos = [d for d in os.listdir(parent_dir) if os.path.isdir(os.path.join(parent_dir,d))]
             for d in possible_repos:
                 for x in os.listdir(os.path.join(parent_dir,d)):
-                    if x==sub:
+                    if x == sub:
                         deps = set([])
                         repo = Repo(os.path.join(parent_dir,d))
                         for y in get_project_immediate_deps(repo, x):
-                            if y != '':
-                                deps.add(y)
+                            deps.add(y)
 
                         return (repo, deps)
 
-            return None,None
+            return (None, None)
 
         something_changed = True
         while (something_changed):
@@ -953,13 +1001,13 @@ class Repo(XmlObject):
                 to_add = set([])
                 update = None
                 for dep in deps:
-                    if dep in projs:
-                        (_,dep_dep) = projs[dep]
+                    if dep.module_name in projs:
+                        (_, dep_dep) = projs[dep.module_name]
                         to_add.update(dep_dep)
                     else:
-                        (repo,dep_dep) = find_untracked_deps(dep)
+                        (repo, dep_dep) = find_untracked_deps(dep.module_name)
                         if repo:
-                            update = (dep, repo, dep_dep)
+                            update = (dep.module_name, repo, dep_dep)
                             break
 
                 if update:
@@ -1106,6 +1154,19 @@ class Repo(XmlObject):
 
         if current_version:
             self.changelog_entries.append((str(current_version), items))
+
+    def find_repo_containing_module(self, module_name):
+        root_dir = os.path.join(self.path, "..")
+
+        for dep_repo in os.listdir(root_dir):
+            repo_path = os.path.join(root_dir, dep_repo)
+            if os.path.isdir(repo_path):
+                for module_dir in os.listdir(repo_path):
+                    if os.path.isdir(os.path.join(repo_path, module_dir)):
+                        if module_dir == module_name:
+                            return dep_repo
+
+        return None
 
 
 class Package(XmlObject):
