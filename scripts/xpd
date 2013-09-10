@@ -183,8 +183,8 @@ def show_deps(repo, indent, prefix):
         space = ' '*len(dep.repo.name)
         show_deps(dep.repo, indent, '%s  %s%s' % (prefix, ' ' if dep == repo.dependencies[-1] else '|', space))
 
-def xpd_show_deps(repo, options, args, prefix=None):
-    log_info("Dependencies:")
+def xpd_show_deps(repo, options, args):
+    log_info("\nDEPENDENCIES:\n")
     show_deps(repo, '  ', '')
     get_multiple_version_errors(repo, print_help=False)
 
@@ -1183,7 +1183,6 @@ def xpd_show(repo, options, args):
     for module in repo.get_modules():
         print_software_block_details(module)
 
-    log_info("\nDEPENDENCIES:\n")
     xpd_show_deps(repo, options, args)
 
     if repo.exports != []:
