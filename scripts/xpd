@@ -1109,9 +1109,8 @@ def insert_doc(repo_name, path, zipfile, base=None, insert_pdf=True,
             base = repo_name
 
     if base == '':
-        arcpdfname = repo_name + '.pdf'
-    else:
-        arcpdfname = base + '.pdf'
+        base = repo_name
+    arcpdfname = base + '.pdf'
     zipdocpath = os.path.join(repo_name, 'doc', base)
     if insert_pdf:
         zipfile.write(pdfpath, arcname=os.path.join(repo_name, 'doc', arcpdfname))
@@ -1314,7 +1313,7 @@ def xpd_update_readme(repo, options, args,
 
     doc_header = ''
     if xmos_package:
-        if repo.docdirs != []:
+        if repo.docdirs:
             if doclinks:
                 import_xdoc()
                 doc_header += '\n\nSoftware Blocks\n===============\n\n\n'
@@ -1325,8 +1324,8 @@ def xpd_update_readme(repo, options, args,
                 doc_header += '\n\nDocumentation\n===============\n\n\n'
                 for docdir in repo.docdirs:
                     title = xdoc.get_title(os.path.join(repo.path, docdir))
-                    base = os.path.basename(docdir)
-                    if base == 'doc':
+                    base = docdir
+                    if base == '':
                         base = repo.name
                     doc_header += '  * `%s <././%s/index.html>`_' % (title, base)
                     doc_header += ' `PDF <././%s.pdf>`_ \n' % (base)
