@@ -899,7 +899,6 @@ def zip_repo(repo, zipfile, exports, include_binaries=False, force=False, no_app
     for docdir in repo.docdirs:
         excludes.append(docdir + re.escape(os.path.sep) + '*')
 
-    excludes.append('toplevel_doc' + re.escape(os.path.sep) + '*')
     excludes.append('*_build' + re.escape(os.path.sep) + '*')
     excludes.append('__*')
     excludes.append('*app_description')
@@ -1978,7 +1977,7 @@ def xpd_build_topdoc(repo, options=None, args=None):
         '   changelog\n']
     import_xdoc()
 
-    topdoc_path = os.path.join(doc_path, 'toplevel_doc')
+    topdoc_path = os.path.join(doc_path, '_build', 'toplevel_doc')
     if os.path.exists(topdoc_path):
         shutil.rmtree(topdoc_path)
     os.makedirs(topdoc_path)
