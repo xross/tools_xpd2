@@ -1055,27 +1055,36 @@ class Repo(XmlObject):
         return False
 
     def patch_version_defines(self, version):
-        patched_files = set()
-        for root, dirs, files in os.walk(self.path):
-            if self.excluded(root):
-                continue
+        def walk_and_break(path):
+            # Similar to os.walk, but allows the recursion to stop as soon as an untracked or excluded folder is found
+            patched_files = set()
+            for f in os.listdir(path):
+                full_path = os.path.join(path, f)
+                local_path = re.sub('^%s/' % self.path, '', full_path)
+                if self.excluded(local_path):
+                    continue
+                if self.is_untracked(local_path):
+                    continue
 
-            source_files = [f for f in files if is_source_file(f)]
+                if is_source_file(f):
+                    file_patched = False
+                    with open(full_path, "r") as f_ptr:
+                        lines = f_ptr.readlines()
+                    with open(full_path, "wb") as f_ptr:
+                        for line in lines:
+                            (line, patched) = self.line_patch_version_defines(full_path, line, version)
+                            file_patched |= patched
+                            f_ptr.write(line.rstrip() + '\n')
 
-            for f in source_files:
-                file_patched = False
-                filename = os.path.join(root, f)
-                with open(filename, "r") as f_ptr:
-                    lines = f_ptr.readlines()
-                with open(filename, "wb") as f_ptr:
-                    for line in lines:
-                        (line, patched) = self.line_patch_version_defines(filename, line, version)
-                        file_patched |= patched
-                        f_ptr.write(line.rstrip() + '\n')
+                    if file_patched:
+                        patched_files.add(self.relative_filename(full_path))
 
-                if file_patched:
-                    patched_files.add(self.relative_filename(filename))
+                elif os.path.isdir(full_path):
+                    patched_files = patched_files | walk_and_break(full_path)
 
+            return patched_files
+
+        patched_files = walk_and_break(self.path)
         return patched_files
 
     def line_patch_version_defines(self, filename, line, version):
