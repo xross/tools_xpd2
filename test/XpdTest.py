@@ -45,11 +45,11 @@ def test_xpd_make_zip(folder, user, password):
 
     log_info('test_xpd_make_zip: %s done' % test_name)
 
-def test_xpd_getdeps(folder, version=None):
-    """ Run 'getdeps' and then ensure that all the dependencies have been created
+def test_xpd_get_deps(folder, version=None):
+    """ Run 'get_deps' and then ensure that all the dependencies have been created
     """
     (parent, test_name) = os.path.split(folder)
-    log_info('test_xpd_getdeps: %s' % test_name)
+    log_info('test_xpd_get_deps: %s' % test_name)
     xpd_contents = get_xpd_contents(folder)
     deps = []
     for line in xpd_contents:
@@ -58,13 +58,13 @@ def test_xpd_getdeps(folder, version=None):
             deps += [m.group(1)]
 
     if version:
-        call(['xpd', 'getdeps', version])
+        call(['xpd', 'get_deps', version])
     else:
-        call(['xpd', 'getdeps'])
+        call(['xpd', 'get_deps'])
 
     check_exists([os.path.join(parent, dep) for dep in deps])
 
-    log_info('test_xpd_getdeps: %s done' % test_name)
+    log_info('test_xpd_get_deps: %s done' % test_name)
 
 def test_xpd_init(folder):
     """ Run xpd init. Expects different output depending on the current

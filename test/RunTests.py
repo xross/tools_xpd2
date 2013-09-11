@@ -123,7 +123,8 @@ def test_xpd_commands(folder, args):
     # Needs to get the version before getting dependencies as the
     # dependencies can change between versions
     (stdout_lines, stderr_lines) = call(['xpd', 'list'], cwd=folder)
-    versions = [line.rstrip() for line in stdout_lines + stderr_lines]
+    versions = [line.rstrip() for line in stdout_lines + stderr_lines if
+                    not re.search('WARNING', line) and not re.search('ERROR', line)]
     if not versions:
         log_warning('No versions')
         return
@@ -133,7 +134,7 @@ def test_xpd_commands(folder, args):
     # Ensure all versions can be checked out
     for version in versions[1:]:
         log_info('Try: %s' % version)
-        test_xpd_getdeps(folder, version)
+        test_xpd_get_deps(folder, version)
         call(['xpd', 'checkout', version])
         call(['xpd', 'status'])
 
@@ -141,20 +142,26 @@ def test_xpd_commands(folder, args):
     latest_version = versions[0]
 
     log_info('Try: %s' % latest_version)
-    test_xpd_getdeps(folder, latest_version)
+    test_xpd_get_deps(folder, latest_version)
     call(['xpd', 'checkout', latest_version])
     call(['xpd', 'status'])
+    call(['xpd', 'check_deps'])
+    test_xpd_update(folder)
     test_xpd_make_zip(folder, args.user, args.password)
 
     # Try creating a release of the master
-    test_xpd_getdeps(folder, 'master')
+    test_xpd_get_deps(folder, 'master')
     call(['xpd', 'checkout', 'master'])
     patch_changelog(folder, '100.200.300')
     call(['git', 'commit', '-a', '-m', '"updated changelog"'], cwd=folder)
 
+    # Test a beta release
     test_xpd_create_release(folder, 'b', '100.200.300')
 
-    test_xpd_build_docs(folder)
+    # And a release candidate
+    test_xpd_create_release(folder, 'r', '100.200.300')
+
+    test_xpd_command(folder, 'build_docs')
     
     restore_remote_link(folder)
 
@@ -225,7 +232,7 @@ def run_basics_3(tests_source_folder, tests_run_folder):
     # Use the generic 'test_xpd_command' function because the errors in the repo
     # mean the interaction won't occur
     set_ignore_errors(True)
-    output = test_xpd_command(test_folder, 'update')
+    output = test_xpd_update(test_folder)
     set_ignore_errors(False)
     check_all_errors_seen_and_expected(output, expected_errors)
 
@@ -266,6 +273,9 @@ def run_clone_xcore(tests_source_folder, tests_run_folder, args):
 
 def run_test_all(tests_source_folder, tests_run_folder, args):
     log_info("Running tests in %s" % tests_run_folder)
+#    test_xpd_commands(os.path.join(tests_run_folder, 'test_sw_avb', 'sw_avb'), args)
+#    return
+
     for folder in os.listdir(tests_run_folder):
         if not os.path.isdir(os.path.join(tests_run_folder, folder)) or not folder.startswith('test_'):
             continue
@@ -295,6 +305,8 @@ if __name__ == '__main__':
     setup_logging(os.getcwd())
     (tests_source_folder, script_name) = os.path.split(os.path.realpath(__file__))
     tests_run_folder = os.path.join(get_parent(get_parent(os.getcwd())), 'tests')
+    if not os.path.isdir(tests_run_folder):
+        os.mkdir(tests_run_folder)
     log_info('Tests running in %s' % tests_run_folder)
 
     for arg in args.tests:

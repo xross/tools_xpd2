@@ -255,7 +255,7 @@ def log_debug(message):
     logging.debug(message)
 
 def print_summary():
-    print "\nTotal warnings: %d, errors %d" % (counts['warnings'], counts['errors'])
+    log_info("\nTotal warnings: %d, errors %d" % (counts['warnings'], counts['errors']))
 
 def setup_logging(folder):
     """ Set up logging so only INFO and above go to the console but DEBUG and above go to
