@@ -831,13 +831,14 @@ class Repo(XmlObject):
             shutil.rmtree(os.path.join(self.path,d))
 
     def _move_to_temp_sandbox(self, path, git_only=True):
+        temp_repo_path = os.path.join(path,os.path.basename(self.path))
         if git_only:
             (stdout_lines, stderr_lines) = call_get_output(
                     ["git", "clone", self.path], cwd=path)
             (stdout_lines, stderr_lines) = call_get_output(
-                    ["git", "checkout", self.current_githash()], cwd=path)
+                    ["git", "checkout", self.current_githash()], cwd=temp_repo_path)
         else:
-            shutil.copytree(self.path, os.path.join(path,os.path.basename(self.path)))
+            shutil.copytree(self.path, temp_repo_path)
 
         self._path = self.path
         self.path = os.path.join(path,self.name)
