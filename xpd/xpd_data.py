@@ -70,13 +70,13 @@ def get_project_immediate_deps(repo, project):
     deps = []
     if os.path.exists(modinfo):
         for line in open(modinfo).readlines():
-            m = re.match('.*DEPENDENT_MODULES\s*=\s*(.*)',line)
+            m = re.match('.*DEPENDENT_MODULES\s*[+]?=\s*(.*)',line)
             if m:
                 deps += create_component_dependencies(m.groups(0)[0])
 
     if os.path.exists(mkfile):
         for line in open(mkfile).readlines():
-            m = re.match('.*USED_MODULES\s*=\s*(.*)',line)
+            m = re.match('.*USED_MODULES\s*[+]?=\s*(.*)',line)
             if m:
                 deps += create_component_dependencies(m.groups(0)[0])
 
