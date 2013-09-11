@@ -686,7 +686,17 @@ class Repo(XmlObject):
 
         for exclude in self.xsoftip_excludes:
             if not os.path.exists(os.path.join(self.path, exclude)):
-                log_error("%s: xsoftip_exclude '%s' does not exist" % (self.name, exclude))
+                log_warning("%s: xsoftip_exclude '%s' does not exist" % (self.name, exclude))
+
+        # Cache the untracked files in this repo as it is a very common action to check whether untracked
+        (stdout_lines, stderr_lines) = call_get_output(
+                ["git", "status", "--porcelain", "--ignored"], cwd=self.path)
+
+        self.untracked_files = []
+        for line in stdout_lines + stderr_lines:
+            m = re.match('^(?:\?\?|!!) (.*)', line)
+            if m:
+                self.untracked_files.append(m.group(1))
 
     def pre_export(self):
         self.xpd_version = xpd_version
@@ -722,19 +732,10 @@ class Repo(XmlObject):
         return False
 
     def is_untracked(self, path):
-        (stdout_lines, stderr_lines) = call_get_output(
-                ["git", "status", "--porcelain"], cwd=self.path)
-
-        lines = []
-        for line in stdout_lines + stderr_lines:
-            m = re.match('^\?\? (.*)', line)
-            if m:
-                lines.append(m.group(1))
-
-        if os.path.isdir(path):
+        if os.path.isdir(os.path.join(self.path, path)) and not path.endswith('/'):
             path = path + '/'
 
-        if any([l for l in lines if path == l]):
+        if any([l for l in self.untracked_files if path == l]):
             return True
         return False
 
