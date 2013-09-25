@@ -35,7 +35,7 @@ Commands
 
    This command will create a new release of the repository. It will
  
-     * Check the dependencies in the same way as the ``check_dep`` option. 
+     * Update the dependencies in the same way as the ``update_deps`` option. 
      * Update the repository's meta-information with the new release 
        based on the current state of the repository and its
        dependents.
@@ -48,6 +48,11 @@ Commands
 .. option:: publish
 
    Publish the current version to cognidox.
+
+.. option:: build_results [MODULE]
+
+   Test building the generated source code for all modules or the one specified.
+   This command aids the debug of this step of the create_release.
 
 .. option:: list
 
@@ -64,10 +69,6 @@ Commands
    This option tags the repository with a particular version. It also
    marks the version as external in the meta-information.
    
-.. option:: getdeps
-
-   Clone all the dependent repositories that are missing.
-
 .. option:: add_dep <REPO_NAME>
 
    Add a dependency.
@@ -80,13 +81,25 @@ Commands
 
    This commands removes a known dependency to the repository.
 
-.. option:: check_dep
+.. option:: show_deps
 
-   Check dependencies.
- 
-   This commands checks the known dependencies of the repository
+   Show a tree view of the dependencies for the repository.
+
+.. option:: get_deps [VERSION]
+
+   Clone all the dependent repositories that are missing. If a version
+   is specified then the dependencies for that version will be cloned.
+
+.. option:: check_deps
+
+   Checks the known dependencies of the repository
    against all the ones that are needed due to the USED_MODULES 
    variables in the various application Makefiles within the repository.
+
+.. option:: update_deps
+
+   Update all dependencies to their current version. Removes unused
+   dependencies.
 
 .. option:: check_info
 
@@ -123,6 +136,10 @@ Commands
 .. option:: git command
 
    Iterate the given git command over the repo and all its dependencies.
+
+.. option:: validate_swblock <BLOCK_NAME>
+
+   Validate the meta-data of the specified software block.
 
 .. option:: --upload
 

@@ -111,9 +111,9 @@ git::
 After making, committing and pushing your changes. You can now create
 your release::
 
-       xpd create_release -v 1.1.0 -b mybranch 
+       xpd create_release
 
-This will create a release called ``1.1.0_mybranch0``. If you make
-more modifications, the next release will be called
-``1.1.0_mybranch1`` and so on.
+This will prompt for the release version and create the release on the
+branch. It also updates the xpd.xml on the master which tracks all
+releases on all branches.
 

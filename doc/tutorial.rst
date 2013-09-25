@@ -14,14 +14,17 @@ The ``sc_xtcp`` repository depends on other repositories for its code. In
 particular it uses modules from the ``sc_ethernet`` repository. In order to
 get the dependent repositories use::
 
-    xpd getdeps
+    xpd get_deps
 
-This will clone repositories that are required by this repository leaving a
-sandbox that looks something like this::
+This will clone repositories that are required by this repository (and
+recursively by its dependent repositories) leaving a sandbox that
+looks something like this::
 
-   sc_xtcp/
    sc_ethernet/
    sc_otp/
+   sc_slicekit_support/
+   sc_util/
+   sc_xtcp/
 
 You local sandbox or working directory will contain certain versions
 of each of these repositories and each will be under version control
@@ -64,16 +67,19 @@ of a repository including its meta-information and dependencies::
        Keywords: ethernet,TCP/IP,mac,mii,IP,UDP,ICMP,UDP
       Published: True
 
-
-   DEPENDENCIES:
-    
-   Actual:
-                xcommon: e1a96de831569a0083c79a46f6de68801cbf6e31 
-            sc_ethernet: bde2c75ff0364ff9973ead0c5d18e537cedd4941
-    
-   Expected:
-                xcommon: 1.0.0
-            sc_ethernet: 2.0.0
+     sc_xtcp:
+       +- sc_ethernet 2.2.5rc2 (found 3a080e47b130c250)
+       |           sc_ethernet:
+       |             +- sc_otp 1.0.0rc0 (ok)
+       |             |      sc_otp: has no dependencies
+       |             +- sc_util 1.0.3rc0 (ok)
+       |             |       sc_util: has no dependencies
+       |             +- sc_slicekit_support 1.0.3rc0 (ok)
+       |                           sc_slicekit_support: has no dependencies
+       +- sc_otp 1.0.0rc0 (ok)
+       |      sc_otp: has no dependencies
+       +- sc_util 1.0.3rc0 (ok)
+               sc_util: has no dependencies
 
 The tool has shown us several things. Firstly, some meta information
 is shown about the repository and along with the current version the
@@ -108,17 +114,17 @@ The ``list`` command can show you what releases have been created in
 the past for this repository::
 
    $ xpd list
+   3.1.4rc0
+   3.1.3rc0
    3.1.2rc1
    3.1.2rc0
-   3.1.1rc3
-   3.1.1rc2
    ...
 
 The ``checkout`` command can move to a specific release. It works like
 the git checkout command but also checks out the relevant
 dependencies::
 
-   $ xpd checkout 3.1.1rc2
+   $ xpd checkout 3.1.4rc0
 
 Once we have checked out this version, it is possible to look at the
 information for this version:: 
@@ -127,7 +133,7 @@ information for this version::
    INFO:
    
                  Name: sc_xtcp
-              Version: 3.1.1rc2
+              Version: 3.1.4rc0
              Location: ssh://git@github.com/davelxmos/sc_xtcp
           Description: Implementation of uIP TCP/IP stack for XMOS devices. Runs in a single thread.
         Documentation: doc/xtcp_guide
@@ -137,13 +143,19 @@ information for this version::
    
    DEPENDENCIES:
    
-   Actual:
-            sc_ethernet: 2.2.1rc1
-                 sc_otp: 1.0.0rc0
-   
-   Expected:
-            sc_ethernet: 2.2.1rc1
-                 sc_otp: 1.0.0rc0
+     sc_xtcp:
+       +- sc_ethernet 2.2.5rc2 (ok)
+       |           sc_ethernet:
+       |             +- sc_otp 1.0.0rc0 (ok)
+       |             |      sc_otp: has no dependencies
+       |             +- sc_util 1.0.3rc0 (ok)
+       |             |       sc_util: has no dependencies
+       |             +- sc_slicekit_support 1.0.3rc0 (ok)
+       |                           sc_slicekit_support: has no dependencies
+       +- sc_otp 1.0.0rc0 (ok)
+       |      sc_otp: has no dependencies
+       +- sc_util 1.0.3rc0 (ok)
+               sc_util: has no dependencies
 
 Here we can see that the actual versions of our local repositories
 have changed. We can get back to the head of the master branch using
@@ -168,13 +180,14 @@ Updating dependencies
 
 As we have seen, ``xpd`` keeps track of the repositories your
 repository depends upon. To maintain this list you can use the
-``show_dep``, ``check_dep``, ``add_dep`` and ``remove_dep`` commands. 
+``show_deps``, ``check_deps``, ``update_deps``, ``add_dep`` and
+``remove_dep`` commands. 
 
-The main command to use is the ``check_dep`` command. This checks the
+The main command to use is the ``update_deps`` command. This checks the
 current dependencies and automatically updates the dependencies in
 xpd.xml::
   
-   $ xpd check_dep
+   $ xpd update_deps
    Saving xpd.xml
 
 Checking repository information
