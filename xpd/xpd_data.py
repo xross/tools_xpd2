@@ -423,9 +423,11 @@ class Component(XmlObject):
         else:
             self.description = "Software Block: " + self.name
 
-        if (os.path.exists(os.path.join(repo.path,path,self.id+'.metainfo'))):
-                self.metainfo_path = os.path.join(path,self.id+'.metainfo')
-                self.buildresults_path = os.path.join(path,"."+self.id+".buildinfo")
+        if (os.path.exists(os.path.join(repo.path, path, self.id + '.metainfo'))):
+            # Use '/' instead of os.path.join because otherwise the generated file is not
+            # useable on linux if created on Windows
+            self.metainfo_path = path + '/' + self.id + '.metainfo'
+            self.buildresults_path = path + '/' + "." + self.id + '.buildinfo'
 
         if self.metainfo_path:
             if self.id[0:4] == "app_":
