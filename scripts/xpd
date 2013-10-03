@@ -2253,6 +2253,10 @@ def xpd_update_changelog(repo, options, args):
     previous_rel = repo.latest_release(release_filter=lambda r: r.version.final_version_str() == previous)
     log_debug("update_changelog: previous version %s" % previous_rel)
 
+    # Previous release in the release notes never actually was made - ignore
+    if not previous_rel:
+      return
+
     vrepo = repo.get_versioned_repo(previous_rel.version)
 
     diffs = {}
