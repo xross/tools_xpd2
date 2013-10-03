@@ -15,3 +15,12 @@ open source repositories.
 
 *Note:* it is necessary to have the XMOS command-line tools in the path when
 running ``xpd``. Otherwise not all ``xpd`` commands will work.
+
+Log Files
+---------
+
+``xpd`` displays information to the console as it runs. However, this information
+is limited to the key messages that the user needs to know about. While it runs
+``xpd`` also emits a much more verbose set of messages to a log file (``run_xpd.log``
+by default). This log file contains details of all sub-commands run by ``xpd``
+and gives the output of those processes.

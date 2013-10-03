@@ -51,8 +51,10 @@ Commands
 
 .. option:: build_results [MODULE]
 
-   Test building the generated source code for all modules or the one specified.
-   This command aids the debug of this step of the create_release.
+   Create the auto-generated source code for all modules (or the one specified).
+   This command generates the resource usage output for each configuration that
+   a module supports. The resource usage output can be found in the ``xpd`` log
+   file (``run_xpd.log`` by default).
 
 .. option:: list
 
@@ -89,6 +91,15 @@ Commands
 
    Clone all the dependent repositories that are missing. If a version
    is specified then the dependencies for that version will be cloned.
+
+   Note that if the dependencies fail to clone with the following error
+   message:
+
+   ``Permission denied (publickey).``
+   
+   Then it is necessary to set up your ssh keys. See 
+   ``https://help.github.com/articles/generating-ssh-keys``
+
 
 .. option:: check_deps
 
