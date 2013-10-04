@@ -457,7 +457,8 @@ class Component(XmlObject):
             paras = field.getElementsByTagName('paragraph')
             value = ''
             for p in paras:
-                value += p.childNodes[0].data
+                if p.childNodes[0].nodeValue:
+                    value += p.childNodes[0].data
             fields[name] = value
         return fields
 
