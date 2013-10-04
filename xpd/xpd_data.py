@@ -947,7 +947,7 @@ class Repo(XmlObject):
                     else:
                         log_info("Cloning " + dep.repo_name)
                         call(["git", "clone", dep.uri, dep_path])
-                        assert_exists(self, dep)
+                        self.assert_exists(dep)
 
                 if not dep.repo:
                     dep.post_import()
