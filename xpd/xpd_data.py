@@ -767,7 +767,7 @@ class Repo(XmlObject):
         return exec_and_match(["git","branch"],r'\* (.*)',cwd=self.path)
 
     def all_repos(self):
-        return [d.repo for d in self.dependencies] + [self]
+        return [d.repo for d in self.get_all_deps_once()] + [self]
 
     def add_dep(self, name):
         if self.get_dependency(name):
@@ -852,9 +852,10 @@ class Repo(XmlObject):
         return self._path
 
     def move_to_temp_sandbox(self,git_only=True):
+        dependencies = self.get_all_deps_once()
         self.sb = tempfile.mkdtemp()
         self._move_to_temp_sandbox(self.sb,git_only=git_only)
-        for dep in self.dependencies:
+        for dep in dependencies:
             if dep.repo:
                 dep.repo._move_to_temp_sandbox(self.sb,git_only=git_only)
 
@@ -863,7 +864,7 @@ class Repo(XmlObject):
 
     def delete_temp_sandbox(self):
         self._restore_path()
-        for dep in self.dependencies:
+        for dep in self.get_all_deps_once():
             if dep.repo:
                 dep.repo._restore_path()
         shutil.rmtree(self.sb)
@@ -924,6 +925,51 @@ class Repo(XmlObject):
             if dep.repo.name == dep_name:
                 return dep
         return None
+
+    def assert_exists(self, dep):
+        if not os.path.exists(dep.get_local_path()):
+            rel = self.latest_release()
+            log_error("Dependency missing: %s for %s version %s" % (dep.repo_name, self.name, rel.version))
+            log_error("  - Use 'xpd get_deps %s' to get dependent repositories" % rel.version)
+            sys.exit(1)
+
+    def get_all_deps(self, clone_missing=False):
+        ''' A generator to get all dependencies recursively - will return the repo each time
+            it is reached in traversing the dependency tree.
+        '''
+        for dep in self.dependencies:
+            if clone_missing:
+                parent = os.path.sep.join(os.path.split(self.path)[:-1])
+                dep_path = os.path.join(parent, dep.repo_name)
+                if not os.path.exists(dep_path):
+                    if not dep.uri:
+                        log_error("Dependency %s has missing uri" % dep.repo_name)
+                    else:
+                        log_info("Cloning " + dep.repo_name)
+                        call(["git", "clone", dep.uri, dep_path])
+                        assert_exists(self, dep)
+
+                if not dep.repo:
+                    dep.post_import()
+                    if not dep.repo:
+                        log_error("Failed to create repo for dependency %s" % dep.repo_name)
+                        continue
+            else:
+                self.assert_exists(dep)
+
+            yield dep
+            for d in dep.repo.get_all_deps(clone_missing=clone_missing):
+                yield d
+
+    def get_all_deps_once(self):
+        ''' Get all the dependencies but only return one instance per each repo name.
+        '''
+        deps = {}
+        for dep in self.get_all_deps():
+            if not dep.repo_name in deps:
+                deps[dep.repo_name] = dep
+
+        return deps.values()
 
     def create_dummy_package(self, version_str):
         package = Package()

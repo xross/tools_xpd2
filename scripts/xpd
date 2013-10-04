@@ -32,13 +32,6 @@ xdoc = None
 xmossphinx = None
 xmos_xref = None
 
-def assert_exists(repo, dep):
-    if not os.path.exists(dep.get_local_path()):
-        rel = repo.latest_release()
-        log_error("Dependency missing: %s for %s version %s" % (dep.repo_name, repo.name, rel.version))
-        log_error("  - Use 'xpd get_deps %s' to get dependent repositories" % rel.version)
-        sys.exit(1)
-
 def samefile(fileA, fileB):
     try:
         return os.path.samefile(fileA, fileB)
@@ -70,49 +63,11 @@ def xpd_dep_iter(repo, command, output_repo_names=True):
         os.system(command)
         os.chdir(cwd)
 
-def get_all_deps(repo, clone_missing=False):
-    ''' A generator to get all dependencies recursively - will return the repo each time
-        it is reached in traversing the dependency tree.
-    '''
-    for dep in repo.dependencies:
-        if clone_missing:
-            parent = os.path.sep.join(os.path.split(repo.path)[:-1])
-            dep_path = os.path.join(parent, dep.repo_name)
-            if not os.path.exists(dep_path):
-                if not dep.uri:
-                    log_error("Dependency %s has missing uri" % dep.repo_name)
-                else:
-                    log_info("Cloning " + dep.repo_name)
-                    call(["git", "clone", dep.uri, dep_path])
-                    assert_exists(repo, dep)
-
-            if not dep.repo:
-                dep.post_import()
-                if not dep.repo:
-                    log_error("Failed to create repo for dependency %s" % dep.repo_name)
-                    continue
-        else:
-            assert_exists(repo, dep)
-
-        yield dep
-        for d in get_all_deps(dep.repo, clone_missing=clone_missing):
-            yield d
-
-def get_all_deps_once(repo):
-    ''' Get all the dependencies but only return one instance per each repo name.
-    '''
-    deps = {}
-    for dep in get_all_deps(repo):
-        if not dep.repo_name in deps:
-            deps[dep.repo_name] = dep
-
-    return deps.values()
-
 def get_all_dep_versions(repo):
     ''' Get the set of all versions of a repo there are expected in the dependencies.
     '''
     deps = {}
-    for dep in get_all_deps(repo):
+    for dep in repo.get_all_deps():
         version = dep.version_str if dep.version_str else dep.githash
 
         name = dep.repo_name
@@ -124,7 +79,7 @@ def get_all_dep_versions(repo):
 def get_all_repos_using_dep_version(repo, dep_name, expected):
     repos = set()
     for dep in repo.dependencies:
-        assert_exists(repo, dep)
+        repo.assert_exists(dep)
         repos |= get_all_repos_using_dep_version(dep.repo, dep_name, expected)
 
         if dep.repo_name != dep_name:
@@ -157,7 +112,7 @@ def show_deps(repo, indent, prefix):
     log_info("%s%s%s:%s" % (indent, prefix, repo.name, " has no dependencies" if not repo.dependencies else ''))
 
     for dep in repo.dependencies:
-        assert_exists(repo, dep)
+        repo.assert_exists(dep)
         if dep.version_str:
             expected = dep.version_str
         else:
@@ -244,7 +199,7 @@ def check_dependency_versions(repo, is_rc):
 
     errors = 0
 
-    for dep in get_all_deps_once(repo):
+    for dep in repo.get_all_deps_once():
         rel = dep.repo.current_release()
         if not rel:
             errors += cdv_message("Dependency '%s' is not on a specified version (found githash %s)" % (
@@ -671,7 +626,7 @@ def xpd_make_zip(repo, options, args, dest=None):
         xpd_build_results(repo, options, ["all"])
 
     xpd_check_infr(repo, options, args)
-    for dep in get_all_deps_once(repo):
+    for dep in repo.get_all_deps_once():
         xpd.check_project.check_project(dep.repo, force_creation=True)
         xpd.check_project.check_cproject(dep.repo, force_creation=True, exclude_apps=True)
 
@@ -680,7 +635,7 @@ def xpd_make_zip(repo, options, args, dest=None):
 
     exports = []
     exports += do_exports(repo)
-    for dep in get_all_deps_once(repo):
+    for dep in repo.get_all_deps_once():
         exports += do_exports(dep.repo)
 
     for component in repo.components:
@@ -696,7 +651,7 @@ def xpd_make_zip(repo, options, args, dest=None):
     f = zipfile.ZipFile(fname, "w")
 
     zip_repo(repo, f, exports, include_binaries=repo.include_binaries, force=options.force)
-    for dep in get_all_deps_once(repo):
+    for dep in repo.get_all_deps_once():
         zip_repo(dep.repo, f, exports, force=options.force, no_app_projects=True)
 
     if not options.nodocs:
@@ -723,7 +678,7 @@ def xpd_make_zip(repo, options, args, dest=None):
 
         xref = xmos_xref.XRefInfo('xpd')
 
-        for dep in get_all_deps_once(repo):
+        for dep in repo.get_all_deps_once():
             if dep.repo.subpartnumber and dep.repo.is_xmos_repo():
                 if not dep.repo.current_release():
                     log_warning("Dependency %s is not on a released version." % dep.repo.name)
@@ -1298,7 +1253,7 @@ def xpd_update_readme(repo, options, args,
     if repo.dependencies == []:
         lines += ['  * None\n']
     else:
-        for dep in get_all_deps_once(repo):
+        for dep in repo.get_all_deps_once():
             if not dep.repo:
                 continue
 
@@ -1582,8 +1537,8 @@ def xpd_checkout(repo, options, args):
     vrepo = repo.get_versioned_repo(version)
 
     local_mod = False
-    for dep in get_all_deps_once(vrepo):
-        assert_exists(vrepo, dep)
+    for dep in vrepo.get_all_deps_once():
+        vrepo.assert_exists(dep)
         if dep.repo.has_local_modifications(is_dependency=True):
             log_error("%s has local modifications" % dep.repo_name)
             local_mod = True
@@ -1591,7 +1546,7 @@ def xpd_checkout(repo, options, args):
         sys.exit(1)
 
     vrepo.checkout(githash)
-    for dep in get_all_deps_once(vrepo):
+    for dep in vrepo.get_all_deps_once():
         dep.repo.checkout(dep.githash)
 
 def xpd_get_deps(repo, options, args):
@@ -1608,7 +1563,7 @@ def xpd_get_deps(repo, options, args):
     else:
         vrepo = repo
 
-    for dep in get_all_deps(vrepo, clone_missing=True):
+    for dep in vrepo.get_all_deps(clone_missing=True):
         pass
 
     return False
@@ -2288,7 +2243,7 @@ def xpd_update_changelog(repo, options, args):
         else:
             log_debug("update_changelog: can't determine previous version dep for '%s'" % dep_name)
 
-    for dep in get_all_deps_once(repo):
+    for dep in repo.get_all_deps_once():
         dep_name = dep.repo.name
         if dep_name not in to_releases:
             log_debug("update_changelog: ignore '%s' as not currently on a version" % dep_name)
@@ -2755,7 +2710,7 @@ if __name__ == "__main__":
 
     # Do not expect dependencies to exist if running get_deps
     if command not in ["get_deps", "list"]:
-        for dep in get_all_deps_once(repo):
+        for dep in repo.get_all_deps_once():
             if not os.path.exists(dep.get_local_path()):
                 log_warning("Cannot find dependency: %s" % dep.repo_name)
 
