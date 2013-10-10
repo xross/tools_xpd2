@@ -779,8 +779,8 @@ def xpd_make_zip(repo, options, args, dest=None):
                                    swblock_zip_paths[block.id],
                                    version = version,
                                    draft=False)
-                cognidox.assign_license(partnum, 'General Public')
-                cognidox.assign_license_agreement(partnum, 6)
+                cognidox.assign_license(partnum, 'General Public', comment="Assigned by xpd")
+                cognidox.assign_license_agreement(partnum, "End User Licence Agreement", comment="Assigned by xpd")
 
         if options.upload:
             f = open(os.path.join(repo.path, "docmap.xml"), 'wb')
@@ -819,8 +819,9 @@ def xpd_make_zip(repo, options, args, dest=None):
                                    version=zip_vstr,
                                    draft=False)
         log_info("Assigning License Info")
-        cognidox.assign_license(repo.subpartnumber, 'General Public')
-        cognidox.assign_license_agreement(repo.subpartnumber, 6)
+        cognidox.assign_license(repo.subpartnumber, 'General Public', comment="Assigned by xpd")
+        cognidox.assign_license_agreement(repo.subpartnumber, "End User Licence Agreement", comment="Assigned by xpd")
+
         log_info("Creating document holder")
         xpd_make_docholder(repo, options, args, to_file=".docholder.xml")
         log_info("Uploading document holder")
@@ -2017,7 +2018,7 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
             if options and options.upload:
                 partnum,issue = xdoc.main('issue', config=xdoc_config)
                 docnums.append((partnum, issue, docdir))
-                cognidox.assign_license(partnum, 'General Public')
+                cognidox.assign_license(partnum, 'General Public', comment="Assigned by xpd")
             else:
                 xdoc.main('xdehtml', config=xdoc_config)
                 if buildlatex:
@@ -2090,7 +2091,7 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
                     swblock.docVersion = lastversion
                 else:
                     swblock.docVersion = "latest"
-                cognidox.assign_license(partnum, 'General Public')
+                cognidox.assign_license(partnum, 'General Public', comment = "Assigned by xpd")
 
             else:
                 xdoc.main('xdehtml', config=xdoc_config)
@@ -2540,6 +2541,7 @@ def xpd_approve_latest(repo, options, args):
         issue = doc.getAttribute('issue')
         log_info("Approving %s, issue %s" % (partnum, issue))
         #cognidox.set_approval_notification(partnum)
+        cognidox.set_auto_update(partnum, True)
         cognidox.publish_doc(partnum, comment="Publish to extranet via xpd")
         cognidox.approve_doc(partnum, issue, comment="Bulk approve from xpd")
 
