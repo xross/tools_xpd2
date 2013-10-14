@@ -15,6 +15,14 @@ xpd_version = "1.0"
     
 DEFAULT_SCOPE='Experimental'
 
+def normalize_repo_uri(uri):
+    if uri.find("github.com") == -1:
+        return uri
+    m = re.match(".*github.com[:/](.*)", uri)
+    if not m:
+        return uri
+    return "git://github.com/" + m.groups(0)[0]
+
 def rst2xml(path):
     """Convert restructured text to XML"""
     xml_file = StringIO()
@@ -62,6 +70,9 @@ def get_project_immediate_deps(repo, project):
         version_str = repo.get_module_version(module_name)
         if version_str:
             dep.version_str = version_str
+        mrepo = repo.get_module_repo(module_name)
+        if (mrepo and mrepo != repo):
+            dep.repo = normalize_repo_uri(mrepo.location)
         deps.append(dep)
       return deps
 
@@ -218,6 +229,7 @@ class Version(object):
 class ComponentDependency(XmlObject):
     version_str = XmlAttribute(attrname="version")
     module_name = XmlText()
+    repo = XmlAttribute()
 
     def __str__(self):
         if self.version_str:
@@ -885,6 +897,22 @@ class Repo(XmlObject):
 
         if rel:
             return rel.version.final_version_str()
+        return None
+
+    def get_module_repo(self, module_name):
+        repo_name = self.find_repo_containing_module(module_name)
+        if not repo_name:
+            log_error('Unable to find repo containing depedency %s' % module_name)
+            return None
+
+        if repo_name == self.name:
+            return self
+        else:
+            repo_dep = self.get_dependency(repo_name)
+            if repo_dep and repo_dep.repo:
+                return repo_dep.repo
+
+        log_error('Unable to find repo containing depedency %s' % module_name)
         return None
 
     def get_software_blocks(self, ignore_xsoftip_excludes=False):
