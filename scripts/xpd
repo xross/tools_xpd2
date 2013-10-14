@@ -1607,7 +1607,7 @@ def xpd_check_info(repo, options, args, check_icon=True):
             update = True
 
     if not repo.xcore_repo and re.match('.*github.com', repo.location):
-        repo.xcore_repo = os.path.basename(repo.location)
+        repo.xcore_repo = "git://github.com/xcore/" + os.path.basename(repo.location)
         update = True
 
     update_partinfo = xpd_check_partinfo(repo, options, args)
