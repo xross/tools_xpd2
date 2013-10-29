@@ -59,8 +59,8 @@ def changelog_str_to_version(version_str):
             return None
     return version
 
-def get_project_immediate_deps(repo, project):
-    def create_component_dependencies(modules_str):
+def get_project_immediate_deps(repo, project, is_update=False):
+    def create_component_dependencies(modules_str, is_update):
       deps = []
       for module_name in modules_str.split(' '):
         if module_name == '':
@@ -70,7 +70,7 @@ def get_project_immediate_deps(repo, project):
         version_str = repo.get_module_version(module_name)
         if version_str:
             dep.version_str = version_str
-        mrepo = repo.get_module_repo(module_name)
+        mrepo = repo.get_module_repo(module_name, is_update)
         if (mrepo and mrepo != repo):
             dep.repo = normalize_repo_uri(mrepo.location)
         deps.append(dep)
@@ -83,13 +83,13 @@ def get_project_immediate_deps(repo, project):
         for line in open(modinfo).readlines():
             m = re.match('.*DEPENDENT_MODULES\s*[+]?=\s*(.*)',line)
             if m:
-                deps += create_component_dependencies(m.groups(0)[0])
+                deps += create_component_dependencies(m.groups(0)[0], is_update)
 
     if os.path.exists(mkfile):
         for line in open(mkfile).readlines():
             m = re.match('.*USED_MODULES\s*[+]?=\s*(.*)',line)
             if m:
-                deps += create_component_dependencies(m.groups(0)[0])
+                deps += create_component_dependencies(m.groups(0)[0], is_update)
 
     return deps
 
@@ -899,7 +899,7 @@ class Repo(XmlObject):
             return rel.version.final_version_str()
         return None
 
-    def get_module_repo(self, module_name):
+    def get_module_repo(self, module_name, is_update):
         repo_name = self.find_repo_containing_module(module_name)
         if not repo_name:
             log_error('Unable to find repo containing depedency %s' % module_name)
@@ -912,10 +912,13 @@ class Repo(XmlObject):
             if repo_dep and repo_dep.repo:
                 return repo_dep.repo
 
-        log_error('Unable to find repo containing depedency %s' % module_name)
+        # Don't want this error message when this is an update that is going to fix it
+        if not is_update:
+            log_error('Unable to find repo containing depedency %s' % module_name)
+
         return None
 
-    def get_software_blocks(self, ignore_xsoftip_excludes=False):
+    def get_software_blocks(self, ignore_xsoftip_excludes=False, is_update=False):
         path = self.path
         components = []
         for x in os.listdir(path):
@@ -937,7 +940,7 @@ class Repo(XmlObject):
               comp = Component()
               comp.init_from_path(self, x)
               components.append(comp)
-              comp.dependencies = get_project_immediate_deps(self, x)
+              comp.dependencies = get_project_immediate_deps(self, x, is_update=is_update)
               log_debug("Component %s has dependencies: %s" % (comp, comp.dependencies))
 
         return components

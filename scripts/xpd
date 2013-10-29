@@ -150,8 +150,8 @@ def xpd_remove_dep(repo, options, args):
 
     return repo.remove_dep(args[0])
 
-def find_current_dependencies(repo):
-    components = repo.get_software_blocks(ignore_xsoftip_excludes=True)
+def find_current_dependencies(repo, is_update=False):
+    components = repo.get_software_blocks(ignore_xsoftip_excludes=True, is_update=is_update)
     used_modules = set()
     for comp in components:
         used_modules = used_modules | set([dep.module_name for dep in comp.dependencies])
@@ -225,7 +225,7 @@ def xpd_update_deps(repo, options, args):
 
 def xpd_check_deps(repo, options, args, return_current_ok=False, allow_updates=False, is_rc=False):
     deps = [d.repo_name for d in repo.dependencies]
-    repos = find_current_dependencies(repo)
+    repos = find_current_dependencies(repo, is_update=allow_updates)
 
     current_ok = True
     update = False
