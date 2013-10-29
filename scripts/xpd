@@ -1558,6 +1558,9 @@ def xpd_get_deps(repo, options, args):
             try:
                 version = Version(version_str=args[0])
                 vrepo = repo.get_versioned_repo(version)
+                if not vrepo:
+                    log_error("'%s' is not a known version" % args[0])
+                    return False
             except xpd.xpd_data.VersionParseError:
                 log_error("Failed to parse version '%s'" % args[0])
                 return False

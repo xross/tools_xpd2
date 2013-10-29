@@ -958,7 +958,8 @@ class Repo(XmlObject):
         if not os.path.exists(dep.get_local_path()):
             rel = self.latest_release()
             log_error("Dependency missing: %s for %s version %s" % (dep.repo_name, self.name, rel.version))
-            log_error("  - Use 'xpd get_deps %s' to get dependent repositories" % rel.version)
+            log_error("  - Use 'xpd get_deps %s' in %s to get dependent repositories" %
+                (rel.version, self.name))
             sys.exit(1)
 
     def get_all_deps(self, clone_missing=False):
