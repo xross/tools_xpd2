@@ -71,7 +71,7 @@ def get_project_immediate_deps(repo, project, is_update=False):
         if version_str:
             dep.version_str = version_str
         mrepo = repo.get_module_repo(module_name, is_update)
-        if (mrepo and mrepo != repo):
+        if (mrepo):
             dep.repo = normalize_repo_uri(mrepo.location)
         deps.append(dep)
       return deps
