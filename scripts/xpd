@@ -63,11 +63,11 @@ def xpd_dep_iter(repo, command, output_repo_names=True):
         os.system(command)
         os.chdir(cwd)
 
-def get_all_dep_versions(repo):
+def get_all_dep_versions(repo, ignore_missing=False):
     ''' Get the set of all versions of a repo there are expected in the dependencies.
     '''
     deps = {}
-    for dep in repo.get_all_deps():
+    for dep in repo.get_all_deps(ignore_missing=ignore_missing):
         version = dep.version_str if dep.version_str else dep.githash
 
         name = dep.repo_name
@@ -2238,7 +2238,9 @@ def xpd_update_changelog(repo, options, args):
         except xpd.xpd_data.VersionParseError:
             log_debug("update_changelog: can't determine current version dep for '%s'" % dep_name)
 
-    for (dep_name, expected) in get_all_dep_versions(vrepo).iteritems():
+    # When cloning the old dependencies then ignore missing repos because they can only
+    # be missing if they are no longer used - and therefore warrent a message in the changelog
+    for (dep_name, expected) in get_all_dep_versions(vrepo, ignore_missing=True).iteritems():
         log_debug("update_changelog: choosing from old versions %s for '%s'" % (str(expected), dep_name))
         release = choose_oldest_release(expected)
         if release:
