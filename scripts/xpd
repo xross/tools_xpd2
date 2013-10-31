@@ -20,7 +20,7 @@ import cognidox
 from xpd.docholder import DocumentHolder, DHSection, DHDocumentLink
 from xmos_logging import log_error, log_warning, log_info, log_debug, configure_logging, print_status_summary
 import subprocess
-from xmos_subprocess import call, call_get_output, Popen
+from xmos_subprocess import call, call_get_output, Popen, platform_is_windows
 import xdoc
 import xmossphinx
 import xmos_xref
@@ -2389,10 +2389,23 @@ def xpd_validate_swblock(repo, options, args, return_valid=False):
     return False
 
 def get_tools_version():
-    (stdout_lines, stderr_lines) = call_get_output(["xcc", "--version"])
+    try:
+        (stdout_lines, stderr_lines) = call_get_output(["xcc", "--version"], ignore_exceptions=True)
+    except OSError, e:
+        if e.errno == 2:
+            # "No such file or directory" error - will be handled below
+            stdout_lines = None
+        else:
+            # Pass on unexpected error
+            raise
 
     if not stdout_lines:
         log_error("Failed to determine tools version using 'xcc --version'")
+        if platform_is_windows():
+            ext = ".bat"
+        else:
+            ext = ".sh"
+        log_error("To fix this, source the SetEnv%s setup script from your xTIMEcomposer installation" % ext)
         sys.exit(1)
 
     m = re.match("(\d+\.\d+\.\d+).*", stdout_lines[0])
