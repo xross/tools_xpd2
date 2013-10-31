@@ -179,7 +179,7 @@ def test_xpd_create_release(folder, version_type, version_number):
                 Expect(['Enter version number'], [version_number]),
                 Expect(['Create release %s' % version_number], ['']), # Use default answer
                 Expect(['Are these notes up to date'], ['']), # Use default answer
-                Expect(['Do you want to push the commit of this release upstream', 'uncommitted modifications'], ['n', None], timeout=90)]
+                Expect(['Do you want to push the commit of this release upstream', 'uncommitted modifications'], ['n', None], timeout=240)]
     xpd_contents = get_xpd_contents(folder)
 
     if not any('<partnumber>' in s for s in xpd_contents):
