@@ -15,6 +15,11 @@ rand = random.Random()
 
 flat_projects = True
 
+def replace_path_sep(path):
+    if platform_is_windows():
+        path = path.replace('\\','/')
+    return path
+
 def prompt(force, prompt, default):
     if force:
         x = 'y' if default else 'n'
@@ -290,9 +295,8 @@ def create_cproject(repo, path=None, name=None, configs=None, all_includes=[],
    includes = ['<listOptionValue builtIn="false" value=\'%s\' />\n'%x for x in sorted(all_includes)]
    includes = ''.join(includes)
 
-   if platform_is_windows():
-       # On Windows need to write out paths with '/' instead of '\'
-       includes = includes.replace('\\','/')
+   # On Windows need to write out paths with '/' instead of '\'
+   includes = replace_path_sep(includes)
 
    config_str = ''
    for config in configs:
@@ -403,7 +407,7 @@ def _check_cproject(repo, makefiles, project_deps, path=None, force_creation=Fal
     else:
          is_module = True
 
-    all_includes = ['&quot;${workspace_loc:/%s}&quot;' % i \
+    all_includes = ['&quot;${workspace_loc:/%s}&quot;' % replace_path_sep(i) \
                          for i in all_includes if i != '']
 
     sys_includes = []
