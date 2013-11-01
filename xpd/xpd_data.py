@@ -71,7 +71,7 @@ def get_project_immediate_deps(repo, project, is_update=False):
         if version_str:
             dep.version_str = version_str
         mrepo = repo.get_module_repo(module_name, is_update)
-        if (mrepo and mrepo != repo):
+        if (mrepo):
             dep.repo = normalize_repo_uri(mrepo.location)
         deps.append(dep)
       return deps
@@ -972,7 +972,7 @@ class Repo(XmlObject):
                 (get_deps_str, self.name))
             sys.exit(1)
 
-    def get_all_deps(self, clone_missing=False):
+    def get_all_deps(self, clone_missing=False, ignore_missing=False):
         ''' A generator to get all dependencies recursively - will return the repo each time
             it is reached in traversing the dependency tree.
         '''
@@ -994,11 +994,16 @@ class Repo(XmlObject):
                         log_error("Failed to create repo for dependency %s" % dep.repo_name)
                         continue
             else:
-                self.assert_exists(dep)
+                if not ignore_missing:
+                    self.assert_exists(dep)
 
             yield dep
-            for d in dep.repo.get_all_deps(clone_missing=clone_missing):
-                yield d
+
+            # If ignoring missing dependencies then the dependency repo may not exist
+            if dep.repo:
+              for d in dep.repo.get_all_deps(clone_missing=clone_missing,
+                                             ignore_missing=ignore_missing):
+                  yield d
 
     def get_all_deps_once(self):
         ''' Get all the dependencies but only return one instance per each repo name.

@@ -20,7 +20,7 @@ import cognidox
 from xpd.docholder import DocumentHolder, DHSection, DHDocumentLink
 from xmos_logging import log_error, log_warning, log_info, log_debug, configure_logging, print_status_summary
 import subprocess
-from xmos_subprocess import call, call_get_output, Popen
+from xmos_subprocess import call, call_get_output, Popen, platform_is_windows
 import xdoc
 import xmossphinx
 import xmos_xref
@@ -63,11 +63,11 @@ def xpd_dep_iter(repo, command, output_repo_names=True):
         os.system(command)
         os.chdir(cwd)
 
-def get_all_dep_versions(repo):
+def get_all_dep_versions(repo, ignore_missing=False):
     ''' Get the set of all versions of a repo there are expected in the dependencies.
     '''
     deps = {}
-    for dep in repo.get_all_deps():
+    for dep in repo.get_all_deps(ignore_missing=ignore_missing):
         version = dep.version_str if dep.version_str else dep.githash
 
         name = dep.repo_name
@@ -204,11 +204,11 @@ def check_dependency_versions(repo, is_rc):
         if not rel:
             errors += cdv_message("Dependency '%s' is not on a specified version (found githash %s)" % (
                                     dep.repo.name, dep.repo.current_version_or_githash()), is_rc)
-        elif not dep.repo.partnumber:
-            errors += cdv_message("Dependency '%s' is not a published component" % dep.repo.name, is_rc)
-
-        if is_rc and not rel.version.is_rc():
+        elif is_rc and not rel.version.is_rc():
             errors += cdv_message("Dependency '%s' is not an rc" % dep.repo.name, is_rc)
+
+        if not dep.repo.partnumber:
+            errors += cdv_message("Dependency '%s' is not a published component" % dep.repo.name, is_rc)
 
         # Check whether the repo is publicly visible (commit is not still local)
         (stdout_lines, stderr_lines) = call_get_output(
@@ -2238,7 +2238,9 @@ def xpd_update_changelog(repo, options, args):
         except xpd.xpd_data.VersionParseError:
             log_debug("update_changelog: can't determine current version dep for '%s'" % dep_name)
 
-    for (dep_name, expected) in get_all_dep_versions(vrepo).iteritems():
+    # When cloning the old dependencies then ignore missing repos because they can only
+    # be missing if they are no longer used - and therefore warrent a message in the changelog
+    for (dep_name, expected) in get_all_dep_versions(vrepo, ignore_missing=True).iteritems():
         log_debug("update_changelog: choosing from old versions %s for '%s'" % (str(expected), dep_name))
         release = choose_oldest_release(expected)
         if release:
@@ -2389,10 +2391,23 @@ def xpd_validate_swblock(repo, options, args, return_valid=False):
     return False
 
 def get_tools_version():
-    (stdout_lines, stderr_lines) = call_get_output(["xcc", "--version"])
+    try:
+        (stdout_lines, stderr_lines) = call_get_output(["xcc", "--version"], ignore_exceptions=True)
+    except OSError, e:
+        if e.errno == 2:
+            # "No such file or directory" error - will be handled below
+            stdout_lines = None
+        else:
+            # Pass on unexpected error
+            raise
 
     if not stdout_lines:
         log_error("Failed to determine tools version using 'xcc --version'")
+        if platform_is_windows():
+            ext = ".bat"
+        else:
+            ext = ".sh"
+        log_error("To fix this, source the SetEnv%s setup script from your xTIMEcomposer installation" % ext)
         sys.exit(1)
 
     m = re.match("(\d+\.\d+\.\d+).*", stdout_lines[0])
