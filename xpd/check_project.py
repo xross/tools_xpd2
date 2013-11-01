@@ -410,8 +410,6 @@ def _check_cproject(repo, makefiles, project_deps, path=None, force_creation=Fal
     all_includes = ['&quot;${workspace_loc:/%s}&quot;' % replace_path_sep(i) \
                          for i in all_includes if i != '']
 
-    sys_includes = []
-
     log_debug("%s: checking .cproject file" % name)
     cproject_ok = True
     cproject_path = os.path.join(path,'.cproject')
@@ -436,12 +434,8 @@ def _check_cproject(repo, makefiles, project_deps, path=None, force_creation=Fal
                     unfound_includes.remove(m.groups(0)[0])
                 except:
                     pass
-                try:
-                    sys_includes.remove(m.groups(0)[0])
-                except:
-                    pass
 
-        if unfound_includes != [] or sys_includes != []:
+        if unfound_includes != []:
             log_warning("%s: .cproject does not cover all include paths" % name)
             cproject_ok = False
 
