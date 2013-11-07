@@ -953,8 +953,8 @@ def zip_repo(repo, zipfile, exports, include_binaries=False, force=False, no_app
         for root, dirs, files in os.walk(os.path.join(repo.path, ".git")):
             for f in files:
                 fullpath = os.path.join(root, f)
-                arcname=os.path.join(repo.name, os.path.relpath(root, repo.path))
-                arcname=os.path.join(arcname, f)
+                arcname = os.path.join(repo.name, os.path.relpath(root, repo.path))
+                arcname = os.path.join(arcname, f)
                 zipfile.write(fullpath, arcname=arcname)
 
     if repo.partnumber and repo.current_release():
