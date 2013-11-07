@@ -882,7 +882,7 @@ def zip_repo(repo, zipfile, exports, include_binaries=False, force=False, no_app
             # modules that are simply longer folder names being affected
             # (e.g. module_usbhost and module_usbhost_epmanager)
             i = export + os.path.sep
-            if not re.match('.*\.project|.*\.cproject|.*\.xproject', f):
+            if not re.match('.*\.project|.*\.cproject|.*\.xproject|.*\.makefile', f):
                 if os.path.commonprefix([f, i]) == i:
                     ok = False
 
