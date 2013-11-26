@@ -17,7 +17,7 @@ DEFAULT_SCOPE='Experimental'
 
 def normalize_repo_uri(uri):
     if uri.find("github.com") == -1:
-        return uri
+        return ""
     m = re.match(".*github.com[:/](.*)", uri)
     if not m:
         return uri
