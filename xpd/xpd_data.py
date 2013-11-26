@@ -12,7 +12,7 @@ import xml.dom.minidom
 from StringIO import StringIO
 
 xpd_version = "1.0"
-    
+
 DEFAULT_SCOPE='Experimental'
 
 def normalize_repo_uri(uri):
@@ -100,7 +100,7 @@ class VersionParseError(Exception):
 
 
 class Version(object):
-    def __init__(self, major=0, minor=0, point=0, 
+    def __init__(self, major=0, minor=0, point=0,
                  rtype="release", rnumber=0,
                  branch=None, branch_rnumber=0,
                  version_str=None):
@@ -124,12 +124,12 @@ class Version(object):
         if not m:
             m = re.match(r'([^v])v(\d)(\d?)(alpha|beta|rc|)(\d*)()()', version_string)
         if m:
-            self.major = int(m.groups(0)[0]) 
-            self.minor = int(m.groups(0)[1]) 
+            self.major = int(m.groups(0)[0])
+            self.minor = int(m.groups(0)[1])
             point = m.groups(0)[2]
             if point == '':
                 point = '0'
-            self.point = int(point) 
+            self.point = int(point)
             self.rtype = m.groups(0)[3]
             self.rnumber = m.groups(0)[4]
             if (self.rnumber == ""):
@@ -180,14 +180,14 @@ class Version(object):
                 return 1
             elif other.rtype == '':
                 return -1
-            else:            
+            else:
                 return cmp(self.rtype, other.rtype)
         else:
             if self.rtype in ['', 'release']:
                 return 0
             else:
                 return cmp(self.rnumber, other.rnumber)
-            
+
     def __str__(self):
         vstr = ""
         rtype = self.rtype
@@ -263,7 +263,7 @@ class Dependency(XmlObject):
                 sys.exit(1)
             elif path in self.parent._repo_cache:
                 self.repo = self.parent._repo_cache[path]
-            else:                
+            else:
                 self.repo = Repo(self.get_local_path(), parent=self.parent)
                 self.parent._repo_cache[path] = self.repo
         else:
@@ -293,7 +293,7 @@ class Schematic(Board):
 class HardwareSection(XmlObject):
     boards = XmlNodeList(Board)
     schematics = XmlNodeList(Schematic)
-    
+
 
 class DeviceSection(XmlObject):
     devices = XmlValueList()
@@ -306,7 +306,7 @@ class UseCase(XmlObject):
     hardware = XmlNode(HardwareSection, tagname="hardware")
     devices = XmlNode(DeviceSection, tagname="devices")
     description = XmlValue()
-    
+
 
 class Release(XmlObject):
     version_str = XmlAttribute(attrname="version", required=True)
@@ -558,7 +558,7 @@ class Repo(XmlObject):
             relhash = self.get_child_hash(parenthash)
             (stdout_lines, stderr_lines) = call_get_output(
                     ["git", "show", "%s:xpd.xml" % relhash], cwd=path)
-            
+
             if stderr_lines == []:
                 read_file = False
                 self.parseString(''.join(stdout_lines), src="%s:%s:xpd.xml" % (self.path,relhash))
@@ -578,7 +578,7 @@ class Repo(XmlObject):
                 self.parse(self.xpd_file)
             except IOError:
                 self.parseString("<xpd></xpd>")
-            
+
         if not master and not parenthash:
             self.master_repo = Repo(self.path, master=True)
             self.merge_releases(self.master_repo)
@@ -610,20 +610,20 @@ class Repo(XmlObject):
 
     def checkout(self, githash, silent=False):
         call(["git", "checkout",githash], cwd=self.path, silent=silent)
-            
+
     def save(self):
-        log_debug("Saving xpd.xml") 
+        log_debug("Saving xpd.xml")
         f = open(self.xpd_file, 'wb')
         f.write(self.toxml("xpd"))
         f.close()
-            
+
     def record_release(self, release):
         if self.git:
             ref = self.current_gitref()
             if ref != "master":
                 self.checkout("master",silent=True)
                 master_repo = Repo(self.path)
-                master_repo.releases.append(release)   
+                master_repo.releases.append(release)
                 master_repo.save()
                 call(["git", "add", "xpd.xml"], cwd=self.path, silent=True)
                 call(["git", "commit", "-m", "'Record release: %s'" % str(release.version)],
@@ -647,7 +647,7 @@ class Repo(XmlObject):
         rels.sort()
         if rels != []:
             return rels[-1]
-        return None                
+        return None
 
     def latest_full_release(self):
         return self.latest_release(release_filter=
@@ -662,7 +662,7 @@ class Repo(XmlObject):
         if not self.path:
             return None
         parent_hash = exec_and_match(["git","rev-parse","HEAD~1"],r'(.*)',cwd=self.path)
-        
+
         rels = []
         for release in self.releases:
             if hasattr(release,'parenthash') and parent_hash == release.parenthash:
@@ -758,7 +758,7 @@ class Repo(XmlObject):
         return exec_and_match(["git","remote","show","-n","origin"],
                               r'.*Fetch URL: (.*)',
                               cwd=self.path)
-        
+
     def current_gitref(self):
         symref = exec_and_match(["git","symbolic-ref","HEAD"],r'refs/heads/(.*)',
                                 cwd=self.path)
@@ -774,7 +774,7 @@ class Repo(XmlObject):
 
     def current_githash(self):
         return exec_and_match(["git","rev-parse","HEAD"],r'(.*)',cwd=self.path)
- 
+
     def current_gitbranch(self):
         return exec_and_match(["git","branch"],r'\* (.*)',cwd=self.path)
 
