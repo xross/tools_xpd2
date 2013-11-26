@@ -783,7 +783,7 @@ class Repo(XmlObject):
 
     def add_dep(self, name):
         if self.get_dependency(name):
-            log_error("dependency already exists")
+            log_error("Dependency already exists")
             return False
 
         dep = Dependency(parent=self)
@@ -884,7 +884,8 @@ class Repo(XmlObject):
     def get_module_version(self, module_name):
         repo_name = self.find_repo_containing_module(module_name)
         if not repo_name:
-            log_error('Unable to find repo containing depedency %s' % module_name)
+            log_error('%s: Unable to find repo containing depedency %s' %
+                (self.name, module_name))
             return None
 
         rel = None
@@ -902,7 +903,8 @@ class Repo(XmlObject):
     def get_module_repo(self, module_name, is_update):
         repo_name = self.find_repo_containing_module(module_name)
         if not repo_name:
-            log_error('Unable to find repo containing depedency %s' % module_name)
+            log_error('%s: Unable to find repo containing depedency %s' %
+                (self.name, module_name))
             return None
 
         if repo_name == self.name:
@@ -914,7 +916,8 @@ class Repo(XmlObject):
 
         # Don't want this error message when this is an update that is going to fix it
         if not is_update:
-            log_error('Unable to find repo containing depedency %s' % module_name)
+            log_error('%s: Unable to find repo containing depedency %s' %
+                (self.name, module_name))
 
         return None
 
@@ -982,7 +985,8 @@ class Repo(XmlObject):
                 dep_path = os.path.join(parent, dep.repo_name)
                 if not os.path.exists(dep_path):
                     if not dep.uri:
-                        log_error("Dependency %s has missing uri" % dep.repo_name)
+                        log_error("%s: Dependency %s has missing uri" %
+                            (self.name, dep.repo_name))
                     else:
                         log_info("Cloning " + dep.repo_name)
                         call(["git", "clone", dep.uri, dep_path])
@@ -991,7 +995,8 @@ class Repo(XmlObject):
                 if not dep.repo:
                     dep.post_import()
                     if not dep.repo:
-                        log_error("Failed to create repo for dependency %s" % dep.repo_name)
+                        log_error("%s: Failed to create repo for dependency %s" %
+                            (self.name, dep.repo_name))
                         continue
             else:
                 if not ignore_missing:
@@ -1248,7 +1253,8 @@ class Repo(XmlObject):
             try:
                 v = Version(version_str=line.strip())
                 if v in all_versions:
-                    log_error("Duplicate release note entries for %s" % fstr)
+                    log_error("%s: Duplicate release note entries for %s" %
+                        (self.name, fstr))
                 all_versions.add(v)
             except VersionParseError:
                 v = None
