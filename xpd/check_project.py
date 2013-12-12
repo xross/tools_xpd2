@@ -564,7 +564,7 @@ def update_makefile(mkfile_path, all_configs):
                 in_config_branch = ''
             skip_line = True
 
-        if re.match('-?include.*',line):
+        if re.match('-?include(.*)Makefile.common', line):
             past_include = True
 
         line = re.sub(r'module_(\w*)\.[\d|v]*',r'module_\1',line)
