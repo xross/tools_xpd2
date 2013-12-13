@@ -24,7 +24,7 @@ def prompt(force, prompt, default):
     if force:
         x = 'y' if default else 'n'
     else:
-        print "%s (y/n) [%s]? " % ('y' if default else 'n')
+        print "%s (y/n) [%s]? " % (prompt, ('y' if default else 'n'))
         x = raw_input()
 
     if default:
