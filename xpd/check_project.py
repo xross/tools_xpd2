@@ -498,7 +498,7 @@ def check_makefile(mkfile_path, repo, all_configs):
             log_warning("%s has explicit module versions" % relpath)
             updates_required = True
 
-        m = re.match('-?include(.*)Makefile.common', line)
+        m = re.match('-?include(.*Makefile.common)', line)
         if m:
             include_path = m.groups(0)[0].strip()
             if include_path != \
