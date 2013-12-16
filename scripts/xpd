@@ -808,7 +808,7 @@ def xpd_make_zip(repo, options, args, dest=None):
                                        draft=False)
 
     if options.upload:
-        log_info("Uploading zip file")
+        log_info("Uploading zip file to cognidox part number %s" % repo.subpartnumber)
         m = re.match('(.*)rc(\d+)$', version_string)
         if m:
             zip_vstr = m.groups(0)[0]
@@ -1796,6 +1796,9 @@ def xpd_check_partinfo(repo, options, args):
                                                    doctype='SM',
                                                    auto_create=True)
             update = True
+    if repo.partnumber and not repo.subpartnumber:
+        print "ERROR: there is a part number for the document holder but not for the zipfile. Something is quite wrong with the xpd.xml"
+        sys.exit(1)
     # if not repo.partnumber:
     #     print "Cannot find a partnumber. If using cognidox, this should be the partnumber for the document holder *not* the zipfile itself. If a partnumber exists for the zipfile but not the document holder then please create a new partnumber"
     #     repo.partnumber = \
