@@ -141,7 +141,8 @@ def show_deps(repo, indent, prefix):
 def xpd_show_deps(repo, options, args):
     log_info("\nDEPENDENCIES:\n")
     show_deps(repo, '  ', '')
-    get_multiple_version_errors(repo, print_help=False)
+    if not options.github:
+        get_multiple_version_errors(repo, print_help=False)
 
 def xpd_remove_dep(repo, options, args):
     if len(args) < 1:
@@ -279,7 +280,7 @@ def xpd_check_deps(repo, options, args, return_current_ok=False, allow_updates=F
     if errors:
         current_ok = False
 
-    if not allow_updates:
+    if not allow_updates and not options.github:
         errors = get_multiple_version_errors(repo)
         if errors:
             current_ok = False
@@ -358,7 +359,10 @@ def xpd_build_sw(repo, options):
     log_info("Building repo ok")
 
 def xpd_create_release(repo, options, args):
-    errors = get_multiple_version_errors(repo)
+    if options.github:
+        errors = False
+    else:
+        errors = get_multiple_version_errors(repo)
     if errors and not options.force:
         sys.exit(1)
 
