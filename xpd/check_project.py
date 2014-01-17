@@ -175,56 +175,16 @@ def parse_makefile(path):
     return vals
 
 def get_configs(mkfile_path):
-    f = open(mkfile_path)
-    lines = f.readlines()
-    f.close()
-    configs = set()
-    flag_types = set()
-    in_config_branch = None
-    for line in lines:
-        m = re.match('\s*XCC(.*)_FLAGS(\w*) .*',line)
-        if m:
-            flag_type = m.groups(0)[0]
-            config = m.groups(0)[1]
-            flag_types.add(flag_type)
-
-            if config == '':
-                if in_config_branch:
-                    config = in_config_branch
-                else:
-                    config = 'Default'
-            else:
-                config = config[1:]
-            configs.add(config)
-        m = re.match('\s*INCLUDE_ONLY_IN_(\w*) .*',line)
-        if m:
-            config = m.groups(0)[0]
-            configs.add(config)
-
-        m = re.match('ifeq "\$\(CONFIG\)" "(\w*)"',line)
-        if m:
-            in_config_branch = m.groups(0)[0]
-
-        if in_config_branch and re.match('.*endif',line):
-            in_config_branch = None
-
-        if in_config_branch and re.match('.*else',line):
-            if in_config_branch == 'Debug':
-                in_config_branch = 'Release'
-            elif in_config_branch == 'Release':
-                in_config_branch = 'Debug'
-            else:
-                in_config_branch = ''
-
-    if not configs:
-        configs.add('Default')
-
-    return flag_types, configs
+    folder = os.path.dirname(mkfile_path)
+    mkfile_name = os.path.basename(mkfile_path)
+    (stdout_lines, stderr_lines) = call_get_output(["xmake", "allconfigs", mkfile_name], cwd=folder)
+    configs = set(stdout_lines[0].strip().split(" "))
+    return configs
 
 def get_all_configs(makefiles):
     configs = set(['Default'])
     for mkfile in makefiles:
-        (_, mkfile_configs) = get_configs(mkfile)
+        mkfile_configs = get_configs(mkfile)
         configs = configs | mkfile_configs
 
     if 'Debug' in configs:
@@ -374,7 +334,7 @@ def _check_cproject(repo, makefiles, project_deps, path=None, force_creation=Fal
          path = repo.path
          configs = get_all_configs(makefiles)
     elif os.path.exists(os.path.join(path,'Makefile')):
-         _, configs = get_configs(os.path.join(path,'Makefile'))
+         configs = get_configs(os.path.join(path,'Makefile'))
     else:
          configs = set(['Default'])
     name = get_project_name(repo,path)
@@ -479,7 +439,7 @@ def check_cproject(repo, force_creation=False, exclude_apps=False):
 def check_makefile(mkfile_path, repo, all_configs):
     updates_required = False
     relpath = os.path.relpath(mkfile_path,repo.path)
-    flag_types, configs = get_configs(mkfile_path)
+    configs = get_configs(mkfile_path)
     f = open(mkfile_path)
     lines = f.readlines()
     f.close()
@@ -523,7 +483,7 @@ include $(XMOS_MAKE_PATH)/xcommon/module_xcommon/build/Makefile.common
 """
 
 def update_makefile(mkfile_path, all_configs):
-    flag_types, configs = get_configs(mkfile_path)
+    configs = get_configs(mkfile_path)
     f = open(mkfile_path)
     lines = f.readlines()
     f.close()
