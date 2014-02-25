@@ -571,6 +571,8 @@ def xpd_create_release(repo, options, args):
 
     release.githash = repo.get_child_hash(release.parenthash)
 
+    repo.git_tag(str(version))
+
     if confirm("Do you want to push the commit of this release upstream", default=True):
         repo.git_push()
 
@@ -1626,20 +1628,7 @@ def xpd_tag(repo, options, args):
     if len(args) < 1:
         log_error("Requires version number")
         sys.exit(1)
-
-    v = Version(version_str=args[0])
-
-    rel = repo.get_release(v)
-
-    relhash = repo.get_child_hash(rel.parenthash)
-
-    if not relhash:
-        log_error("Cannot determine release hash")
-        sys.exit(1)
-
-    call(["git", "tag", "v%s"%str(v), relhash], cwd=Repo.path)
-
-    log_info("Tagged")
+    repo.git_tag(args[0])
 
 def construct_name(repo, args, type_of_name):
     prefix = type_of_name + '_'

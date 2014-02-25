@@ -1040,13 +1040,28 @@ class Repo(XmlObject):
             log_error("'git add %s' failed" % path)
 
     def git_push(self):
-        call(["git", "push"], cwd=self.path, silent=True)
+        call(["git", "push", "--tags"], cwd=self.path, silent=True)
 
     def git_fetch(self):
         call(["git", "fetch"], cwd=self.path, silent=True)
 
     def git_remove(self, path):
         call(["git", "rm", "-f", path], cwd=self.path, silent=True)
+
+    def git_tag(self, version_string):
+        v = Version(version_str=version_string)
+
+        rel = self.get_release(v)
+
+        relhash = self.get_child_hash(rel.parenthash)
+
+        if not relhash:
+           log_error("Cannot determine release hash")
+           sys.exit(1)
+
+        call(["git", "tag", "v%s" % str(v), relhash], cwd=Repo.path)
+
+        log_info("Tagged")
 
     def behind_upstream(self):
         (stdout_lines, stderr_lines) = call_get_output(
