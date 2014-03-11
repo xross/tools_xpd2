@@ -179,7 +179,7 @@ def get_configs(mkfile_path):
     mkfile_name = os.path.basename(mkfile_path)
     (stdout_lines, stderr_lines) = call_get_output(["xmake", "allconfigs", mkfile_name], cwd=folder)
     configs = set()
-    if stdout_lines:
+    if len(stdout_lines):
       configs = set(stdout_lines[0].strip().split(" "))
     return configs
 
