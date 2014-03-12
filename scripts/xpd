@@ -382,7 +382,7 @@ def xpd_create_release(repo, options, args):
         sys.exit(1)
 
     repo.git_fetch()
-    if repo.behind_upstream():
+    if repo.behind_upstream() and not options.force:
         log_error("Upstream changes not merged in. Cannot create release")
         log_error("Try a 'git pull'")
         sys.exit(1)
@@ -430,7 +430,7 @@ def xpd_create_release(repo, options, args):
                 print "ERROR: Unknown release type '%s'" % x
 
     notes = repo.changelog_entries
-    if not notes:
+    if not notes and not options.force:
         log_error("No versions found in CHANGELOG.rst, please update file first")
         sys.exit(1)
 
