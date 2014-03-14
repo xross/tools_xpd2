@@ -101,6 +101,11 @@ sub DoInstall
   chdir($BUILDPATH) or die("oops");
   XmosBuildLib::InstallDirectory($DOMAIN, "dist", "xpd");
   XmosBuildLib::InstallxSOFTipToolsDirectory($DOMAIN, "dist", "xpd");
+
+  if ($^O eq "MSWin32") {
+    XmosBuildLib::InstallFile($DOMAIN, "bin", "plink.exe");
+    XmosBuildLib::InstallxSOFTipToolsFile($DOMAIN, "bin", "plink.exe","bin");
+  }
 }
 
 main()

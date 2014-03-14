@@ -13,6 +13,7 @@ from xpd.xpd_data import Repo, Release, Version, Dependency
 from xpd.xpd_data import AllSoftwareDescriptor, SoftwareDescriptor
 from xpd.xpd_data import DocMap, Doc
 from xpd.xpd_data import changelog_str_to_version
+from xpd.xpd_dp import init_dp_sources, init_dp_branch, init_dp_backup
 import xpd.check_project
 import xmlobject
 from xpd import templates
@@ -51,17 +52,6 @@ def confirm(msg, default=False):
             return False
         if x.upper() in ["Y", "YES"]:
             return True
-
-def xpd_dep_iter(repo, command, output_repo_names=True):
-    deps = repo.dependencies
-    os.system(command)
-    for dep in deps:
-        cwd = os.getcwd()
-        os.chdir(dep.get_local_path())
-        if output_repo_names:
-            sys.stdout.write("\n"+str(dep)+":\n")
-        os.system(command)
-        os.chdir(cwd)
 
 def get_all_dep_versions(repo, ignore_missing=False):
     ''' Get the set of all versions of a repo there are expected in the dependencies.
@@ -1513,70 +1503,25 @@ def xpd_gen_readme(repo, options, args):
     log_info('\n'.join(changelog))
 
 def xpd_checkout(repo, options, args):
-    if not args:
-        log_error("Please specify a version to checkout (use 'xpd list' to get available versions)")
-        return False
+  if not args:
+    log_error("Please specify a version to checkout (use 'xpd list' to get available versions)")
+    return False
 
-    if args[0] == 'latest':
-        rel = repo.latest_release()
-        if not rel:
-            log_error("Cannot find latest release")
-            sys.exit(1)
-        else:
-            log_info("Checking out %s" % str(rel.version))
-            version = rel.version
-    else:
-        try:
-            version = Version(version_str=args[0])
-        except:
-            xpd_dep_iter(repo, "git checkout %s" % args[0])
-            return False
-
-    rel = repo.get_release(version)
-    if not rel:
-        log_error("Release '%s' not found" % version)
-        sys.exit(1)
-
-    githash = repo.get_child_hash(rel.parenthash)
-    if not githash:
-        log_error("Cannot find githash for version %s, maybe the git history has been modified" % str(version))
-        sys.exit(1)
-    vrepo = repo.get_versioned_repo(version)
-
-    local_mod = False
-    for dep in vrepo.get_all_deps_once():
-        vrepo.assert_exists(dep)
-        if dep.repo.has_local_modifications(is_dependency=True):
-            log_error("%s has local modifications" % dep.repo_name)
-            local_mod = True
-    if local_mod:
-        sys.exit(1)
-
-    vrepo.checkout(githash)
-    for dep in vrepo.get_all_deps_once():
-        dep.repo.checkout(dep.githash)
+  version_name = args[0]
+  repo.checkout(version_name)
+  return false
 
 def xpd_get_deps(repo, options, args):
-    if args:
-        if args[0] == 'master':
-            vrepo = repo
-        else:
-            try:
-                version = Version(version_str=args[0])
-                vrepo = repo.get_versioned_repo(version)
-                if not vrepo:
-                    log_error("'%s' is not a known version" % args[0])
-                    return False
-            except xpd.xpd_data.VersionParseError:
-                log_error("Failed to parse version '%s'" % args[0])
-                return False
-    else:
-        vrepo = repo
+  if len(args) == 0:
+    version_name = 'master'
+  elif len(args) == 1:
+    version_name = args[0]
+  else:
+    log_error("xpd get_deps [version]")
+    sys.exit(1)
 
-    for dep in vrepo.get_all_deps(clone_missing=True):
-        pass
-
-    return False
+  repo.clone_deps(version_name)
+  return False
 
 def xpd_check_info(repo, options, args, check_icon=True):
     update = False
@@ -2142,6 +2087,64 @@ def xpd_check_all(repo, options, args):
 def xpd_update(repo, options, args):
     return xpd_check_all(repo, options, args)
 
+def xpd_init_dp_sources(repo, options, args):
+  if len(args) != 4:
+    log_error("init_dp_sources REPO_URL CUSTOMER PROJECT RELEASE")
+    sys.exit(1)
+
+  repo_url = args[0]
+  customer = args[1]
+  project = args[2]
+  release_name = args[3]
+
+  init_dp_sources(repo_url, customer, project, release_name)
+  return False
+
+def do_init_dp_branch(repo, customer, project, release_name):
+  init_dp_branch(repo, customer, project, release_name)
+  xpd_check_deps(repo, options, args, allow_updates=True)
+  repo.save()
+  call(["git", "add", "xpd.xml"], cwd=repo.path, silent=True)
+  call(["git", "commit", "-m", "'Created Derived Product from %s'" % release_name],
+      cwd=repo.path, silent=True)
+
+def xpd_init_dp_branch(repo, options, args):
+  if len(args) != 3:
+    log_error("init_dp_branch CUSTOMER PROJECT RELEASE")
+    sys.exit(1)
+
+  customer = args[0]
+  project = args[1]
+  release_name = args[2]
+  do_init_dp_branch(repo, customer, project, release_name)
+  return False
+
+def xpd_init_dp_backup(repo, options, args):
+  if len(args) != 2:
+    log_error("init_dp_backup CUSTOMER PROJECT")
+    sys.exit(1)
+
+  customer = args[0]
+  project = args[1]
+  init_dp_backup(repo, customer, project)
+  return False
+
+def xpd_create_dp(repo, options, args):
+  if len(args) != 4:
+    log_error("create_dp REPO_URL CUSTOMER PROJECT RELEASE")
+    sys.exit(1)
+
+  repo_url = args[0]
+  customer = args[1]
+  project = args[2]
+  release_name = args[3]
+
+  repo = init_dp_sources(repo_url, customer, project, release_name)
+  do_init_dp_branch(repo, customer, project, release_name)
+  init_dp_backup(customer, project)
+
+  return false
+
 def notes_version_matches(notes_version_str, version):
     if notes_version_str == version.final_version_str():
         return True
@@ -2636,6 +2639,10 @@ other_commands =[
             ("create_app", "Create application within project"),
             ("create_module", "Create module within project"),
             ("create_schema", "Create a Relax NG schema file for xpd.xml"),
+            ("create_dp", "Create a derived product project."),
+            ("init_dp_sources", "Create the sources required for a derived product."),
+            ("init_dp_branch", "Setup the branches and git remotes for a derived product."),
+            ("init_dp_backup", "Create the backup folders for a derived product on XMOS' servers."),
             ("install_local", "Install into local xsoftipexploer cache (DEBUG)"),
             ("check_partinfo", "Check part information (DEBUG)"),
             ("make_docholder", "Make docholder (DEBUG)"),
@@ -2707,7 +2714,7 @@ if __name__ == "__main__":
 
     if len(sys.argv) > 1 and sys.argv[1] == 'git':
         repo = Repo(".")
-        xpd_dep_iter(repo, ' '.join(sys.argv[1:]))
+        repo.dep_iter(' '.join(sys.argv[1:]))
         sys.exit(0)
 
     (options, args) = optparser.parse_args()
@@ -2717,15 +2724,16 @@ if __name__ == "__main__":
 
     configure_logging(level_console='INFO', level_file='DEBUG', filename=options.logfile)
 
-    git_dir = get_git_dir('.')
-    os.chdir(git_dir)
-
-    repo = Repo(".")
-
     command = args[0]
+    if command in ["create_dp", "init_dp_sources"]:
+      repo = None
+    else:
+      git_dir = get_git_dir('.')
+      os.chdir(git_dir)
+      repo = Repo(".")
 
     # Do not expect dependencies to exist if running get_deps
-    if command not in ["get_deps", "list"]:
+    if command not in ["get_deps", "list", "create_dp", "init_dp_sources"]:
         for dep in repo.get_all_deps_once():
             if not os.path.exists(dep.get_local_path()):
                 log_warning("Cannot find dependency: %s" % dep.repo_name)
@@ -2742,7 +2750,7 @@ if __name__ == "__main__":
         if command == 'publish_github':
             options.github = True
 
-        if options.github:
+        if options.github and repo not in ["create_dp", "init_dp_sources"]:
             repo.enter_github_mode()
 
         command_fn = eval("xpd_%s" % command)
