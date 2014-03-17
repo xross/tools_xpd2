@@ -78,20 +78,25 @@ def remote_call(user, host, commands):
   else:
     args = ['ssh', '-q', user + "@" + host] + ['; '.join(commands)]
 
-  call(args)
+  return call(args)
 
 def create_repo_command(repo):
   return ['~/scripts/create_repo.sh %s git "Fork of %s"' % (repo.name, repo.name)]
 
 def init_dp_backup(repo, customer, project):
   git_folder = 'git/ce/derived_products/%s/%s' % (customer, project)
-  commands  = ['mkdir -p %s' % git_folder]
+  commands  = ['if [ -e %s ] ; then exit 1 ; fi' % git_folder ]
+  commands += ['mkdir -p %s' % git_folder]
   commands += ['cd %s' % git_folder]
   commands += create_repo_command(repo)
   for dep in repo.get_all_deps_once():
     commands += create_repo_command(dep.repo)
 
-  remote_call('git', 'git', commands)
+  retval = remote_call('git', 'git', commands)
+  if retval:
+    log_error("Failed to create repos on git server - check they don't already exist")
+    log_info("Commands that were being run:\n  %s" % '\n  '.join(commands))
+    return
 
   repo.git_push_to_backup()
   for dep in repo.get_all_deps_once():
