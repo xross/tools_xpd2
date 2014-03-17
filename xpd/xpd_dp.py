@@ -70,9 +70,8 @@ def remote_call(user, host, commands):
   if platform_is_windows():
     tmp_file = '.tmp.txt'
     with open(tmp_file, 'w') as f:
-      f.write('\n'.join(commands)) 
-      f.write('\n') 
-      remote_call('git', 'git', 'tmp.txt')
+      f.write('\n'.join(commands))
+      f.write('\n')
     args = ['plink.exe','-ssh', '-noagent', '-m', tmp_file, user + "@" + host]
     os.remove(tmp_file)
 
