@@ -42,6 +42,9 @@ def init_dp_sources(repo_url, customer, project, release_name):
 
   repo = Repo(repo_path)
   repo.clone_deps(release_name)
+
+  # Do this again now that the dependency files exist
+  repo = Repo(repo_path)
   return repo
 
 def repo_init_remote_and_branch(repo, customer, project):
