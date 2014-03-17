@@ -608,9 +608,6 @@ class Repo(XmlObject):
 
         return Repo(path=self.path, parenthash=rel.parenthash)
 
-    def checkout(self, githash, silent=False):
-        call(["git", "checkout",githash], cwd=self.path, silent=silent)
-
     def save(self):
         log_debug("Saving xpd.xml")
         f = open(self.xpd_file, 'wb')
@@ -621,14 +618,14 @@ class Repo(XmlObject):
         if self.git:
             ref = self.current_gitref()
             if ref != "master":
-                self.checkout("master",silent=True)
+                self.git_checkout("master", silent=True)
                 master_repo = Repo(self.path)
                 master_repo.releases.append(release)
                 master_repo.save()
                 call(["git", "add", "xpd.xml"], cwd=self.path, silent=True)
                 call(["git", "commit", "-m", "'Record release: %s'" % str(release.version)],
                                 cwd=self.path, silent=True)
-                self.checkout(ref, silent=True)
+                self.git_checkout(ref, silent=True)
 
     def save_and_commit_release(self, release):
         self.save()
@@ -975,6 +972,17 @@ class Repo(XmlObject):
                 (get_deps_str, self.name))
             sys.exit(1)
 
+    def dep_iter(self, command, output_repo_names=True):
+        deps = self.dependencies
+        os.system(command)
+        for dep in deps:
+            cwd = os.getcwd()
+            os.chdir(dep.get_local_path())
+            if output_repo_names:
+                log_info("\n"+str(dep)+":\n")
+            os.system(command)
+            os.chdir(cwd)
+
     def get_all_deps(self, clone_missing=False, ignore_missing=False):
         ''' A generator to get all dependencies recursively - will return the repo each time
             it is reached in traversing the dependency tree.
@@ -1020,6 +1028,65 @@ class Repo(XmlObject):
 
         return deps.values()
 
+    def clone_deps(self, version_name):
+      if version_name == 'master':
+        vrepo = self
+      else:
+        try:
+          version = Version(version_str=version_name)
+          vrepo = self.get_versioned_repo(version)
+          if not vrepo:
+            log_error("'%s' is not a known version" % version_name)
+            return
+        except VersionParseError:
+          log_error("Failed to parse version '%s'" % version_name)
+          return
+
+      for dep in vrepo.get_all_deps(clone_missing=True):
+        pass
+
+    def checkout(self, version_name):
+      if version_name == 'latest':
+        rel = self.latest_release()
+        if not rel:
+          log_error("Cannot find latest release")
+          sys.exit(1)
+        else:
+          log_info("Checking out %s" % str(rel.version))
+          version = rel.version
+      else:
+        try:
+          version = Version(version_str=version_name)
+        except:
+          self.dep_iter("git checkout %s" % version_name)
+          return None
+
+      rel = self.get_release(version)
+      if not rel:
+        log_error("Release '%s' not found" % version)
+        sys.exit(1)
+
+      githash = self.get_child_hash(rel.parenthash)
+      if not githash:
+        log_error("Cannot find githash for version %s, maybe the git history has been modified" % str(version))
+        sys.exit(1)
+      vrepo = self.get_versioned_repo(version)
+
+      local_mod = False
+      for dep in vrepo.get_all_deps_once():
+        vrepo.assert_exists(dep)
+        if dep.repo.has_local_modifications(is_dependency=True):
+          log_error("%s has local modifications" % dep.repo_name)
+          local_mod = True
+      if local_mod:
+        sys.exit(1)
+
+      vrepo.git_checkout(githash)
+      for dep in vrepo.get_all_deps_once():
+        dep.repo.git_checkout(dep.githash)
+
+      return vrepo
+
     def create_dummy_package(self, version_str):
         package = Package()
         package.id = "xm-local-" + self.name
@@ -1039,6 +1106,13 @@ class Repo(XmlObject):
         if retval:
             log_error("'git add %s' failed" % path)
 
+    def git_push_to_backup(self):
+        retval = call(["git", "push", "--all", "-u", "origin"], cwd=self.path, silent=True)
+        if retval:
+          log_error("Failed to back up %s" % self.name)
+        else:
+          log_info("Successfully backed up %s" % self.name)
+
     def git_push(self):
         call(["git", "push", "--tags"], cwd=self.path, silent=True)
 
@@ -1047,6 +1121,9 @@ class Repo(XmlObject):
 
     def git_remove(self, path):
         call(["git", "rm", "-f", path], cwd=self.path, silent=True)
+
+    def git_checkout(self, githash, silent=False):
+        call(["git", "checkout", githash], cwd=self.path, silent=silent)
 
     def git_tag(self, version_string):
         v = Version(version_str=version_string)
