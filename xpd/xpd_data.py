@@ -1014,7 +1014,9 @@ class Repo(XmlObject):
 
             # If ignoring missing dependencies then the dependency repo may not exist
             if dep.repo:
-              for d in dep.repo.get_all_deps(clone_missing=clone_missing,
+              # Use the versioned dependency to get next level dependencies
+              v_dep_repo = Repo(path=dep.repo.path, parenthash=dep.githash)
+              for d in v_dep_repo.get_all_deps(clone_missing=clone_missing,
                                              ignore_missing=ignore_missing):
                   yield d
 
