@@ -1509,7 +1509,7 @@ def xpd_checkout(repo, options, args):
 
   version_name = args[0]
   repo.checkout(version_name)
-  return false
+  return False
 
 def xpd_get_deps(repo, options, args):
   if len(args) == 0:
