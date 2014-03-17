@@ -1509,7 +1509,7 @@ def xpd_checkout(repo, options, args):
 
   version_name = args[0]
   repo.checkout(version_name)
-  return false
+  return False
 
 def xpd_get_deps(repo, options, args):
   if len(args) == 0:
@@ -2733,7 +2733,7 @@ if __name__ == "__main__":
       repo = Repo(".")
 
     # Do not expect dependencies to exist if running get_deps
-    if command not in ["get_deps", "list", "create_dp", "init_dp_sources"]:
+    if command not in ["get_deps", "list", "create_dp", "init_dp_sources", "checkout"]:
         for dep in repo.get_all_deps_once():
             if not os.path.exists(dep.get_local_path()):
                 log_warning("Cannot find dependency: %s" % dep.repo_name)
