@@ -2100,9 +2100,9 @@ def xpd_init_dp_sources(repo, options, args):
   init_dp_sources(repo_url, customer, project, release_name)
   return False
 
-def do_init_dp_branch(repo, customer, project, release_name):
+def do_init_dp_branch(repo, options, customer, project, release_name):
   init_dp_branch(repo, customer, project, release_name)
-  xpd_check_deps(repo, options, args, allow_updates=True)
+  xpd_update_deps(repo, options, [])
   repo.save()
   call(["git", "add", "xpd.xml"], cwd=repo.path, silent=True)
   call(["git", "commit", "-m", "'Created Derived Product from %s'" % release_name],
@@ -2116,7 +2116,7 @@ def xpd_init_dp_branch(repo, options, args):
   customer = args[0]
   project = args[1]
   release_name = args[2]
-  do_init_dp_branch(repo, customer, project, release_name)
+  do_init_dp_branch(repo, options, customer, project, release_name)
   return False
 
 def xpd_init_dp_backup(repo, options, args):
@@ -2140,10 +2140,10 @@ def xpd_create_dp(repo, options, args):
   release_name = args[3]
 
   repo = init_dp_sources(repo_url, customer, project, release_name)
-  do_init_dp_branch(repo, customer, project, release_name)
-  init_dp_backup(customer, project)
+  do_init_dp_branch(repo, options, customer, project, release_name)
+  init_dp_backup(repo, customer, project)
 
-  return false
+  return False
 
 def notes_version_matches(notes_version_str, version):
     if notes_version_str == version.final_version_str():
