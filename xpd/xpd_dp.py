@@ -1,3 +1,4 @@
+import errno
 import os
 import re
 
@@ -5,11 +6,20 @@ from xmos_logging import log_error, log_warning, log_info, log_debug
 from xpd.xpd_data import Repo, Version
 from xmos_subprocess import call, platform_is_windows
 
+def mkdir_p(path):
+  try:
+    os.makedirs(path)
+  except OSError as exc: # Python >2.5
+    if exc.errno == errno.EEXIST and os.path.isdir(path):
+      pass
+    else:
+      raise
+
 def init_dp_sources(repo_url, customer, project, release_name):
-  project_path = customer + '_' + project
-  
+  project_path = os.path.join(customer, project)
+
   if not os.path.exists(project_path):
-    os.mkdir(project_path)
+    mkdir_p(project_path)
 
   # Extract the repo name from URL
   m = re.match(r'^.*/([^/.]+)(\.git)?$', repo_url)
