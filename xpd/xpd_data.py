@@ -266,6 +266,9 @@ class Dependency(XmlObject):
             else:
                 self.repo = Repo(self.get_local_path(), parent=self.parent)
                 self.parent._repo_cache[path] = self.repo
+
+            self.gitbranch = self.repo.current_gitbranch()
+
         else:
             self.repo = None
 
