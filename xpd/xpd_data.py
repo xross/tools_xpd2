@@ -1001,14 +1001,14 @@ class Repo(XmlObject):
                     else:
                         log_info("Cloning " + dep.repo_name)
                         call(["git", "clone", dep.uri, dep_path])
+                        call(["git", "checkout", dep.githash], cwd=dep_path)
                         self.assert_exists(dep)
 
+                dep.post_import()
                 if not dep.repo:
-                    dep.post_import()
-                    if not dep.repo:
-                        log_error("%s: Failed to create repo for dependency %s" %
-                            (self.name, dep.repo_name))
-                        continue
+                    log_error("%s: Failed to create repo for dependency %s" %
+                        (self.name, dep.repo_name))
+                    continue
             else:
                 if not ignore_missing:
                     self.assert_exists(dep)
