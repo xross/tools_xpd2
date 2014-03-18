@@ -2103,7 +2103,7 @@ def xpd_init_dp_sources(repo, options, args):
   init_dp_sources(repo_url, customer, project, release_name)
   return False
 
-def dp_update_repo(repo, options, release_name):
+def dp_update_repo(repo, options, repo_name, release_name):
   log_info("Update %s (%s)" % (repo.name, repr(repo)))
 
   # Recreate the Repo so that branches of dependencies are re-read
@@ -2115,7 +2115,7 @@ def dp_update_repo(repo, options, release_name):
   # If anything has changed then commit it to git
   if new_repo.has_local_modifications(is_dependency=True):
     call(["git", "add", "xpd.xml"], cwd=new_repo.path, silent=True)
-    call(["git", "commit", "-m", "'Created Derived Product from %s'" % release_name],
+    call(["git", "commit", "-m", "'Created Derived Product from %s %s'" % (repo_name, release_name)],
         cwd=new_repo.path, silent=True)
 
 def do_init_dp_branch(repo, options, customer, project, release_name):
@@ -2123,9 +2123,9 @@ def do_init_dp_branch(repo, options, customer, project, release_name):
 
   # Get the reverse list of all the dependencies - and only once
   for dep in vrepo.get_all_deps_reversed_once():
-    dp_update_repo(dep.repo, options, release_name)
+    dp_update_repo(dep.repo, options, repo.name, release_name)
 
-  dp_update_repo(vrepo, options, release_name)
+  dp_update_repo(vrepo, options, repo.name, release_name)
 
 def xpd_init_dp_branch(repo, options, args):
   if len(args) != 3:
