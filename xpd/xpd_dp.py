@@ -1,6 +1,7 @@
 import errno
 import os
 import re
+import sys
 
 from xmos_logging import log_error, log_warning, log_info, log_debug
 from xpd.xpd_data import Repo, Version
