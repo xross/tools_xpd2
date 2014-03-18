@@ -214,7 +214,7 @@ def check_dependency_versions(repo, is_rc):
 def xpd_update_deps(repo, options, args):
     return xpd_check_deps(repo, options, args, allow_updates=True)
 
-def xpd_check_deps(repo, options, args, return_current_ok=False, allow_updates=False, is_rc=False):
+def xpd_check_deps(repo, options, args, return_current_ok=False, allow_updates=False, is_rc=False, update_uri=False):
     deps = [d.repo_name for d in repo.dependencies]
     repos = find_current_dependencies(repo, is_update=allow_updates)
 
@@ -261,6 +261,9 @@ def xpd_check_deps(repo, options, args, return_current_ok=False, allow_updates=F
             else:
                 log_warning("Dependency %s is not up to date" % dep.repo_name)
                 current_ok = False
+
+        if update_uri:
+          dep.uri = dep.repo.uri()
 
     if not current_ok:
         log_info("Use 'xpd update_deps' to update dependencies")
@@ -2100,13 +2103,29 @@ def xpd_init_dp_sources(repo, options, args):
   init_dp_sources(repo_url, customer, project, release_name)
   return False
 
+def dp_update_repo(repo, options, repo_name, release_name):
+  log_info("Update %s (%s)" % (repo.name, repr(repo)))
+
+  # Recreate the Repo so that branches of dependencies are re-read
+  new_repo = Repo(repo.path)
+  # Perform an update that also changes the uri so that clones work
+  xpd_check_deps(new_repo, options, [], allow_updates=True, update_uri=True)
+  new_repo.save()
+
+  # If anything has changed then commit it to git
+  if new_repo.has_local_modifications(is_dependency=True):
+    call(["git", "add", "xpd.xml"], cwd=new_repo.path, silent=True)
+    call(["git", "commit", "-m", "'Created Derived Product from %s %s'" % (repo_name, release_name)],
+        cwd=new_repo.path, silent=True)
+
 def do_init_dp_branch(repo, options, customer, project, release_name):
-  init_dp_branch(repo, customer, project, release_name)
-  xpd_update_deps(repo, options, [])
-  repo.save()
-  call(["git", "add", "xpd.xml"], cwd=repo.path, silent=True)
-  call(["git", "commit", "-m", "'Created Derived Product from %s'" % release_name],
-      cwd=repo.path, silent=True)
+  vrepo = init_dp_branch(repo, customer, project, release_name)
+
+  # Get the reverse list of all the dependencies - and only once
+  for dep in vrepo.get_all_deps_reversed_once():
+    dp_update_repo(dep.repo, options, repo.name, release_name)
+
+  dp_update_repo(vrepo, options, repo.name, release_name)
 
 def xpd_init_dp_branch(repo, options, args):
   if len(args) != 3:

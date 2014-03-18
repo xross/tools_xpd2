@@ -1,6 +1,7 @@
 import errno
 import os
 import re
+import sys
 
 from xmos_logging import log_error, log_warning, log_info, log_debug
 from xpd.xpd_data import Repo, Version
@@ -65,6 +66,8 @@ def init_dp_branch(repo, customer, project, release_name):
   repo_init_remote_and_branch(vrepo, customer, project)
   for dep in vrepo.get_all_deps_once():
     repo_init_remote_and_branch(dep.repo, customer, project)
+
+  return vrepo
 
 def remote_call(user, host, commands):
   if platform_is_windows():
