@@ -1001,7 +1001,8 @@ class Repo(XmlObject):
                     else:
                         log_info("Cloning " + dep.repo_name)
                         call(["git", "clone", dep.uri, dep_path])
-                        call(["git", "checkout", dep.githash], cwd=dep_path)
+                        if dep.gitbranch and dep.gitbranch != "master":
+                          call(["git", "checkout", "-b", dep.gitbranch, "origin/%s" % dep.gitbranch], cwd=dep_path)
                         self.assert_exists(dep)
 
                 dep.post_import()
