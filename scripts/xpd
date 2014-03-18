@@ -2104,8 +2104,6 @@ def xpd_init_dp_sources(repo, options, args):
   return False
 
 def dp_update_repo(repo, options, repo_name, release_name):
-  log_info("Update %s (%s)" % (repo.name, repr(repo)))
-
   # Recreate the Repo so that branches of dependencies are re-read
   new_repo = Repo(repo.path)
   # Perform an update that also changes the uri so that clones work
