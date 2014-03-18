@@ -1033,6 +1033,20 @@ class Repo(XmlObject):
 
         return deps.values()
 
+    def get_all_deps_reversed_once(self):
+        ''' Get all the dependencies but only return one instance per each repo name.
+            Reverse the order so they should be deepest first
+        '''
+        dep_names = {}
+        deps = []
+        for dep in self.get_all_deps():
+            if not dep.repo_name in dep_names:
+                dep_names[dep.repo_name] = 1
+            deps.append(dep)
+
+        deps.reverse()
+        return deps
+
     def clone_deps(self, version_name):
       if version_name == 'master':
         vrepo = self

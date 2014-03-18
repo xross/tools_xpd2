@@ -66,6 +66,8 @@ def init_dp_branch(repo, customer, project, release_name):
   for dep in vrepo.get_all_deps_once():
     repo_init_remote_and_branch(dep.repo, customer, project)
 
+  return vrepo
+
 def remote_call(user, host, commands):
   if platform_is_windows():
     tmp_file = '.tmp.txt'
