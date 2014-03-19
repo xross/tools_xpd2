@@ -522,6 +522,7 @@ class Repo(XmlObject):
     xcore_subpartnumber = XmlValue()
     domain = XmlValue()
     subdomain = XmlValue()
+    licence = XmlValue()
     include_dirs = XmlValueList()
     exclude_dirs = XmlValueList()
     xsoftip_excludes = XmlValueList()
@@ -758,6 +759,12 @@ class Repo(XmlObject):
         return exec_and_match(["git","remote","show","-n","origin"],
                               r'.*Fetch URL: (.*)',
                               cwd=self.path)
+
+    def licence_is_general(self):
+        if not self.licence or self.licence == 'general':
+            return True
+
+        return False
 
     def current_gitref(self):
         symref = exec_and_match(["git","symbolic-ref","HEAD"],r'refs/heads/(.*)',

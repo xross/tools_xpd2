@@ -778,8 +778,9 @@ def xpd_make_zip(repo, options, args, dest=None):
                                    swblock_zip_paths[block.id],
                                    version = version,
                                    draft=False)
-                cognidox.assign_license(partnum, 'General Public', comment="Assigned by xpd")
-                cognidox.assign_license_agreement(partnum, "End User Licence Agreement", comment="Assigned by xpd")
+                if repo.licence_is_general():
+                    cognidox.assign_license(partnum, 'General Public', comment="Assigned by xpd")
+                    cognidox.assign_license_agreement(partnum, "End User Licence Agreement", comment="Assigned by xpd")
 
         if options.upload:
             f = open(os.path.join(repo.path, "docmap.xml"), 'wb')
@@ -817,9 +818,12 @@ def xpd_make_zip(repo, options, args, dest=None):
                                    fname,
                                    version=zip_vstr,
                                    draft=False)
-        log_info("Assigning License Info")
-        cognidox.assign_license(repo.subpartnumber, 'General Public', comment="Assigned by xpd")
-        cognidox.assign_license_agreement(repo.subpartnumber, "End User Licence Agreement", comment="Assigned by xpd")
+        if repo.licence_is_general():
+            log_info("Assigning Licence Info")
+            cognidox.assign_license(repo.subpartnumber, 'General Public', comment="Assigned by xpd")
+            cognidox.assign_license_agreement(repo.subpartnumber, "End User Licence Agreement", comment="Assigned by xpd")
+        else:
+            log_info("Restricted Licence: not assigning licence info")
 
         log_info("Creating document holder")
         xpd_make_docholder(repo, options, args, to_file=".docholder.xml")
@@ -1965,7 +1969,8 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
             if options and options.upload:
                 partnum,issue = xdoc.main('issue', config=xdoc_config)
                 docnums.append((partnum, issue, docdir))
-                cognidox.assign_license(partnum, 'General Public', comment="Assigned by xpd")
+                if repo.licence_is_general():
+                    cognidox.assign_license(partnum, 'General Public', comment="Assigned by xpd")
             else:
                 xdoc.main('xdehtml', config=xdoc_config)
                 if buildlatex:
@@ -2038,7 +2043,8 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
                     swblock.docVersion = lastversion
                 else:
                     swblock.docVersion = "latest"
-                cognidox.assign_license(partnum, 'General Public', comment = "Assigned by xpd")
+                if repo.licence_is_general():
+                    cognidox.assign_license(partnum, 'General Public', comment = "Assigned by xpd")
 
             else:
                 xdoc.main('xdehtml', config=xdoc_config)
