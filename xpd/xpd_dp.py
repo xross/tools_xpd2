@@ -70,18 +70,22 @@ def init_dp_branch(repo, customer, project, release_name):
   return vrepo
 
 def remote_call(user, host, commands):
+  tmp_file = '.remote_commands.txt'
   if platform_is_windows():
-    tmp_file = '_remote_commands.txt'
     with open(tmp_file, 'w') as f:
       f.write('\n'.join(commands))
       f.write('\n')
     args = ['plink.exe','-ssh', '-noagent', '-m', tmp_file, user + "@" + host]
-    os.remove(tmp_file)
 
   else:
     args = ['ssh', '-q', user + "@" + host] + ['; '.join(commands)]
 
-  return call(args)
+  retval = call(args)
+
+  if platform_is_windows():
+    os.remove(tmp_file)
+
+  return retval
 
 def create_repo_command(repo):
   return ['~/scripts/create_repo.sh %s git "Fork of %s"' % (repo.name, repo.name)]
