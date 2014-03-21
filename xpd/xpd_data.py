@@ -102,8 +102,13 @@ class VersionParseError(Exception):
 class Version(object):
     def __init__(self, major=0, minor=0, point=0,
                  rtype="release", rnumber=0,
-                 branch=None, branch_rnumber=0,
                  version_str=None):
+
+        self.branch_name = None
+        self.branch_major = 0
+        self.branch_minor = 0
+        self.branch_point = 0
+        self.branch_rnumber = 0
 
         if version_str == None:
             if rtype == "":
@@ -113,43 +118,47 @@ class Version(object):
             self.point = point
             self.rtype = rtype
             self.rnumber = rnumber
-            self.branch = branch
-            self.branch_rnumber = branch_rnumber
         else:
             self.parse_string(version_str)
 
     def parse_string(self, version_string):
-        m = re.match(r'(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)_?(\w*)(\d*)', version_string)
+        m = re.match(r'(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)_(\w*)_(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)', version_string)
+
+        if m:
+            on_branch = True
+        else:
+            on_branch = False
+            m = re.match(r'(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)', version_string)
+            if not m:
+              m = re.match(r'([^v])v(\d)(\d?)(alpha|beta|rc|)(\d*)', version_string)
 
         if not m:
-            m = re.match(r'([^v])v(\d)(\d?)(alpha|beta|rc|)(\d*)()()', version_string)
-        if m:
-            self.major = int(m.groups(0)[0])
-            self.minor = int(m.groups(0)[1])
-            point = m.groups(0)[2]
-            if point == '':
-                point = '0'
-            self.point = int(point)
-            self.rtype = m.groups(0)[3]
-            self.rnumber = m.groups(0)[4]
-            if (self.rnumber == ""):
-                self.rnumber = 0
-            else:
-                self.rnumber = int(self.rnumber)
-            self.branch = m.groups(0)[5]
-            if (self.branch == ""):
-                self.branch = None
-            else:
-                self.branch = int(self.rnumber)
+            raise VersionParseError
 
-            self.branch_rnumber = m.groups(0)[6]
-            if (self.branch_rnumber == ""):
+        self.major = int(m.groups(0)[0])
+        self.minor = int(m.groups(0)[1])
+        point = m.groups(0)[2]
+        if point == '':
+            point = '0'
+        self.point = int(point)
+        self.rtype = m.groups(0)[3]
+        self.rnumber = m.groups(0)[4]
+        if self.rnumber == "":
+            self.rnumber = 0
+        else:
+            self.rnumber = int(self.rnumber)
+
+        if on_branch:
+            self.branch_name = m.groups(0)[5]
+            self.branch_major = int(m.groups(0)[6])
+            self.branch_minor = int(m.groups(0)[7])
+            self.branch_point = int(m.groups(0)[8])
+            self.branch_rtype = m.groups(0)[9]
+            self.branch_rnumber = m.groups(0)[10]
+            if self.branch_rnumber == "":
                 self.branch_rnumber = 0
             else:
-                self.branch_rnumber = int(self.rnumber)
-
-        else:
-            raise VersionParseError
+                self.branch_rnumber = int(self.branch_rnumber)
 
     def major_increment(self):
         return Version(self.major+1, 0, 0)
@@ -161,10 +170,13 @@ class Version(object):
         return Version(self.major, self.minor, self.point+1)
 
     def is_rc(self):
-        return self.rtype == 'rc'
+        if self.branch_name:
+            return self.branch_rtype == 'rc'
+        else:
+            return self.rtype == 'rc'
 
     def is_full(self):
-        return not self.branch and self.rtype in ['', 'release']
+        return not self.branch_name and self.rtype in ['', 'release']
 
     def __cmp__(self, other):
         if other == None:
@@ -191,20 +203,32 @@ class Version(object):
     def __str__(self):
         vstr = ""
         rtype = self.rtype
-        if rtype in ['', 'release']:
-            vstr = "%d.%d.%d" % (self.major, self.minor, self.point)
-        else:
-            vstr = "%d.%d.%d%s%d" % (self.major, self.minor, self.point,
-                                     self.rtype, self.rnumber)
+        vstr = "%d.%d.%d" % (self.major, self.minor, self.point)
+        if rtype not in ['', 'release']:
+            vstr += "%s%d" % (self.rtype, self.rnumber)
 
-        if self.branch:
-            vstr += "_%s%d" % (self.branch, self.branch_rnumber)
+        if self.branch_name:
+            vstr += "_%s_%d.%d.%d" % (self.branch_name, self.branch_major, self.branch_minor, self.branch_point)
+
+            if self.branch_rtype not in ['', 'release']:
+              vstr += "%s%d" % (self.branch_rtype, self.branch_rnumber)
 
         return vstr
 
     def final_version_str(self):
-        vstr = "%d.%d.%d" % (self.major, self.minor, self.point)
-        return vstr
+        if self.branch_name:
+            return "%d.%d.%d_%s_%d.%d.%d" % (self.major, self.minor, self.point, self.branch_name,
+                                             self.branch_major, self.branch_minor, self.branch_point)
+        else:
+            return "%d.%d.%d" % (self.major, self.minor, self.point)
+
+    def match_modulo_rnumber(self, other):
+        return (self.major == other.major and
+                self.minor == other.minor and
+                self.point == other.point and
+                self.rtype == other.rtype and
+                not self.branch_name and
+                not other.branch_name)
 
     def match_modulo_rnumber(self, other):
         return (self.major == other.major and
@@ -212,15 +236,28 @@ class Version(object):
                 self.point == other.point and
                 self.rtype == other.rtype)
 
-    def match_modulo_rtype(self, other):
+    def match_modulo_branch_rnumber(self, other):
         return (self.major == other.major and
                 self.minor == other.minor and
-                self.point == other.point)
+                self.point == other.point and
+                self.branch_name == other.branch_name and
+                self.branch_major == other.branch_major and
+                self.branch_minor == other.branch_minor and
+                self.branch_point == other.branch_point and
+                self.branch_type == other.branch_type)
+
+    def set_branch_rnumber(self, releases):
+        rels = [r for r in releases if self.match_modulo_branch_rnumber(r.version)]
+        rels.sort()
+        if not rels:
+            self.rnumber = 0
+        else:
+            self.rnumber = rels[-1].version.rnumber + 1
 
     def set_rnumber(self, releases):
         rels = [r for r in releases if self.match_modulo_rnumber(r.version)]
         rels.sort()
-        if rels==[]:
+        if not rels:
             self.rnumber = 0
         else:
             self.rnumber = rels[-1].version.rnumber + 1
@@ -264,7 +301,7 @@ class Dependency(XmlObject):
             elif path in self.parent._repo_cache:
                 self.repo = self.parent._repo_cache[path]
             else:
-                self.repo = Repo(self.get_local_path(), parent=self.parent)
+                self.repo = Repo(self.get_local_path(), parent=self.parent, parenthash=self.githash)
                 self.parent._repo_cache[path] = self.repo
 
             self.gitbranch = self.repo.current_gitbranch()
@@ -523,6 +560,7 @@ class Repo(XmlObject):
     domain = XmlValue()
     subdomain = XmlValue()
     licence = XmlValue()
+    branched_from = XmlValue()
     include_dirs = XmlValueList()
     exclude_dirs = XmlValueList()
     xsoftip_excludes = XmlValueList()
@@ -541,6 +579,7 @@ class Repo(XmlObject):
         self.name = os.path.split(self.path)[-1]
         self.git = True
         self.sb = None
+        self.branched_from_version = None
         self._repo_cache = {self.path:self}
         super(Repo, self).__init__(**kwargs)
 
@@ -655,9 +694,15 @@ class Repo(XmlObject):
                                    lambda r: r.version.is_full())
 
     def latest_pre_release(self):
-        return self.latest_release(release_filter=
-                                   lambda r: not r.version.is_full() \
-                                             and not r.version.branch)
+        if self.branched_from_version:
+            branch_name = self.current_gitbranch()
+            return self.latest_release(release_filter=
+                                       lambda r: not r.version.is_full() \
+                                                 and r.version.branch_name == branch_name)
+        else:
+            return self.latest_release(release_filter=
+                                       lambda r: not r.version.is_full() \
+                                                 and not r.version.branch_name)
 
     def current_release(self):
         if not self.path:
@@ -714,6 +759,13 @@ class Repo(XmlObject):
             if m:
                 self.untracked_files.append(m.group(1))
 
+        if self.branched_from:
+            try:
+                self.branched_from_version = Version(version_str=self.branched_from)
+            except VersionParseError:
+                log_error("Unable to parse branched_from version %s - clearing field" % self.branched_from)
+                self.branched_from = None
+
     def pre_export(self):
         self.xpd_version = xpd_version
 
@@ -765,6 +817,16 @@ class Repo(XmlObject):
             return True
 
         return False
+
+    def get_branched_from_version(self):
+        return self.branched_from_version
+
+    def set_branched_from(self, release_name):
+        try:
+            self.branched_from_version = Version(version_str=release_name)
+            self.branched_from = release_name
+        except VersionParseError:
+            log_error("set_branched_from: unable to parse version %s" % release_name)
 
     def current_gitref(self):
         symref = exec_and_match(["git","symbolic-ref","HEAD"],r'refs/heads/(.*)',
@@ -870,7 +932,7 @@ class Repo(XmlObject):
     def orig_path(self):
         return self._path
 
-    def move_to_temp_sandbox(self,git_only=True):
+    def move_to_temp_sandbox(self, git_only=True):
         dependencies = self.get_all_deps_once()
         self.sb = tempfile.mkdtemp()
         self._move_to_temp_sandbox(self.sb,git_only=git_only)
@@ -1025,9 +1087,7 @@ class Repo(XmlObject):
 
             # If ignoring missing dependencies then the dependency repo may not exist
             if dep.repo:
-              # Use the versioned dependency to get next level dependencies
-              v_dep_repo = Repo(path=dep.repo.path, parenthash=dep.githash)
-              for d in v_dep_repo.get_all_deps(clone_missing=clone_missing,
+              for d in dep.repo.get_all_deps(clone_missing=clone_missing,
                                              ignore_missing=ignore_missing):
                   yield d
 
@@ -1084,7 +1144,7 @@ class Repo(XmlObject):
       else:
         try:
           version = Version(version_str=version_name)
-        except:
+        except VersionParseError:
           self.dep_iter("git checkout %s" % version_name)
           return None
 
@@ -1133,6 +1193,10 @@ class Repo(XmlObject):
         if retval:
             log_error("'git add %s' failed" % path)
 
+    def git_commit_if_changed(self, message, is_dependency=False):
+        if self.has_local_modifications(is_dependency=is_dependency):
+            call(["git", "commit", "-m", message], cwd=self.path, silent=True)
+
     def git_push_to_backup(self):
         retval = call(["git", "push", "--all", "-u", "origin"], cwd=self.path, silent=True)
         if retval:
@@ -1164,8 +1228,6 @@ class Repo(XmlObject):
            sys.exit(1)
 
         call(["git", "tag", "v%s" % str(v), relhash], cwd=Repo.path)
-
-        log_info("Tagged")
 
     def behind_upstream(self):
         (stdout_lines, stderr_lines) = call_get_output(

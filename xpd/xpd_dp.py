@@ -4,7 +4,7 @@ import re
 import sys
 
 from xmos_logging import log_error, log_warning, log_info, log_debug
-from xpd.xpd_data import Repo, Version
+from xpd.xpd_data import Repo
 from xmos_subprocess import call, platform_is_windows
 
 def mkdir_p(path):
@@ -33,7 +33,7 @@ def init_dp_sources(repo_url, customer, project, release_name):
   repo_path = os.path.join(project_path, repo_name)
   if os.path.exists(repo_path):
     log_error("Repo %s already exists in %s" % (repo_name, project_path))
-    return
+    sys.exit(1)
 
   # Clone the repository
   retval = call(["git", "clone", repo_url], cwd=project_path)

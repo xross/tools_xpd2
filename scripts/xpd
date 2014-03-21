@@ -193,7 +193,8 @@ def check_dependency_versions(repo, is_rc):
     for dep in repo.get_all_deps_once():
         rel = dep.repo.current_release()
         if not rel:
-            errors += cdv_message("Dependency '%s' is not on a specified version (found githash %s)" % (
+            if not repo.get_branched_from_version():
+              errors += cdv_message("Dependency '%s' is not on a specified version (found githash %s)" % (
                                     dep.repo.name, dep.repo.current_version_or_githash()), is_rc)
         elif is_rc and not rel.version.is_rc():
             errors += cdv_message("Dependency '%s' is not an rc" % dep.repo.name, is_rc)
@@ -380,30 +381,9 @@ def xpd_create_release(repo, options, args):
         log_error("Try a 'git pull'")
         sys.exit(1)
 
-    if hasattr(options, 'release_branch') and options.release_branch:
-        create_branch = True
-    else:
-        create_branch = False
+    branched_from_version = repo.get_branched_from_version()
 
-    if create_branch:
-        candidates = branch_candidates(repo)
-        if len(candidates) == 0:
-            log_error("No candidates to branch from")
-            sys.exit(1)
-        if len(candidates) == 1:
-            base_release = candidates[0]
-        else:
-            print "Candidate releases to branch from:\n"
-            for i in range(len(candidates)):
-                print "   " + str(i) + ": " + str(candidates[i].version)
-            print ""
-            x = raw_input("Choose candidate (%d..%d):" % (0, len(candidates)-1))
-            try:
-                base_release = candidates[int(x)]
-            except:
-                log_error("Invalid choice")
-                sys.exit(1)
-    elif hasattr(options, 'release_type') and options.release_type:
+    if hasattr(options, 'release_type') and options.release_type:
         rtype = options.release_type
     else:
         rtype = None
@@ -429,9 +409,7 @@ def xpd_create_release(repo, options, args):
 
     (latest_in_changelog, items) = notes[0]
 
-    if create_branch:
-        pass
-    elif hasattr(options, 'release_version') and options.release_version:
+    if hasattr(options, 'release_version') and options.release_version:
         version = Version(version_str=options.release_version)
     else:
         latest = repo.latest_full_release()
@@ -462,10 +440,12 @@ def xpd_create_release(repo, options, args):
             except:
                 log_error("Invalid version number '%s'" % x)
 
-    if create_branch:
-        version = base_release.version
-        version.branch = options.release_branch
-#        version.set_branch_rnumber(repo.releases)
+    if branched_from_version:
+        version.rtype = branched_from_version.rtype
+        version.rnumber = branched_from_version.rnumber
+        version.branch_name = repo.current_gitbranch()
+        version.branch_rtype = rtype
+        version.set_branch_rnumber(repo.releases)
     else:
         version.rtype = rtype
         version.set_rnumber(repo.releases)
@@ -532,6 +512,7 @@ def xpd_create_release(repo, options, args):
         for f in patched_files:
             log_info("  %s" % f)
             repo.git_add(f)
+        repo.git_commit_if_changed("xpd: Patched version number")
 
     modified_files = r.get_local_modifications(unstaged_only=True)
     if modified_files:
@@ -539,6 +520,7 @@ def xpd_create_release(repo, options, args):
         for f in modified_files:
             log_info("  %s" % f)
             repo.git_add(f)
+        repo.git_commit_if_changed("xpd: Cleaned up whitespace")
 
     log_info("Creating sandbox and checking build")
     repo.move_to_temp_sandbox()
@@ -2112,15 +2094,45 @@ def xpd_init_dp_sources(repo, options, args):
 def dp_update_repo(repo, options, repo_name, release_name):
   # Recreate the Repo so that branches of dependencies are re-read
   new_repo = Repo(repo.path)
+
+  # Set the branched_from attribute so that update checks are performed appropriately
+  new_repo.set_branched_from(release_name)
+
   # Perform an update that also changes the uri so that clones work
   xpd_check_deps(new_repo, options, [], allow_updates=True, update_uri=True)
   new_repo.save()
 
-  # If anything has changed then commit it to git
-  if new_repo.has_local_modifications(is_dependency=True):
-    call(["git", "add", "xpd.xml"], cwd=new_repo.path, silent=True)
-    call(["git", "commit", "-m", "'Created Derived Product from %s %s'" % (repo_name, release_name)],
-        cwd=new_repo.path, silent=True)
+  new_repo.git_add('xpd.xml')
+  new_repo.git_commit_if_changed("'Created Derived Product from %s %s'" % (repo_name, release_name), is_dependency=True)
+
+def add_changelog_header(repo, customer, project, release_name):
+    changelog_path = os.path.join(repo.path, 'CHANGELOG.rst')
+    with open(changelog_path) as f:
+      lines = f.readlines()
+
+    started = False
+    done = False
+    f = open(changelog_path, 'w')
+    for line in lines:
+        line = line.strip()
+
+        if line:
+            started = True
+
+        if started and not done and not line:
+            try:
+                version = Version(version_str=release_name)
+                header_line = "%s_%s_%s_0.0.1" % (version.final_version_str(), customer, project)
+                f.write("\n%s\n" % header_line)
+                f.write("%s\n" % ('-'*len(header_line)))
+                f.write("   * Add release notes here\n")
+                done = True
+            except xpd.xpd_data.VersionParseError:
+                log_error("add_changelog_header: unable to parse version %s" % release_name)
+                sys.exit(1)
+
+        f.write("%s\n" % line)
+    f.close()
 
 def do_init_dp_branch(repo, options, customer, project, release_name):
   vrepo = init_dp_branch(repo, customer, project, release_name)
@@ -2129,7 +2141,12 @@ def do_init_dp_branch(repo, options, customer, project, release_name):
   for dep in vrepo.get_all_deps_reversed_once():
     dp_update_repo(dep.repo, options, repo.name, release_name)
 
+  add_changelog_header(vrepo, customer, project, release_name)
+  vrepo.git_add("CHANGELOG.rst")
+
   dp_update_repo(vrepo, options, repo.name, release_name)
+
+  return vrepo
 
 def xpd_init_dp_branch(repo, options, args):
   if len(args) != 3:
@@ -2163,7 +2180,7 @@ def xpd_create_dp(repo, options, args):
   release_name = args[3]
 
   repo = init_dp_sources(repo_url, customer, project, release_name)
-  do_init_dp_branch(repo, options, customer, project, release_name)
+  repo = do_init_dp_branch(repo, options, customer, project, release_name)
   init_dp_backup(repo, customer, project)
 
   return False
@@ -2706,9 +2723,6 @@ if __name__ == "__main__":
 
     optparser.add_option("-t", "--release-type", dest="release_type",
                          help="release type: release, alpha, beta or rc")
-
-    optparser.add_option("-b", "--branch", dest="release_branch",
-                         help="release branch name")
 
     optparser.add_option("--force", dest="force", action="store_true", default=False,
                          help="Ignore safety check")
