@@ -214,7 +214,8 @@ def check_dependency_versions(repo, is_rc):
     return errors
 
 def xpd_update_deps(repo, options, args):
-    return xpd_check_deps(repo, options, args, allow_updates=True)
+    xpd_check_deps(repo, options, args, allow_updates=True)
+    return True
 
 def xpd_check_deps(repo, options, args, return_current_ok=False, allow_updates=False, is_rc=False, update_uri=False):
     deps = [d.repo_name for d in repo.dependencies]

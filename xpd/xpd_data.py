@@ -304,7 +304,8 @@ class Dependency(XmlObject):
                 self.repo = Repo(self.get_local_path(), parent=self.parent, parenthash=self.githash)
                 self.parent._repo_cache[path] = self.repo
 
-            self.gitbranch = self.repo.current_gitbranch()
+            if self.repo.current_gitbranch():
+                self.gitbranch = self.repo.current_gitbranch()
 
         else:
             self.repo = None
@@ -845,7 +846,12 @@ class Repo(XmlObject):
         return exec_and_match(["git","rev-parse","HEAD"],r'(.*)',cwd=self.path)
 
     def current_gitbranch(self):
-        return exec_and_match(["git","branch"],r'\* (.*)',cwd=self.path)
+        branch = exec_and_match(["git","branch"],r'\* (.*)',cwd=self.path)
+
+        if "detached from" in branch:
+            return None
+
+        return branch
 
     def all_repos(self):
         return [d.repo for d in self.get_all_deps_once()] + [self]
