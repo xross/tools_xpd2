@@ -170,9 +170,9 @@ def xpd_add_dep(repo, options, args):
     return repo.add_dep(args[0])
 
 def get_date(repo, githash):
-    (stdout_lines, stderr_lines) = call_get_output(
-         ['git', 'show', '-s', '--pretty=%at', githash], cwd=repo.path)
     try:
+        (stdout_lines, stderr_lines) = call_get_output(
+             ['git', 'show', '-s', '--pretty=%at', githash], cwd=repo.path)
         date = int(stdout_lines[0])
     except:
         log_warning("%s: Failed to determine date of githash '%s'" % (repo.name, githash))
