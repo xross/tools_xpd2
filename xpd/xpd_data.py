@@ -1206,6 +1206,7 @@ class Repo(XmlObject):
 
     def git_push(self):
         call(["git", "push", "--tags"], cwd=self.path, silent=True)
+        call(["git", "push"], cwd=self.path, silent=True)
 
     def git_fetch(self):
         call(["git", "fetch"], cwd=self.path, silent=True)
