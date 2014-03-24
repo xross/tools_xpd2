@@ -170,9 +170,9 @@ def xpd_add_dep(repo, options, args):
     return repo.add_dep(args[0])
 
 def get_date(repo, githash):
-    (stdout_lines, stderr_lines) = call_get_output(
-         ['git', 'show', '-s', '--pretty=%at', githash], cwd=repo.path)
     try:
+        (stdout_lines, stderr_lines) = call_get_output(
+             ['git', 'show', '-s', '--pretty=%at', githash], cwd=repo.path)
         date = int(stdout_lines[0])
     except:
         log_warning("%s: Failed to determine date of githash '%s'" % (repo.name, githash))
@@ -214,7 +214,8 @@ def check_dependency_versions(repo, is_rc):
     return errors
 
 def xpd_update_deps(repo, options, args):
-    return xpd_check_deps(repo, options, args, allow_updates=True)
+    xpd_check_deps(repo, options, args, allow_updates=True)
+    return True
 
 def xpd_check_deps(repo, options, args, return_current_ok=False, allow_updates=False, is_rc=False, update_uri=False):
     deps = [d.repo_name for d in repo.dependencies]
