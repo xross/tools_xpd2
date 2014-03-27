@@ -291,7 +291,15 @@ def xpd_list(repo, options, args):
     rels = repo.releases
     rels.sort()
     rels.reverse()
-    for rel in rels:
+
+    number_to_show = 10
+    if len(rels) > number_to_show and not options.show_all:
+        log_info("Only showing %d most recent releases. Use 'xpd list --all' to see all releases" % number_to_show)
+
+    for i,rel in enumerate(rels):
+        if i == number_to_show and not options.show_all:
+            break
+
         if rel.virtual == "True":
             log_info("%s (unknown git location)" % str(rel.version))
         else:
@@ -464,6 +472,7 @@ def xpd_create_release(repo, options, args):
 
     xpd_update_changelog(repo, options, args)
     repo.git_add('CHANGELOG.rst')
+    repo.git_commit_if_changed("xpd: Patched changelog with dependency changes")
 
     fstr = version.final_version_str()
     found = False
@@ -508,6 +517,8 @@ def xpd_create_release(repo, options, args):
         log_error("Either update README.rst files and metainfo files")
         log_error("... or add a <xsoftip_exclude> element to xpd.xml for the offending dir")
         return True
+
+    repo.git_commit_if_changed("xpd: Updated build/project files")
 
     patched_files = repo.patch_version_defines(version)
     if patched_files:
@@ -2747,6 +2758,9 @@ if __name__ == "__main__":
 
     optparser.add_option("--code", dest="install_code", action="store_true", default=False,
                          help="Install code when doing an install_local")
+
+    optparser.add_option("--all", dest="show_all", action="store_true", default=False,
+                         help="Show all options")
 
     default_logfile = 'run_xpd.log'
     optparser.add_option("--logfile", dest="logfile", default=default_logfile,
