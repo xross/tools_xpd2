@@ -472,6 +472,7 @@ def xpd_create_release(repo, options, args):
 
     xpd_update_changelog(repo, options, args)
     repo.git_add('CHANGELOG.rst')
+    repo.git_commit_if_changed("xpd: Patched changelog with dependency changes")
 
     fstr = version.final_version_str()
     found = False
@@ -516,6 +517,8 @@ def xpd_create_release(repo, options, args):
         log_error("Either update README.rst files and metainfo files")
         log_error("... or add a <xsoftip_exclude> element to xpd.xml for the offending dir")
         return True
+
+    repo.git_commit_if_changed("xpd: Updated build/project files")
 
     patched_files = repo.patch_version_defines(version)
     if patched_files:
