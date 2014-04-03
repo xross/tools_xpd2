@@ -1572,11 +1572,135 @@ def xpd_check_info(repo, options, args, check_icon=True):
 
     return update
 
-def xpd_tag(repo, options, args):
-    if len(args) < 1:
-        log_error("Requires version number")
+def validate_version(version_string):
+    try:
+        version = Version(version_str=version_string)
+        rel = repo.get_release(version)
+
+        if not rel:
+            log_error("Release '%s' not found" % version)
+            sys.exit(1)
+        githash = repo.get_child_hash(rel.parenthash)
+
+        if not githash:
+            log_error("Cannot find githash for version %s, maybe the git history has been modified" % str(version))
+            sys.exit(1)
+        return version, githash
+
+    except xpd.xpd_data.VersionParseError:
+        log_error("Unable to parse version '%s'" % version_string)
         sys.exit(1)
-    repo.git_tag(args[0])
+
+def get_dep_list(repo):
+    dep_list = []
+    for dep in repo.get_all_deps():
+        dep_list.append((dep.repo.name, dep))
+    return dep_list
+
+def compare_lt(a, b):
+    return a < b
+
+def compare_gt(a, b):
+    return a > b
+
+def make_deps_unique(repo, dep_list, compare):
+    """ Create a map of dependencies to a single version. Use the compare function
+        argument to choose between versions when there are multiple versions with
+        the same name.
+    """
+    common_deps = []
+    unique_dep_map = {}
+
+    for i,(name,dep) in enumerate(dep_list):
+        date = get_date(dep.repo, dep.githash)
+        common_deps.append((name,dep,date))
+
+    for key,dep,date in common_deps:
+        if key not in unique_dep_map:
+            unique_dep_map[key] = (key,dep,date)
+        else:
+            if compare(unique_dep_map[key][2], date):
+                unique_dep_map[key] = (key,dep,date)
+
+    return unique_dep_map
+
+def get_dependency_map_of_version(repo):
+    dep_map = {}
+    for dep in repo.get_all_deps_once():
+      dep_map[dep.repo.name] = dep
+    return dep_map
+
+def log_to_file(message, output_file):
+    log_info(message)
+    if output_file:
+        output_file.write(message + '\n')
+
+def xpd_diff(repo, options, args):
+    common_dep_only_in_version1 = {}
+    common_dep_only_in_version2 = {}
+    if len(args) < 2:
+        log_error("Requires 2 version numbers to give the difference")
+        sys.exit(1)
+    if args[0] == args[1]:
+        print "No change in the version numbers provided"
+        sys.exit(1)
+
+    [version1, githash1] = validate_version(args[0])
+    [version2, githash2] = validate_version(args[1])
+
+    vrepo1 = repo.get_versioned_repo(version1)
+    vrepo2 = repo.get_versioned_repo(version2)
+
+    # Some dependency directories of older versions may not be present
+    repo.clone_deps(args[0])
+    repo.clone_deps(args[1])
+
+    dep1_list = get_dep_list(vrepo1)
+    unique_deps_version1 = make_deps_unique(vrepo1, dep1_list, compare_lt)
+    dep2_list = get_dep_list(vrepo2)
+    unique_deps_version2 = make_deps_unique(vrepo2, dep2_list, compare_gt)
+    dep_map1 = get_dependency_map_of_version(vrepo1)
+    dep_map2 = get_dependency_map_of_version(vrepo2)
+    common_deps_of_two_versions = set(dep_map1.keys()) & set(dep_map2.keys())
+    only_in_version1 = set(dep_map1.keys()) - set(common_deps_of_two_versions)
+    only_in_version2 = set(dep_map2.keys()) - set(common_deps_of_two_versions)
+    
+    if options.output_file:
+        output_file = open(options.output_file, 'w')
+    else:
+        output_file = None
+
+    log_to_file("%s moved from %s to %s" % (vrepo1, version1, version2), output_file)
+    repo.git_diff(githash1, githash2, output_file)
+
+    # diff of common deps in both the versions, sorted out using their dates and
+    # considered newest of version1 and oldest of version2
+    for name in common_deps_of_two_versions:
+        dep1 = unique_deps_version1[name][1]
+        dep2 = unique_deps_version2[name][1]
+        if dep1.githash != dep2.githash:
+            log_to_file("%s moved from %s to %s" % (name,
+                              dep1.version_str if dep1.version_str else dep1.githash,
+                              dep2.version_str if dep2.version_str else dep2.githash),
+                              output_file)
+            dep1.repo.git_diff(dep1.githash, dep2.githash, output_file)
+        else:
+            log_to_file("%s: No change" % (name), output_file)
+
+    for name in only_in_version2:
+        dep = unique_deps_version2[name][1]
+        log_to_file("%s(%s) added in version %s of %s" % (name,
+              dep.version_str if dep.version_str else dep.githash,
+              version2, vrepo2.name), output_file)
+
+    for name in only_in_version1:
+        dep = unique_deps_version1[name][1]
+        log_to_file("%s(%s) removed in version %s of %s" % (name,
+              dep.version_str if dep.version_str else dep.githash,
+              version2, vrepo2.name), output_file)
+
+    if output_file:
+        output_file.close()
 
 def construct_name(repo, args, type_of_name):
     prefix = type_of_name + '_'
@@ -2680,7 +2804,6 @@ other_commands =[
             ("check_swblocks", "Check swblocks"),
             ("validate_swblock", "Validate swblock"),
             ("build_results", "Build results for swblock"),
-            ("tag", "Tag the repo with a version"),
             ("add_dep", "Add dependency"),
             ("remove_dep", "Remove dependency"),
             ("show_deps", "Show dependencies"),
@@ -2704,7 +2827,8 @@ other_commands =[
             ("build_topdoc", "Make toplevel docs (DEBUG)"),
             ("update_changelog", "Update the CHANGELOG.rst as the release will (DEBUG)"),
             ("show_project_deps", "Show app/modules dependencies (DEBUG)"),
-            ("make_docmap", "Create snippets doc map for website (DEBUG)")]
+            ("make_docmap", "Create snippets doc map for website (DEBUG)"),
+            ("diff", "Shows difference between two versions")]
 
 hidden_commands = [("approve_latest", "Approved latest cognidox version")]
 
@@ -2761,6 +2885,8 @@ if __name__ == "__main__":
 
     optparser.add_option("--all", dest="show_all", action="store_true", default=False,
                          help="Show all options")
+
+    optparser.add_option("-o", dest="output_file", default=None, help="Diff output file")
 
     default_logfile = 'run_xpd.log'
     optparser.add_option("--logfile", dest="logfile", default=default_logfile,

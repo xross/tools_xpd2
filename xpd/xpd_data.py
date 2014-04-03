@@ -1234,7 +1234,17 @@ class Repo(XmlObject):
            log_error("Cannot determine release hash")
            sys.exit(1)
 
-        call(["git", "tag", "v%s" % str(v), relhash], cwd=Repo.path)
+        call(["git", "tag", "v%s" % str(v), relhash], cwd=self.path)
+
+    def git_diff(self, hash1, hash2, output_file=None):
+        if output_file:
+            (stdout_lines, stderr_lines) = call_get_output(
+                    ["git", "diff", "-r", hash1, "-r", hash2], cwd=self.path)
+            for line in stdout_lines + stderr_lines:
+                output_file.write(line)
+                
+        else:
+            call(["git", "diff", "-r", hash1, "-r", hash2], cwd=self.path)
 
     def behind_upstream(self):
         (stdout_lines, stderr_lines) = call_get_output(
