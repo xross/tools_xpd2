@@ -2816,6 +2816,7 @@ other_commands =[
             ("create_app", "Create application within project"),
             ("create_module", "Create module within project"),
             ("create_schema", "Create a Relax NG schema file for xpd.xml"),
+            ("diff", "Shows difference between two versions"),
             ("create_dp", "Create a derived product project."),
             ("init_dp_sources", "Create the sources required for a derived product."),
             ("init_dp_branch", "Setup the branches and git remotes for a derived product."),
@@ -2827,8 +2828,7 @@ other_commands =[
             ("build_topdoc", "Make toplevel docs (DEBUG)"),
             ("update_changelog", "Update the CHANGELOG.rst as the release will (DEBUG)"),
             ("show_project_deps", "Show app/modules dependencies (DEBUG)"),
-            ("make_docmap", "Create snippets doc map for website (DEBUG)"),
-            ("diff", "Shows difference between two versions")]
+            ("make_docmap", "Create snippets doc map for website (DEBUG)")]
 
 hidden_commands = [("approve_latest", "Approved latest cognidox version")]
 
