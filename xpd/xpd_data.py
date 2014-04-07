@@ -1206,22 +1206,28 @@ class Repo(XmlObject):
     def git_push_to_backup(self):
         retval = call(["git", "push", "--all", "-u", "origin"], cwd=self.path, silent=True)
         if retval:
-          log_error("Failed to back up %s" % self.name)
+          log_error("%s: failed to back up" % self.name)
         else:
-          log_info("Successfully backed up %s" % self.name)
+          log_info("%s: successfully backed up" % self.name)
 
     def git_push(self):
-        call(["git", "push", "--tags"], cwd=self.path, silent=True)
-        call(["git", "push"], cwd=self.path, silent=True)
+        retval  = call(["git", "push", "--tags"], cwd=self.path, silent=True)
+        retval |= call(["git", "push"], cwd=self.path, silent=True)
+        if retval:
+          log_error("%s: failed to push" % self.name)
 
     def git_fetch(self):
-        call(["git", "fetch"], cwd=self.path, silent=True)
+        retval = call(["git", "fetch"], cwd=self.path, silent=True)
+        if retval:
+          log_error("%s: failed to fetch" % self.name)
 
     def git_remove(self, path):
         call(["git", "rm", "-f", path], cwd=self.path, silent=True)
 
     def git_checkout(self, githash, silent=False):
-        call(["git", "checkout", githash], cwd=self.path, silent=silent)
+        retval = call(["git", "checkout", githash], cwd=self.path, silent=silent)
+        if retval:
+          log_error("%s: failed to checkout %s" % (self.name, githash))
 
     def git_tag(self, version_string):
         v = Version(version_str=version_string)
