@@ -177,10 +177,12 @@ def parse_makefile(path):
 def get_configs(mkfile_path):
     folder = os.path.dirname(mkfile_path)
     mkfile_name = os.path.basename(mkfile_path)
-    (stdout_lines, stderr_lines) = call_get_output(["xmake", "allconfigs", mkfile_name], cwd=folder)
+    (stdout_lines, stderr_lines) = call_get_output(["xmake", "allconfigs", "-f", mkfile_name], cwd=folder)
     configs = set()
     if len(stdout_lines):
       configs = set(stdout_lines[0].strip().split(" "))
+    else:
+      configs = set(['Default'])
     return configs
 
 def get_all_configs(makefiles):
