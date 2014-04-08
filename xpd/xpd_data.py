@@ -122,7 +122,7 @@ class Version(object):
             self.parse_string(version_str)
 
     def parse_string(self, version_string):
-        m = re.match(r'(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)_(\w*)_(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)', version_string)
+        m = re.match(r'(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)_([-\w*])_(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)', version_string)
 
         if m:
             on_branch = True
