@@ -122,6 +122,10 @@ def find_all_subprojects(repo,exclude_apps=False):
      for x in os.listdir(path):
           if x == 'doc':
                continue
+          if x in repo.exclude_dirs:
+              continue
+          if x in repo.docdirs:
+              continue
           if x.startswith('__'):
                continue
           if exclude_apps and x.startswith('app_'):
