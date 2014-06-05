@@ -464,9 +464,10 @@ def xpd_create_release(repo, options, args):
     if not confirm("Create release %s. Are you sure" % version, default=True):
         return False
 
+
     current_ok = xpd_check_deps(repo, options, args, return_current_ok=True, allow_updates=True, is_rc=version.is_rc())
 
-    if not current_ok and not options.force:
+    if not current_ok and not options.force and not options.github:
         log_error("Cannot create release - errors detected with dependencies")
         sys.exit(1)
 
@@ -2400,7 +2401,7 @@ def xpd_update_changelog(repo, options, args):
 
     # Can't work in the state where there are multiple version of a dependency
     errors = get_multiple_version_errors(repo)
-    if errors and not options.force:
+    if errors and not options.force and not options.github:
         sys.exit(1)
 
     to_releases = {}
