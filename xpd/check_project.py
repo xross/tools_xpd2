@@ -99,10 +99,20 @@ def _check_project(repo, path=None, force_creation=False):
                 log_warning("%s: eclipse project has related projects in it (probably a bad idea)" % name)
                 project_ok = False
 
+            if is_non_xmos_project(name):
+                buildCommands = getFirstChild(root, 'buildCommand')
+                natures = getFirstChild(root, 'nature')
+                if buildCommands or natures:
+                    log_warning("%s: eclipse project of non xmos project has CDT build info (bad idea)" % name)
+                    project_ok = False
+
     if force_creation or not project_ok:
         if prompt(force_creation, "There is a problem with the eclipse .project file.\n" +
                                    "Do you want xpd to create a new one", True):
-            project_lines = templates.dotproject.split('\n')
+            if is_non_xmos_project(name):
+                project_lines = templates.documentation_dotproject.split('\n')
+            else:
+                project_lines = templates.dotproject.split('\n')
             f = open(os.path.join(path,'.project'), 'wb')
             for line in project_lines:
                 line = line.replace('%PROJECT%', name)
@@ -115,6 +125,11 @@ def _check_project(repo, path=None, force_creation=False):
     repo.git_add(project_path)
 
     return project_ok
+
+def is_non_xmos_project(name):
+    if re.match('^(host_|pc_|osx_|win_|linux_).*', name):
+        return True
+    return False
 
 def find_all_subprojects(repo,exclude_apps=False):
      path = repo.path
@@ -134,7 +149,7 @@ def find_all_subprojects(repo,exclude_apps=False):
               continue
           mkfile = os.path.join(path,x,'Makefile')
           modinfo = os.path.join(path,x,'module_build_info')
-          if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or (x in repo.extra_eclipse_projects) or re.match('^module_.*',x):
+          if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or (x in repo.extra_eclipse_projects) or re.match('^module_.*',x) or is_non_xmos_project(x):
                subs.add(x)
      return subs
 
@@ -236,6 +251,10 @@ def create_doc_project(repo):
 
 def create_cproject(repo, path=None, name=None, configs=None, all_includes=[],
                     is_module=False):
+   if is_non_xmos_project(name):
+       create_Xproject(repo, path)
+       return
+
    is_extra_project = (os.path.basename(path) in repo.extra_eclipse_projects)
    if path==None:
         path = repo.path
@@ -338,16 +357,38 @@ def valid_include_path(relpath):
      return True
 
 def _check_cproject(repo, makefiles, project_deps, path=None, force_creation=False):
+
+    allconfigs = False
     if not path:
          path = repo.path
+         allconfigs = True
+
+    name = get_project_name(repo,path)
+
+    if is_non_xmos_project(name):
+        if not path:
+            path = repo.path
+        cproject_path = os.path.join(path,'.cproject')
+        if os.path.exists(cproject_path):
+            log_warning("%s: .cproject found in non-xmos project" % name)
+            log_debug("%s: removing .cproject file" % name)
+            os.remove(cproject_path)
+            repo.git_remove(cproject_path)
+            return False
+        return True
+
+    if allconfigs:
          configs = get_all_configs(makefiles)
     elif os.path.exists(os.path.join(path,'Makefile')):
          configs = get_configs(os.path.join(path,'Makefile'))
     else:
          configs = set(['Default'])
-    name = get_project_name(repo,path)
+
+
+
     log_debug("%s: checking .cproject file" % name)
     log_debug("%s: using configs: %s" % (name, ', '.join(configs)))
+
 
     all_includes = set([os.path.basename(path)])
     for root, dirs, files in os.walk(path):

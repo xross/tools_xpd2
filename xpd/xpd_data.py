@@ -3,7 +3,7 @@ import difflib
 from xmlobject import XmlObject, XmlValue, XmlNode, XmlNodeList, XmlAttribute, XmlValueList, XmlText
 from copy import copy
 from xmos_subprocess import call, call_get_output
-from xpd.check_project import find_all_subprojects, rst_title_regexp
+from xpd.check_project import find_all_subprojects, rst_title_regexp, is_non_xmos_project
 from xmos_logging import log_error, log_warning, log_info, log_debug
 import shutil
 import tempfile
@@ -1014,7 +1014,7 @@ class Repo(XmlObject):
               continue
           mkfile = os.path.join(path,x,'Makefile')
           modinfo = os.path.join(path,x,'module_build_info')
-          if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or (x in self.extra_eclipse_projects) or re.match('^module_.*',x):
+          if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or (x in self.extra_eclipse_projects) or is_non_xmos_project(x) or re.match('^module_.*',x):
               comp = Component()
               comp.init_from_path(self, x)
               components.append(comp)
