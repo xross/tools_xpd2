@@ -568,6 +568,7 @@ class Repo(XmlObject):
     tools = XmlValueList(tagname="tools")
     boards = XmlValueList()
     extra_eclipse_projects = XmlValueList()
+    non_xmos_projects = XmlValueList()
     components = XmlNodeList(Component, wrapper="components")
     version_defines = XmlNodeList(VersionDefine, wrapper="version_defines")
     snippets = XmlValue(default=False)
@@ -1014,7 +1015,7 @@ class Repo(XmlObject):
               continue
           mkfile = os.path.join(path,x,'Makefile')
           modinfo = os.path.join(path,x,'module_build_info')
-          if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or (x in self.extra_eclipse_projects) or is_non_xmos_project(x) or re.match('^module_.*',x):
+          if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or (x in self.extra_eclipse_projects) or is_non_xmos_project(x, self) or re.match('^module_.*',x):
               comp = Component()
               comp.init_from_path(self, x)
               components.append(comp)
