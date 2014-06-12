@@ -2459,6 +2459,10 @@ def xpd_update_changelog(repo, options, args):
             m = re.match('\s*[-*+] (.*)', line)
             if m:
                 items.append("      + %s" % m.group(1))
+            else:
+                m = re.match('\s*(.+)$', line)
+                if m:
+                    items.append("        %s" % m.group(1))
     items.append("")
 
     # Write out the changelog with the changes to dependencies included
