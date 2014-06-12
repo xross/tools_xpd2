@@ -2561,6 +2561,7 @@ def xpd_validate_swblock(repo, options, args, return_valid=False):
                     return False
             elif comp.type == "component":
                 log_error("Cannot find metadata file for %s" % comp.id)
+                return False
 
     if return_valid:
         return valid
