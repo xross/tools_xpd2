@@ -1612,7 +1612,7 @@ def make_deps_unique(repo, dep_list, compare):
     common_deps = []
     unique_dep_map = {}
 
-    for i,(name,dep) in enumerate(dep_list):
+    for (name,dep) in dep_list:
         date = get_date(dep.repo, dep.githash)
         common_deps.append((name,dep,date))
 
