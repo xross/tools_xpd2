@@ -290,6 +290,9 @@ class Dependency(XmlObject):
         return os.path.join(os.path.join(root_repo.path,".."),self.repo_name)
 
     def post_import(self):
+        if self.gitbranch and "detached from" in self.gitbranch:
+            self.gitbranch = None
+
         if os.path.exists(self.get_local_path()):
             path = os.path.abspath(self.get_local_path())
 
