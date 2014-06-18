@@ -464,6 +464,13 @@ def xpd_create_release(repo, options, args):
     if not confirm("Create release %s. Are you sure" % version, default=True):
         return False
 
+    (stdout_lines, stderr_lines) = call_get_output(["git", "tag"], cwd=repo.path)
+    for line in stdout_lines + stderr_lines:
+              line = line.replace('v','').replace('\n','')
+              if str(version) == line:
+                  log_error("Cannot create release with this version number - a tagged version is already present in your local repo.")
+                  log_error("Do 'git tag -d v<version number>' to delete that tag and try again")
+                  sys.exit(1)
 
     current_ok = xpd_check_deps(repo, options, args, return_current_ok=True, allow_updates=True, is_rc=version.is_rc())
 
