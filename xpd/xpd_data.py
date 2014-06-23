@@ -304,7 +304,7 @@ class Dependency(XmlObject):
             elif path in self.parent._repo_cache:
                 self.repo = self.parent._repo_cache[path]
             else:
-                self.repo = Repo(self.get_local_path(), parent=self.parent, parenthash=self.githash)
+                self.repo = Repo(self.get_local_path(), parent=self.parent, parenthash=self.githash, create_master=True)
                 self.parent._repo_cache[path] = self.repo
 
             if self.repo.current_gitbranch():
@@ -578,7 +578,7 @@ class Repo(XmlObject):
     docmap_partnumber = XmlValue()
     path = None
 
-    def __init__(self, path, parenthash=None, master=False, **kwargs):
+    def __init__(self, path, parenthash=None, master=False, create_master=False, **kwargs):
         path = os.path.abspath(path)
         self.path = path
         self.name = os.path.split(self.path)[-1]
@@ -627,7 +627,7 @@ class Repo(XmlObject):
             except IOError:
                 self.parseString("<xpd></xpd>")
 
-        if not master and not parenthash:
+        if not master and (not parenthash or create_master):
             self.master_repo = Repo(self.path, master=True)
             self.merge_releases(self.master_repo)
 
