@@ -87,16 +87,68 @@ def get_multiple_version_errors(repo, print_help=True):
     errors = 0
     for (dep_name, expected) in get_all_dep_versions(repo).iteritems():
         if len(expected) != 1:
+            dep_list = get_dep_list(repo)
+            for depname, dep in dep_list:
+                if dep_name == depname:
+                    repo.assert_exists(dep)
+                    if dep.version_str:
+                        expected_release = dep.version_str
+                    else:
+                        expected_release = dep.githash
+                    if dep.repo:
+                        if dep.repo.current_release():
+                            actual = str(dep.repo.current_release().version)
+                        else:
+                            actual = dep.repo.current_githash()
+                    if dep.version_str and dep.repo.current_release():
+                        if expected_release > actual:
+                            log_error('%s : %s used by %s' % (dep_name, expected_release, ', '.join(get_all_repos_using_dep_version(repo, dep_name, expected_release))))
+                            log_info("ERROR: Instead use actual version %s" %(actual))
+                            errors += 1
+                    else:
+                        expected_date = get_date(dep.repo, dep.githash)
+                        actual_date =  get_date(dep.repo, dep.repo.current_githash())
+                        if expected_date > actual_date:
+                                log_error('%s : %s used by %s' % (dep_name, expected_release, ', '.join(get_all_repos_using_dep_version(repo, dep_name, expected_release))))
+                                log_info("ERROR: Latest version not actually used, version currently checked out is %s" % (actual))
+                                errors += 1
+            expected_list = list(expected)
+            count_error = 0
+            count_warning = 0
             error_message = ''
-            for e in expected:
-                error_message += '\n         %s by %s' % (e, ', '.join(get_all_repos_using_dep_version(repo, dep_name, e)))
-            log_error("Multiple versions of %s are used:%s" % (dep_name, error_message))
-            errors += 1
+            warning_message = ''
+            for e in range(len(expected_list)-1):
+                point_diff = False
+                try:
+                    version = Version(version_str=expected_list[e])
+                    point_diff = version.equals_excluding_point(Version(version_str=expected_list[e+1]))
+                except:
+                      pass
+
+                if point_diff:
+                    count_warning += 1
+                    if e == 0:
+                        warning_message += '\n           %s by %s' % (expected_list[e], ', '.join(get_all_repos_using_dep_version(repo, dep_name, expected_list[e])))
+                        warning_message += '\n           %s by %s' % (expected_list[e+1], ', '.join(get_all_repos_using_dep_version(repo, dep_name, expected_list[e+1])))
+                else:
+                     count_error += 1
+                     if e == 0:
+                           error_message += '\n           %s by %s' % (expected_list[e], ', '.join(get_all_repos_using_dep_version(repo, dep_name, expected_list[e])))
+                           error_message += '\n           %s by %s' % (expected_list[e+1], ', '.join(get_all_repos_using_dep_version(repo, dep_name, expected_list[e+1])))
+
+            if count_error > 0:
+                log_error("Multiple major or minor versions of %s are used:%s" % (dep_name, error_message))
+                errors += 1
+                count_error = 0
+            elif count_warning > 0:
+                log_warning("Multiple point versions of %s are used:%s" % (dep_name, warning_message))
+                count_warning = 0
 
     if errors and print_help:
         log_info("Use 'xpd show_deps' to determine the cause of these multiple versions")
 
     return errors
+
 
 def show_deps(repo, indent, prefix):
     log_info("%s%s%s:%s" % (indent, prefix, repo.name, " has no dependencies" if not repo.dependencies else ''))

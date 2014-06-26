@@ -262,6 +262,13 @@ class Version(object):
         else:
             self.rnumber = rels[-1].version.rnumber + 1
 
+    def equals_excluding_point(self, version_string):
+        try:
+           v2 = Version(version_str = str(version_string))
+           return self.major == v2.major and self.minor == v2.minor
+        except:
+           return False
+
 
 class ComponentDependency(XmlObject):
     version_str = XmlAttribute(attrname="version")
