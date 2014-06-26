@@ -269,7 +269,6 @@ class Version(object):
         except:
            return False
 
-
 class ComponentDependency(XmlObject):
     version_str = XmlAttribute(attrname="version")
     module_name = XmlText()

@@ -149,7 +149,6 @@ def get_multiple_version_errors(repo, print_help=True):
 
     return errors
 
-
 def show_deps(repo, indent, prefix):
     log_info("%s%s%s:%s" % (indent, prefix, repo.name, " has no dependencies" if not repo.dependencies else ''))
 
