@@ -129,12 +129,12 @@ def get_multiple_version_errors(repo, print_help=True):
                     count_warning += 1
                     if e == 0:
                         warning_message += '\n           %s by %s' % (expected_list[e], ', '.join(get_all_repos_using_dep_version(repo, dep_name, expected_list[e])))
-                        warning_message += '\n           %s by %s' % (expected_list[e+1], ', '.join(get_all_repos_using_dep_version(repo, dep_name, expected_list[e+1])))
+                    warning_message += '\n           %s by %s' % (expected_list[e+1], ', '.join(get_all_repos_using_dep_version(repo, dep_name, expected_list[e+1])))
                 else:
                      count_error += 1
                      if e == 0:
-                           error_message += '\n           %s by %s' % (expected_list[e], ', '.join(get_all_repos_using_dep_version(repo, dep_name, expected_list[e])))
-                           error_message += '\n           %s by %s' % (expected_list[e+1], ', '.join(get_all_repos_using_dep_version(repo, dep_name, expected_list[e+1])))
+                         error_message += '\n           %s by %s' % (expected_list[e], ', '.join(get_all_repos_using_dep_version(repo, dep_name, expected_list[e])))
+                     error_message += '\n           %s by %s' % (expected_list[e+1], ', '.join(get_all_repos_using_dep_version(repo, dep_name, expected_list[e+1])))
 
             if count_error > 0:
                 log_error("Multiple major or minor versions of %s are used:%s" % (dep_name, error_message))
