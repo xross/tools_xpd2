@@ -1467,6 +1467,9 @@ def xpd_check_swblocks(repo, options, args, return_valid=False, verbose=True, va
     for comp in to_remove:
         repo.components.remove(comp)
 
+    if repo.no_xsoftip:
+        repo.components = []
+
     if validate:
         log_info("Running validate script on all swblocks")
         ret = xpd_validate_swblock(repo, options, ["all"], return_valid=True)

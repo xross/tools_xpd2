@@ -583,6 +583,7 @@ class Repo(XmlObject):
     snippets = XmlValue(default=False)
     docmap_partnumber = XmlValue()
     path = None
+    no_xsoftip = XmlValue(default=False)
 
     def __init__(self, path, parenthash=None, master=False, create_master=False, **kwargs):
         path = os.path.abspath(path)
