@@ -2612,7 +2612,8 @@ def xpd_validate_swblock(repo, options, args, return_valid=False):
         log_error('%s is not a software block' % swblock_id)
         return False
 
-    for comp in sw_blocks:
+    if not repo.no_xsoftip:
+      for comp in sw_blocks:
         if comp.id == swblock_id or swblock_id == 'all':
             if not comp.name in component_names:
                 log_error("Can't check metadata until error found by check_swblocks are fixed")
