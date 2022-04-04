@@ -22,10 +22,10 @@ from xpd.docholder import DocumentHolder, DHSection, DHDocumentLink
 from xmos_logging import log_error, log_warning, log_info, log_debug, configure_logging, print_status_summary
 import subprocess
 from xmos_subprocess import call, call_get_output, Popen, platform_is_windows
-import xdoc
-import xmossphinx
-import xmos_xref
-import xml.dom.minidom
+#import xdoc
+#import xmossphinx
+#import xmos_xref
+#import xml.dom.minidom
 
 ALLOWED_SCOPES=["Roadmap", "Example", "Early Development", "General Use"]
 
