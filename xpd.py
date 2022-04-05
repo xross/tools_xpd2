@@ -45,7 +45,7 @@ def confirm(msg, default=False):
         If no sensible response is found, prompt again.
     """
     while True:
-        x = raw_input(msg + " (y/n) [%s]? " % ("y" if default else "n"))
+        x = eval(input(msg + " (y/n) [%s]? " % ("y" if default else "n")))
         if not x:
             return default
         if x.upper() in ["N", "NO"]:
@@ -85,7 +85,7 @@ def get_all_repos_using_dep_version(repo, dep_name, expected):
 
 def get_multiple_version_errors(repo, print_help=True):
     errors = 0
-    for (dep_name, expected) in get_all_dep_versions(repo).iteritems():
+    for (dep_name, expected) in list(get_all_dep_versions(repo).items()):
         if len(expected) != 1:
             dep_list = get_dep_list(repo)
             for depname, dep in dep_list:
@@ -450,7 +450,7 @@ def xpd_create_release(repo, options, args):
     else:
         rtype = None
         while True:
-            x = raw_input("Enter release type (a=alpha,b=beta,r=rc): ")
+            x = eval(input("Enter release type (a=alpha,b=beta,r=rc): "))
             if x in ['a', 'alpha']:
                 rtype = 'alpha'
             elif x in ['b', 'beta']:
@@ -462,7 +462,7 @@ def xpd_create_release(repo, options, args):
                 break
             else:
                 # No need to make an error that is logged
-                print "ERROR: Unknown release type '%s'" % x
+                print(("ERROR: Unknown release type '%s'" % x))
 
     notes = repo.changelog_entries
     if not notes and not options.force:
@@ -476,23 +476,23 @@ def xpd_create_release(repo, options, args):
     else:
         latest = repo.latest_full_release()
         if latest:
-            print "Latest release: %s" % latest.version
+            print(("Latest release: %s" % latest.version))
             latest_version = latest.version
         else:
-            print "There is no full release yet"
+            print("There is no full release yet")
             latest_version = Version(0, 0, 0, 0)
 
-        print "    Next major: %s" % latest_version.major_increment()
-        print "    Next minor: %s" % latest_version.minor_increment()
-        print "    Next point: %s" % latest_version.point_increment()
+        print(("    Next major: %s" % latest_version.major_increment()))
+        print(("    Next minor: %s" % latest_version.minor_increment()))
+        print(("    Next point: %s" % latest_version.point_increment()))
 
         latest_pre = repo.latest_pre_release()
         if latest_pre and (not latest or latest_pre > latest):
-            print "Latest pre-release: %s" % latest_pre.version
+            print(("Latest pre-release: %s" % latest_pre.version))
 
         version = None
         while True:
-            x = raw_input("Enter version number [%s]:" % latest_in_changelog)
+            x = eval(input("Enter version number [%s]:" % latest_in_changelog))
             if not x:
                 x = latest_in_changelog
 
@@ -538,13 +538,13 @@ def xpd_create_release(repo, options, args):
     for (notes_version, items) in notes:
         if notes_version == fstr:
             found = True
-            print "RELEASE NOTES FOR %s:" % fstr
-            print "----"
+            print(("RELEASE NOTES FOR %s:" % fstr))
+            print("----")
             for item in items:
-                print item
-            print "----"
+                print(item)
+            print("----")
             if not confirm("Are these notes up to date", default=True):
-                print "Please update notes and try again"
+                print("Please update notes and try again")
                 return True
 
     if not found:
@@ -662,7 +662,7 @@ def xpd_make_zip(repo, options, args, dest=None):
         version_string = repo.current_githash()[:8]
 
     if alternate_name and not dest:
-        version_string = raw_input("Please give a name for this snapshot: ")
+        version_string = eval(input("Please give a name for this snapshot: "))
 
     name = repo.name + "_" + version_string
 
@@ -1177,7 +1177,7 @@ def xpd_show(repo, options, args):
     log_info("Apps:\n")
 
     def print_software_block_details(swblock):
-        print swblock.name
+        print((swblock.name))
         if not swblock.has_readme():
             log_warning("Missing README.rst")
         log_info("       Name: %s" % swblock.name)
@@ -1591,38 +1591,38 @@ def xpd_get_deps(repo, options, args):
 def xpd_check_info(repo, options, args, check_icon=True):
     update = False
     if repo.description==None or repo.description=="":
-        print "The repo's description is one or two paragraphs description the contents of the repository."
+        print("The repo's description is one or two paragraphs description the contents of the repository.")
         if confirm("No description found. Add one", default=True):
-            print "Enter paragraph description:\n"
-            repo.description = raw_input()
+            print("Enter paragraph description:\n")
+            repo.description = eval(input())
             update = True
 
     if False and check_icon and repo.icon==None:
-        print "The repo's icon is a path relative to the repository pointing to a 16x16 png icon representing the repository."
+        print("The repo's icon is a path relative to the repository pointing to a 16x16 png icon representing the repository.")
         if confirm("No icon found. Add one", default=True):
-            print "Enter path to icon: "
-            repo.icon = raw_input()
+            print("Enter path to icon: ")
+            repo.icon = eval(input())
             update = True
 
     if False and repo.docdirs==[]:
         if confirm("No documentation path found. Add one", default=True):
-            print "Enter documentation path: "
-            docdir = raw_input()
+            print("Enter documentation path: ")
+            docdir = eval(input())
             repo.docdirs.append(docdir)
             update = True
 
     if repo.vendor==None:
-        print "If this repository is maintained by a organization or company that will package, release and support the code then the vendor field should be set with the organization's name."
+        print("If this repository is maintained by a organization or company that will package, release and support the code then the vendor field should be set with the organization's name.")
         if confirm("No vendor found. Add one", default=True):
-            print "Enter vendor name: "
-            repo.vendor = raw_input()
+            print("Enter vendor name: ")
+            repo.vendor = eval(input())
             update = True
 
     if repo.maintainer==None:
-        print "The repository's maintainer is a person who is reponsible for the repository. All repos should have a maintainer."
+        print("The repository's maintainer is a person who is reponsible for the repository. All repos should have a maintainer.")
         if confirm("No maintainer found. Add one", default=True):
-            print "Enter maintainer github username: "
-            repo.maintainer = raw_input()
+            print("Enter maintainer github username: ")
+            repo.maintainer = eval(input())
             update = True
 
     if not repo.xcore_repo and re.match('.*github.com', repo.location):
@@ -1704,7 +1704,7 @@ def xpd_diff(repo, options, args):
         log_error("Requires 2 version numbers to give the difference")
         sys.exit(1)
     if args[0] == args[1]:
-        print "No change in the version numbers provided"
+        print("No change in the version numbers provided")
         sys.exit(1)
 
     [version1, githash1] = validate_version(args[0])
@@ -1773,7 +1773,7 @@ def construct_name(repo, args, type_of_name):
             name = m.groups(0)[1]
         name = prefix + name + '_example'
         sys.stdout.write('Enter %s name [%s]: ' % (type_of_name, name))
-        x = raw_input()
+        x = eval(input())
         if x:
             name = x
     else:
@@ -1822,12 +1822,12 @@ def xpd_init(repo, options, args):
     apps = [x for x in os.listdir(repo.path) if x[0:4] == 'app_']
 
     if apps == []:
-        print """
+        print("""
 Usually a repository contains at least one application that people can build
 to an executable. Even if the repository is primarily a component repository
 containing code modules for other projects it is usual to include a sample or
 test application within the repo.
-"""
+""")
 
         if confirm("Would you like to create an application within this project", default=True):
             xpd_create_app(repo, options, [])
@@ -1835,9 +1835,9 @@ test application within the repo.
     modules = [x for x in os.listdir(repo.path) if x[0:7] == 'module_']
 
     if modules == []:
-        print """
+        print("""
 A repository can contains modules that contain sets of source files than can be re-used across applications.
-"""
+""")
 
         if confirm("Would you like to create a module within this project", default=True):
             xpd_create_module(repo, options, [])
@@ -1855,7 +1855,7 @@ A repository can contains modules that contain sets of source files than can be 
             holder = ''
             while holder == '':
                 sys.stdout.write('Enter copyright holder: ')
-                holder = raw_input()
+                holder = eval(input())
             f = open(os.path.join(repo.path, 'LICENSE.txt'), 'wb')
             f.write(templates.xcore_license % {'holder':holder})
             f.close()
@@ -1910,7 +1910,7 @@ def xpd_check_makefiles(repo, options, args, return_ok=False):
 def xpd_check_partinfo(repo, options, args):
     update = False
     if not repo.partnumber:
-        print "If this is an XMOS package or a github repo showing to the xsoftipexplorer, there should be an associated part number for the repository."
+        print("If this is an XMOS package or a github repo showing to the xsoftipexplorer, there should be an associated part number for the repository.")
         if confirm("No part number found. Add one", default=True):
             repo.partnumber = \
                 cognidox.query_and_create_document('/Projects/Apps',
@@ -1924,7 +1924,7 @@ def xpd_check_partinfo(repo, options, args):
                                                    auto_create=True)
             update = True
     if repo.partnumber and not repo.subpartnumber:
-        print "ERROR: there is a part number for the document holder but not for the zipfile. Something is quite wrong with the xpd.xml"
+        print("ERROR: there is a part number for the document holder but not for the zipfile. Something is quite wrong with the xpd.xml")
         sys.exit(1)
     # if not repo.partnumber:
     #     print "Cannot find a partnumber. If using cognidox, this should be the partnumber for the document holder *not* the zipfile itself. If a partnumber exists for the zipfile but not the document holder then please create a new partnumber"
@@ -2468,9 +2468,9 @@ def xpd_update_changelog(repo, options, args):
     to_releases = {}
     from_releases = {}
 
-    for (dep_name, expected) in get_all_dep_versions(repo).iteritems():
+    for (dep_name, expected) in list(get_all_dep_versions(repo).items()):
         # Having run get_multiple_version_errors() there should now only be one version
-        version_str = iter(expected).next()
+        version_str = next(iter(expected))
         try:
             rel = Version(version_str=version_str)
             to_releases[dep_name] = rel
@@ -2479,7 +2479,7 @@ def xpd_update_changelog(repo, options, args):
 
     # When cloning the old dependencies then ignore missing repos because they can only
     # be missing if they are no longer used - and therefore warrent a message in the changelog
-    for (dep_name, expected) in get_all_dep_versions(vrepo, ignore_missing=True).iteritems():
+    for (dep_name, expected) in list(get_all_dep_versions(vrepo, ignore_missing=True).items()):
         log_debug("update_changelog: choosing from old versions %s for '%s'" % (str(expected), dep_name))
         release = choose_oldest_release(expected)
         if release:
@@ -2512,7 +2512,7 @@ def xpd_update_changelog(repo, options, args):
     (version, items) = repo.changelog_entries[0]
     items[:] = strip_existing_changes_lines(items)
     items.append("  * Changes to dependencies:")
-    for (dep, changes) in diffs.iteritems():
+    for (dep, changes) in list(diffs.items()):
         items.append("\n    - %s: %s\n" % (dep, versions[dep]))
         changes = strip_existing_changes_lines(changes)
         for line in changes:
@@ -2638,7 +2638,7 @@ def xpd_validate_swblock(repo, options, args, return_valid=False):
 def get_tools_version():
     try:
         (stdout_lines, stderr_lines) = call_get_output(["xcc", "--version"], ignore_exceptions=True)
-    except OSError, e:
+    except OSError as e:
         if e.errno == 2:
             # "No such file or directory" error - will be handled below
             stdout_lines = None
@@ -2819,7 +2819,7 @@ def xpd_publish_github(repo, options, args):
 
 def xpd_show_project_deps(repo, options, args):
     deps = repo.get_project_deps()
-    for proj, (repo, deps) in deps.iteritems():
+    for proj, (repo, deps) in list(deps.items()):
         log_info(proj)
         log_info(deps)
 

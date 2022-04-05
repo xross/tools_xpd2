@@ -97,6 +97,7 @@ def call_get_output(*args, **kwargs):
 
     out.seek(0)
     stdout_lines = out.readlines()
+    stdout_lines = [str(line, 'utf-8') for line in stdout_lines]
     out.close()
 
     for line in stdout_lines:
@@ -107,6 +108,8 @@ def call_get_output(*args, **kwargs):
         stderr_lines = err.readlines()
         err.close()
 
+        stderr_lines = [str(line, 'utf-8') for line in stderr_lines]
+        
         for line in stderr_lines:
             log_debug('     err:' + line.rstrip())
 

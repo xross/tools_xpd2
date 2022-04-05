@@ -9,7 +9,8 @@ import shutil
 import tempfile
 from docutils.core import publish_file
 import xml.dom.minidom
-from StringIO import StringIO
+from io import StringIO
+from functools import total_ordering
 
 xpd_version = "1.0"
 
@@ -98,7 +99,7 @@ class VersionParseError(Exception):
     def __str__(self):
         return "VersionParseError"
 
-
+@total_ordering
 class Version(object):
     def __init__(self, major=0, minor=0, point=0,
                  rtype="release", rnumber=0,
@@ -178,6 +179,7 @@ class Version(object):
     def is_full(self):
         return not self.branch_name and self.rtype in ['', 'release']
 
+    '''
     def __cmp__(self, other):
         if other == None:
             return 1
@@ -199,6 +201,16 @@ class Version(object):
                 return 0
             else:
                 return cmp(self.rnumber, other.rnumber)
+    '''
+
+    def __lt__(self, other):
+        return (self.major, self.minor, self.point) < (other.major, other.minor, other.point)
+
+    def __eq__(self, other):
+        return (self.major, self.minor, self.point) == (other.major, other.minor, other.point)
+
+    def __hash__(self): 
+        return hash((self.major, self.minor, self.point))
 
     def __str__(self):
         vstr = ""
@@ -357,7 +369,7 @@ class UseCase(XmlObject):
     devices = XmlNode(DeviceSection, tagname="devices")
     description = XmlValue()
 
-
+@total_ordering
 class Release(XmlObject):
     version_str = XmlAttribute(attrname="version", required=True)
     parenthash = XmlAttribute(required=True)
@@ -385,11 +397,19 @@ class Release(XmlObject):
         #TODO - merge usecase and location info
         pass
 
+    def __lt__(self, other):
+        return self.version < other.version
+
+    def __eq__(self, other):
+        return self.version == other.version
+
+    '''
     def __cmp__(self, other):
         if other == None:
             return 1
         else:
             return cmp(self.version, other.version)
+    '''
 
     def __str__(self):
         return "<release:" + str(self.version) + ">"
@@ -1116,7 +1136,7 @@ class Repo(XmlObject):
             if not dep.repo_name in deps:
                 deps[dep.repo_name] = dep
 
-        return deps.values()
+        return list(deps.values())
 
     def get_all_deps_reversed_once(self):
         ''' Get all the dependencies but only return one instance per each repo name.
@@ -1295,7 +1315,7 @@ class Repo(XmlObject):
                 for sub in find_all_subprojects(repo):
                     projs[sub] = (repo, set([]))
 
-        for proj, (repo, deps) in projs.iteritems():
+        for proj, (repo, deps) in projs.items():
             for x in get_project_immediate_deps(repo, proj):
                 deps.add(x)
 
@@ -1317,7 +1337,7 @@ class Repo(XmlObject):
         something_changed = True
         while (something_changed):
             something_changed = False
-            for proj, (repo, deps) in projs.iteritems():
+            for proj, (repo, deps) in projs.items():
                 to_add = set([])
                 update = None
                 for dep in deps:

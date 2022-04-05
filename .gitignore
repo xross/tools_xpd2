@@ -1,2 +1,4 @@
 *.pyc
-xpd.py~
+*~
+*.bak
+*.swp

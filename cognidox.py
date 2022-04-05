@@ -4,8 +4,8 @@ import os
 import re
 import sys
 import time
-import urllib
-import urllib2
+import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error, urllib.parse
 import xml.dom.minidom
 
 
@@ -39,14 +39,14 @@ def urlopen(req):
     count = 0
     while True:
         try:
-            return urllib2.urlopen(req)
-        except urllib2.URLError:
-            print >>sys.stderr, "Error connecting to cognidox"
+            return urllib.request.urlopen(req)
+        except urllib.error.URLError:
+            print("Error connecting to cognidox", file=sys.stderr)
             count = count + 1
             if count > COGNIDOX_RETRIES:
                 raise CognidoxError("Too many attempts to connect - giving up")
             else:
-                print >>sys.stderr, "Retrying..."
+                print("Retrying...", file=sys.stderr)
 
 
 # url = "http://cognidox/cgi-perl/part-details?partnum=XM-000571-PC"
@@ -64,14 +64,14 @@ def initCognidox(user=None, password=None):
     if not user:
         if not saved_user:
             sys.stdout.write('Please enter cognidox username: ')
-            saved_user = raw_input()
+            saved_user = input()
             # if not saved_user.startswith('XMOS\\'):
             #    saved_user = 'XMOS\\'+saved_user
             if not saved_password:
                 saved_password = getpass.getpass()
         user = saved_user
         password = saved_password
-    passman = urllib2.HTTPPasswordMgrWithDefaultRealm()
+    passman = urllib.request.HTTPPasswordMgrWithDefaultRealm()
     passman.add_password(None, url, user, password)
     passman.add_password(None, form_url, user, password)
     passman.add_password(None, docs_url, user, password)
@@ -84,11 +84,11 @@ def initCognidox(user=None, password=None):
     # Cognidox used to use NTLM but this has been changed to Kerberos
     # auth_NTLM = HTTPNtlmAuthHandler.HTTPNtlmAuthHandler(passman)
 
-    auth = urllib2.HTTPBasicAuthHandler(passman)
+    auth = urllib.request.HTTPBasicAuthHandler(passman)
 
     # create and install the opener
-    opener = urllib2.build_opener(auth)
-    urllib2.install_opener(opener)
+    opener = urllib.request.build_opener(auth)
+    urllib.request.install_opener(opener)
 
 
 # retrieve the result (DO NOT FORMAT to 80 columns!)
@@ -99,7 +99,7 @@ request_template = """<?xml version="1.0" encoding="UTF-8"?>
 
 def buildRequest(reqtype, args, masterfile=None):
     argstr = ""
-    for name, val in args.items():
+    for name, val in list(args.items()):
         argstr += "<cg:%(name)s>%(val)s</cg:%(name)s>" % {'name': name,
                                                           'val': val}
 
@@ -186,7 +186,7 @@ Content-Type: application/octet-stream; name="%(path)s"
     body += "\n\n" + "--" + boundary + "\n"
     body = body.replace("\n", "\r\n")
 
-    req = urllib2.Request(url, body, headers)
+    req = urllib.request.Request(url, body, headers)
     response = urlopen(req)
 
     resp_xml = response.read()
@@ -196,8 +196,8 @@ Content-Type: application/octet-stream; name="%(path)s"
         elem = dom.getElementsByTagName('cg:IssueNumber')[0]
         return elem.childNodes[0].wholeText
     except Exception: # dom can return multiple exception types
-        print >>sys.stderr, "Error with cognidox response"
-        print >>sys.stderr, resp_xml
+        print("Error with cognidox response", file=sys.stderr)
+        print(resp_xml, file=sys.stderr)
         return None
 
 
@@ -211,7 +211,7 @@ def doCognidox(reqtype, args):
                'SOAPAction': action}
     url = '%s/cgi-perl/soap/soapservice' % base_url
     data = buildRequest(reqtype, args)
-    req = urllib2.Request(url, data, headers)
+    req = urllib.request.Request(url, data, headers)
     response = urlopen(req)
     resp_xml = response.read()
     return resp_xml
@@ -287,9 +287,9 @@ def create_docnumber(partnum):
     initCognidox()
     actions = \
         'plugin-CogniDoxXMOSDocumentNumbersPlugin-plg_generateDocumentNumber'
-    args = urllib.urlencode({'partnum': partnum,
+    args = urllib.parse.urlencode({'partnum': partnum,
                              'actions': actions})
-    req = urllib2.Request(form_url, args)
+    req = urllib.request.Request(form_url, args)
     urlopen(req)
 
     return get_docnumber(partnum)
@@ -321,21 +321,21 @@ def create_document(title, doctype, path):
             break
         # TODO: find out what this exception should be
         except Exception:
-            print >>sys.stderr, "Error invalid data returned by cognidox"
-            print >>sys.stderr, resp_xml
+            print("Error invalid data returned by cognidox", file=sys.stderr)
+            print(resp_xml, file=sys.stderr)
             count = count + 1
             if count > COGNIDOX_RETRIES:
                 raise CognidoxError("Too many attempts to connect - giving up")
                 sys.exit(1)
             else:
-                print >>sys.stderr, "Retrying..."
+                print("Retrying...", file=sys.stderr)
 
     try:
         elem = dom.getElementsByTagName('cg:PartNumber')[0]
         return elem.childNodes[0].wholeText
     except IndexError:
-        print >>sys.stderr, "Error with cognidox response"
-        print >>sys.stderr, resp_xml
+        print("Error with cognidox response", file=sys.stderr)
+        print(resp_xml, file=sys.stderr)
         raise CognidoxError('Could not create document\n' + resp_xml)
 
 
@@ -355,17 +355,17 @@ def query_and_create_document(default_path,
    PC:Product Collateral
    UN:Unmanaged
 """
-    print "Cannot find cognidox part number."
+    print("Cannot find cognidox part number.")
     initCognidox()
     if auto_create:
         x = 'n'
     else:
         sys.stdout.write("Do you know an existing part number (y/n) [y]? ")
-        x = raw_input()
+        x = input()
 
     if x.upper() not in ['N', 'NO']:
         sys.stdout.write("Enter part number: ")
-        partnum = raw_input()
+        partnum = input()
         info = get_docinfo(partnum)
         if not info:
             raise CognidoxError("Invalid part number")
@@ -374,7 +374,7 @@ def query_and_create_document(default_path,
             x = 'y'
         else:
             sys.stdout.write("Do you want to create a part (y/n) [y]? ")
-            x = raw_input()
+            x = input()
 
         if x.upper() not in ['N', 'NO']:
             if not title:
@@ -383,7 +383,7 @@ def query_and_create_document(default_path,
                 else:
                     sys.stdout.write(
                         "Please enter document title [%s]: " % default_title)
-                    title = raw_input()
+                    title = input()
                     if not title:
                         title = default_title
 
@@ -391,36 +391,36 @@ def query_and_create_document(default_path,
                     raise CognidoxError("Need title to proceed.")
 
             if not doctype:
-                print "Possible document types:"
-                print doctypes
+                print("Possible document types:")
+                print(doctypes)
                 if auto_create:
                     doctype = default_doctype
                 else:
                     sys.stdout.write(
                         "Please enter doctype [%s]: " % default_doctype)
-                    doctype = raw_input()
+                    doctype = input()
                     if not doctype:
                         doctype = default_doctype
 
-            print "Example paths:"
-            print paths
+            print("Example paths:")
+            print(paths)
             if auto_create:
                 path = default_path
             else:
                 sys.stdout.write("Please enter path [%s]: " % default_path)
-                path = raw_input()
+                path = input()
                 if not path:
                     path = default_path
 
-            print "Create document"
-            print "   Title:%s" % title
-            print "    Type:%s" % doctype
-            print "    Path:%s" % path
+            print("Create document")
+            print("   Title:%s" % title)
+            print("    Type:%s" % doctype)
+            print("    Path:%s" % path)
             if auto_create:
                 x = 'y'
             else:
                 sys.stdout.write("Are you sure (y/n) [y]?")
-                x = raw_input()
+                x = input()
 
             if x.upper() not in ['N', 'NO']:
                 partnum = create_document(title, doctype, path)
@@ -430,7 +430,7 @@ def query_and_create_document(default_path,
                 if error:
                     raise CognidoxError("Something has gone wrong")
                 else:
-                    print "Created document with part number " + partnum
+                    print("Created document with part number " + partnum)
             else:
                 raise CognidoxError("Need part number to proceed")
         else:
@@ -519,7 +519,7 @@ def fetch_revision(partnum, revision):
 
 def fetch_latest(partnum, exclude_drafts=False):
     _, elem = _get_latest_issue(partnum, exclude_drafts)
-    print "Fetching %s" % (docs_url+'/'+get_subinfo(elem, 'file'))
+    print("Fetching %s" % (docs_url+'/'+get_subinfo(elem, 'file')))
 
     info = {'revision': get_revision(elem),
             'version_tag': get_version_tag(elem)}
@@ -542,7 +542,7 @@ def fetch_version(partnum, version):
     version, elem = _get_latest_from_elems(elems)
     if version is None:
         return None
-    print "Fetching %s" % (docs_url+'/'+get_subinfo(elem, 'file'))
+    print("Fetching %s" % (docs_url+'/'+get_subinfo(elem, 'file')))
     return urlopen(docs_url+'/'+get_subinfo(elem, 'file'))
 
 
@@ -683,7 +683,7 @@ def promote_latest_draft_to_issue(partnum):
     headers = {
         'Content-Type':  "multipart/form-data; \
         boundary=----WebKitFormBoundaryiJAMNwLBAIscEsPU"}
-    req = urllib2.Request(promote_draft_url + '?partnum=%s' %
+    req = urllib.request.Request(promote_draft_url + '?partnum=%s' %
                           partnum, multipart_text, headers)
     urlopen(req)
 
@@ -715,7 +715,7 @@ def set_approval_notification(partnum):
     headers = {
         'Content-Type':
         "multipart/form-data; boundary=----WebKitFormBoundaryXQaTZBcOhOSF4dnE"}
-    req = urllib2.Request(set_document_notifiers_url +
+    req = urllib.request.Request(set_document_notifiers_url +
                           '?partnum=%s' % partnum, multipart_text, headers)
     urlopen(req)
 

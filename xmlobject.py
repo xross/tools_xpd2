@@ -15,7 +15,7 @@ class ExpatParseNode(object):
         self.childNodes = []
         self.line = line
         self.column = column
-        for (attname, value) in attrs.items():
+        for (attname, value) in list(attrs.items()):
             self.setAttribute(attname, value)
 
     def addChild(self, child):
@@ -32,7 +32,7 @@ class ExpatParseNode(object):
 
     def cloneNode(self, deep, root=None):
         clone = ExpatParseNode(root, self.tagName, {}, self.line, self.column)
-        for (attname, value) in self.attrs.items():
+        for (attname, value) in list(self.attrs.items()):
             clone.setAttribute(attname, value)
         for child in self.childNodes:
             clone.cloneNode(deep, clone)
@@ -438,7 +438,7 @@ class XmlObject(object):
         self._fromdom(dom, dom.childNodes[0], src)
 
     def parse(self, filename):
-        f = open(filename, 'r')
+        f = open(filename, 'rb')
         expat_parser = init_expat_parser()
         expat_parser.ParseFile(f)
         dom = expat_tree
@@ -475,4 +475,4 @@ if __name__ == "__main__":
     print(s)
     o2b = TestXmlObject2()
     o2b.parseString(s)
-    print(o2b.toxml("test"))
+    print((o2b.toxml("test")))

@@ -23,4 +23,4 @@ class DocumentHolder(XmlObject):
 if __name__ == "__main__":
     dh = DocumentHolder()
     dh.parse("test_dh.xml")
-    print dh.toxml("DocumentHolder")
+    print(dh.toxml("DocumentHolder"))
