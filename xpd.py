@@ -10,6 +10,7 @@ import tempfile
 import shutil
 from copy import copy
 from xpd.xpd_data import Repo, Release, Version, Dependency
+from xpd.xpd_data_new import Repo_
 from xpd.xpd_data import AllSoftwareDescriptor, SoftwareDescriptor
 from xpd.xpd_data import DocMap, Doc
 from xpd.xpd_data import changelog_str_to_version
@@ -191,6 +192,15 @@ def xpd_remove_dep(repo, options, args):
         sys.exit(1)
 
     return repo.remove_dep(args[0])
+
+#def find_components(repo, is_update=True):
+#    components = repo.get_software_blocks(ignore_xsoftip_excludes=True, is_update=is_update)
+#    used_modules = set()
+#    for comp in components:
+#        used_modules = used_modules | set([dep.module_name for dep in comp.dependencies])
+#
+#    return components
+
 
 def find_current_dependencies(repo, is_update=False):
     components = repo.get_software_blocks(ignore_xsoftip_excludes=True, is_update=is_update)
@@ -1437,6 +1447,12 @@ def check_swblock(repo, options, args, comp, verbose=True):
            valid = False
 
     return valid
+
+def find(f, xs):
+        for x in xs:
+            if f(x):
+                return x
+
 
 def xpd_check_swblocks(repo, options, args, return_valid=False, verbose=True, validate=False):
     valid = True
@@ -2911,6 +2927,34 @@ def get_git_dir(path):
 
     return git_dir
 
+def create_repo(path):
+
+    print("create_repo("+str(path)+")")
+    repo__ = Repo_(path)
+
+    # Update component and repo dependencies
+    repo__.components = repo__.get_software_blocks(is_update=True)
+
+    print("\nCOMPONENTS IN REPO: " +str(repo__))
+    for c in repo__.components:
+        print(str(c.name) + ":")
+        print("Location: " + str(repo__.location))
+        print("Component Deps: ")
+
+        for d in c.dependencies: 
+            print(str(type(d)) + "    " + str(d) + " repo: " + str(d.repo))
+            d_repo_path = repo__.find_repo_containing_module_path(str(d))
+            print("local path: " + str(d_repo_path))
+            print(" ")
+
+        print("Repo Deps: ")
+        for rd in repo__.dependencies:
+            print(str(rd))
+            print(str(rd.get_local_path()))
+            rd.repo = create_repo(rd.get_local_path())
+
+    return repo__
+
 
 if __name__ == "__main__":
     usage = "usage: %prog command [options]"
@@ -2980,11 +3024,45 @@ if __name__ == "__main__":
       os.chdir(git_dir)
       repo = Repo(".")
 
+      repo__ = create_repo(".")
+
+  
+
+
     # Do not expect dependencies to exist if running get_deps
     if command not in ["get_deps", "list", "create_dp", "init_dp_sources", "checkout"]:
         for dep in repo.get_all_deps_once():
             if not os.path.exists(dep.get_local_path()):
                 log_warning("Cannot find dependency: %s" % dep.repo_name)
+
+    #FIXME
+    # Do not expect dependencies to exist if running get_deps
+    if command not in ["get_deps", "list", "create_dp", "init_dp_sources", "checkout"]:
+        for dep in repo__.get_all_deps_once():
+            if not os.path.exists(dep.get_local_path()):
+                log_warning("Cannot find dependency: %s" % dep.repo_name)
+
+
+    
+    # Update component and repo dependencies
+    #repo__.components = repo__.get_software_blocks(is_update=True)
+
+    #print("\nCOMPONENTS IN REPO")
+    #for c in repo__.components:
+    #    print(str(c) + ":")
+    #    print("Location: " + str(repo__.location))
+    #    print(" Deps: ")
+
+    #    for d in c.dependencies: 
+    #        print("    " + str(d) + " repo: " + str(d.repo) + " location: "  + str(d.repo))
+
+    #    print(" ")
+
+
+    #print("REPO DEPS")
+    #for d in repo.dependencies:
+    #    print(str(d))
+
 
     if command == "help":
         optparser.print_help()
@@ -3000,6 +3078,10 @@ if __name__ == "__main__":
 
         if options.github and repo not in ["create_dp", "init_dp_sources"]:
             repo.enter_github_mode()
+        
+        #FIXME
+        if options.github and repo__ not in ["create_dp", "init_dp_sources"]:
+            repo__.enter_github_mode()
 
         command_fn = eval("xpd_%s" % command)
 
@@ -3008,7 +3090,18 @@ if __name__ == "__main__":
                 repo.leave_github_mode()
             repo.save()
 
+        print("\n\nMY REPO: *****\n\n")
+
+
+        if command_fn(repo__, options, args):
+            if options.github:
+                repo__.leave_github_mode()
+            repo__.save()
+
         print_status_summary()
+
+   
+
 
     else:
         matches = difflib.get_close_matches(command, commands)

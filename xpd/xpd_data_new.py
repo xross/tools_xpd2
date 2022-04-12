@@ -1,586 +1,13 @@
-import os, sys, re
-import difflib
+
 from xmlobject import XmlObject, XmlValue, XmlNode, XmlNodeList, XmlAttribute, XmlValueList, XmlText
-from copy import copy
+from xpd.xpd_data import Release, Version, Dependency, ReleaseNote, UseCase, ChangeLog, Component, VersionDefine, VersionParseError, exec_and_match
+import os, sys, re
 from xmos_subprocess import call, call_get_output
 from xpd.check_project import find_all_subprojects, rst_title_regexp, is_non_xmos_project
+from xpd.xpd_data import get_project_immediate_deps
 from xmos_logging import log_error, log_warning, log_info, log_debug
-import shutil
-import tempfile
-from docutils.core import publish_file
-import xml.dom.minidom
-from io import StringIO
-from functools import total_ordering
 
-xpd_version = "1.0"
-
-DEFAULT_SCOPE='Experimental'
-
-def normalize_repo_uri(uri):
-    if uri.find("github.com") == -1:
-        return ""
-    m = re.match(".*github.com[:/](.*)", uri)
-    if not m:
-        return uri
-    return "git://github.com/" + m.groups(0)[0]
-
-def rst2xml(path):
-    """Convert restructured text to XML"""
-    xml_file = StringIO()
-    xml_file.close = lambda: None
-    xml = publish_file(open(path),
-                       writer_name='xml',
-                       destination=xml_file)
-    xml_file.seek(0)
-    return xml_file.read()
-
-def exec_and_match(command, regexp, cwd=None):
-    (stdout_lines, stderr_lines) = call_get_output(command, cwd=cwd)
-    for line in stdout_lines:
-        m = re.match(regexp, line)
-        if m:
-            return m.groups(0)[0]
-    return None
-
-def is_source_file(filename):
-    if (filename.endswith(".xc") or filename.endswith(".c") or
-        filename.endswith(".h")  or filename.endswith(".S") or
-        filename.endswith(".in")):
-           return True
-    return False
-
-def changelog_str_to_version(version_str):
-    try:
-        version = Version(version_str=version_str)
-    except VersionParseError:
-        try:
-            version = Version(version_str=version_str+'rc0')
-        except VersionParseError:
-            log_error("Can't parse version string %s in CHANGELOG" % v_str)
-            return None
-    return version
-
-#FIXME handle lists with \
-#FIXME handle version numbers
-
-def get_project_immediate_deps(repo, project, is_update=False):
-    def create_component_dependencies(modules_str, is_update):
-      deps = []
-      for module_name in modules_str.split(' '):
-        if module_name == '':
-            continue
-        dep = ComponentDependency()
-        dep.module_name = module_name
-        print("dep.module_name: " + str(module_name))
-
-        mrepo = repo.get_module_repo(module_name, is_update)
-        print("mrepo: " + str(mrepo))
-        
-        if (mrepo):
-            dep.repo = normalize_repo_uri(mrepo.location)
-        else:
-            # RSO
-            # We are not currently tracking the repo then add it
-            repo.add_dep(module_name) 
-            mrepo = repo.get_module_repo(module_name, is_update)
-            dep.repo = normalize_repo_uri(mrepo.location)
-
-        version_str = repo.get_module_version(module_name)
-        
-        if version_str:
-            dep.version_str = version_str
-        
-        deps.append(dep)
-      return deps
-
-    mkfile = os.path.join(repo.path,project,'Makefile')
-    modinfo = os.path.join(repo.path,project,'module_build_info')
-    deps = []
-    if os.path.exists(modinfo):
-        for line in open(modinfo).readlines():
-            m = re.match('.*DEPENDENT_MODULES\s*[+]?=\s*(.*)',line)
-            if m:
-                deps += create_component_dependencies(m.groups(0)[0], is_update)
-
-    if os.path.exists(mkfile):
-        for line in open(mkfile).readlines():
-            m = re.match('.*USED_MODULES\s*[+]?=\s*(.*)',line)
-            if m:
-                deps += create_component_dependencies(m.groups(0)[0], is_update)
-
-    return deps
-
-
-class VersionParseError(Exception):
-    def __str__(self):
-        return "VersionParseError"
-
-@total_ordering
-class Version(object):
-    def __init__(self, major=0, minor=0, point=0,
-                 rtype="release", rnumber=0,
-                 version_str=None):
-
-        self.branch_name = None
-        self.branch_major = 0
-        self.branch_minor = 0
-        self.branch_point = 0
-        self.branch_rnumber = 0
-
-        if version_str == None:
-            if rtype == "":
-                rtype = "release"
-            self.major = major
-            self.minor = minor
-            self.point = point
-            self.rtype = rtype
-            self.rnumber = rnumber
-        else:
-            self.parse_string(version_str)
-
-    def parse_string(self, version_string):
-        m = re.match(r'(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)_([-\w*])_(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)', version_string)
-
-        if m:
-            on_branch = True
-        else:
-            on_branch = False
-            m = re.match(r'(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)', version_string)
-            if not m:
-              m = re.match(r'([^v])v(\d)(\d?)(alpha|beta|rc|)(\d*)', version_string)
-
-        if not m:
-            raise VersionParseError
-
-        self.major = int(m.groups(0)[0])
-        self.minor = int(m.groups(0)[1])
-        point = m.groups(0)[2]
-        if point == '':
-            point = '0'
-        self.point = int(point)
-        self.rtype = m.groups(0)[3]
-        self.rnumber = m.groups(0)[4]
-        if self.rnumber == "":
-            self.rnumber = 0
-        else:
-            self.rnumber = int(self.rnumber)
-
-        if on_branch:
-            self.branch_name = m.groups(0)[5]
-            self.branch_major = int(m.groups(0)[6])
-            self.branch_minor = int(m.groups(0)[7])
-            self.branch_point = int(m.groups(0)[8])
-            self.branch_rtype = m.groups(0)[9]
-            self.branch_rnumber = m.groups(0)[10]
-            if self.branch_rnumber == "":
-                self.branch_rnumber = 0
-            else:
-                self.branch_rnumber = int(self.branch_rnumber)
-
-    def major_increment(self):
-        return Version(self.major+1, 0, 0)
-
-    def minor_increment(self):
-        return Version(self.major, self.minor+1, 0)
-
-    def point_increment(self):
-        return Version(self.major, self.minor, self.point+1)
-
-    def is_rc(self):
-        if self.branch_name:
-            return self.branch_rtype == 'rc'
-        else:
-            return self.rtype == 'rc'
-
-    def is_full(self):
-        return not self.branch_name and self.rtype in ['', 'release']
-
-    '''
-    def __cmp__(self, other):
-        if other == None:
-            return 1
-        if self.major != other.major:
-            return cmp(self.major, other.major)
-        elif self.minor != other.minor:
-            return cmp(self.minor, other.minor)
-        elif self.point != other.point:
-            return cmp(self.point, other.point)
-        elif self.rtype != other.rtype:
-            if self.rtype == '':
-                return 1
-            elif other.rtype == '':
-                return -1
-            else:
-                return cmp(self.rtype, other.rtype)
-        else:
-            if self.rtype in ['', 'release']:
-                return 0
-            else:
-                return cmp(self.rnumber, other.rnumber)
-    '''
-
-    def __lt__(self, other):
-        return (self.major, self.minor, self.point) < (other.major, other.minor, other.point)
-
-    def __eq__(self, other):
-        return (self.major, self.minor, self.point) == (other.major, other.minor, other.point)
-
-    def __hash__(self): 
-        return hash((self.major, self.minor, self.point))
-
-    def __str__(self):
-        vstr = ""
-        rtype = self.rtype
-        vstr = "%d.%d.%d" % (self.major, self.minor, self.point)
-        if rtype not in ['', 'release']:
-            vstr += "%s%d" % (self.rtype, self.rnumber)
-
-        if self.branch_name:
-            vstr += "_%s_%d.%d.%d" % (self.branch_name, self.branch_major, self.branch_minor, self.branch_point)
-
-            if self.branch_rtype not in ['', 'release']:
-              vstr += "%s%d" % (self.branch_rtype, self.branch_rnumber)
-
-        return vstr
-
-    def final_version_str(self):
-        if self.branch_name:
-            return "%d.%d.%d_%s_%d.%d.%d" % (self.major, self.minor, self.point, self.branch_name,
-                                             self.branch_major, self.branch_minor, self.branch_point)
-        else:
-            return "%d.%d.%d" % (self.major, self.minor, self.point)
-
-    def match_modulo_rnumber(self, other):
-        return (self.major == other.major and
-                self.minor == other.minor and
-                self.point == other.point and
-                self.rtype == other.rtype and
-                not self.branch_name and
-                not other.branch_name)
-
-    def match_modulo_rnumber(self, other):
-        return (self.major == other.major and
-                self.minor == other.minor and
-                self.point == other.point and
-                self.rtype == other.rtype)
-
-    def match_modulo_branch_rnumber(self, other):
-        return (self.major == other.major and
-                self.minor == other.minor and
-                self.point == other.point and
-                self.branch_name == other.branch_name and
-                self.branch_major == other.branch_major and
-                self.branch_minor == other.branch_minor and
-                self.branch_point == other.branch_point and
-                self.branch_type == other.branch_type)
-
-    def set_branch_rnumber(self, releases):
-        rels = [r for r in releases if self.match_modulo_branch_rnumber(r.version)]
-        rels.sort()
-        if not rels:
-            self.rnumber = 0
-        else:
-            self.rnumber = rels[-1].version.rnumber + 1
-
-    def set_rnumber(self, releases):
-        rels = [r for r in releases if self.match_modulo_rnumber(r.version)]
-        rels.sort()
-        if not rels:
-            self.rnumber = 0
-        else:
-            self.rnumber = rels[-1].version.rnumber + 1
-
-    def equals_excluding_point(self, version_string):
-        try:
-           v2 = Version(version_str = str(version_string))
-           return self.major == v2.major and self.minor == v2.minor
-        except:
-           return False
-
-class ComponentDependency(XmlObject):
-    version_str = XmlAttribute(attrname="version")
-    module_name = XmlText()
-    repo = XmlAttribute() #String! eg git://github.com/repo_name 
-
-    def __str__(self):
-        if self.version_str:
-            return "%s (%s)" % (self.module_name, self.version_str)
-        else:
-            return "%s" % self.module_name
-
-    def __repr__(self):
-        return self.__str__()
-
-
-class Dependency(XmlObject):
-    repo_name = XmlAttribute(attrname="repo", required=True)
-    uri = XmlValue(required=True)
-    githash = XmlValue(required=True)
-    gitbranch = XmlValue()
-    version_str = XmlValue(tagname="version")
-
-    def get_local_path(self):
-        root_repo = self.parent
-        return os.path.join(os.path.join(root_repo.path,".."),self.repo_name)
-
-    def post_import(self):
-        if self.gitbranch and "detached from" in self.gitbranch:
-            self.gitbranch = None
-
-        if os.path.exists(self.get_local_path()):
-            path = os.path.abspath(self.get_local_path())
-
-            (recursion, names) = self.parent.has_dependency_recursion()
-
-            if recursion:
-                log_error("Dependency recursion detected: %s" % ' -> '.join(names))
-                sys.exit(1)
-            elif path in self.parent._repo_cache:
-                self.repo = self.parent._repo_cache[path]
-            else:
-                self.repo = Repo(self.get_local_path(), parent=self.parent, parenthash=self.githash, create_master=True)
-                self.parent._repo_cache[path] = self.repo
-
-            if self.repo.current_gitbranch():
-                self.gitbranch = self.repo.current_gitbranch()
-
-        else:
-            self.repo = None
-
-    def __str__(self):
-        return self.repo_name
-
-
-class ToolVersion(XmlObject):
-    pass
-
-
-class ToolChainSection(XmlObject):
-    tools = XmlValueList(tagname="tools")
-
-
-class Board(XmlObject):
-    is_schematic = False
-    portmap = XmlAttribute()
-
-
-class Schematic(Board):
-    is_schematic = True
-
-
-class HardwareSection(XmlObject):
-    boards = XmlNodeList(Board)
-    schematics = XmlNodeList(Schematic)
-
-
-class DeviceSection(XmlObject):
-    devices = XmlValueList()
-
-
-class UseCase(XmlObject):
-    name = XmlValue()
-    usecase_type = XmlAttribute(attrname="type")
-    toolchain = XmlNode(ToolChainSection, tagname="toolchain")
-    hardware = XmlNode(HardwareSection, tagname="hardware")
-    devices = XmlNode(DeviceSection, tagname="devices")
-    description = XmlValue()
-
-@total_ordering
-class Release(XmlObject):
-    version_str = XmlAttribute(attrname="version", required=True)
-    parenthash = XmlAttribute(required=True)
-    githash = XmlAttribute()
-    location = XmlValue()
-    usecases = XmlNodeList(UseCase)
-    warnings = XmlValueList()
-    virtual = XmlAttribute()
-
-    def post_import(self):
-        if self.parenthash and not self.githash:
-            self.githash = self.parent.get_child_hash(self.parenthash)
-        if self.version_str:
-            self.version = Version(version_str=self.version_str)
-        else:
-            self.version = None
-
-    def pre_export(self):
-        if hasattr(self,'version') and self.version != None:
-            self.version_str = str(self.version)
-        else:
-            self.version_str = None
-
-    def merge(self, other):
-        #TODO - merge usecase and location info
-        pass
-
-    def __lt__(self, other):
-        return self.version < other.version
-
-    def __eq__(self, other):
-        return self.version == other.version
-
-    '''
-    def __cmp__(self, other):
-        if other == None:
-            return 1
-        else:
-            return cmp(self.version, other.version)
-    '''
-
-    def __str__(self):
-        return "<release:" + str(self.version) + ">"
-
-
-class ReleaseNote(XmlObject):
-    version_str = XmlAttribute(attrname="version")
-
-    def post_import(self):
-        if self.version_str:
-            self.version = Version(version_str=self.version_str)
-        else:
-            self.version = None
-
-    def __cmp__(self, other):
-        return cmp(self.version, other.version)
-
-
-class ChangeLog(XmlObject):
-    version_str = XmlAttribute(attrname="version")
-
-    def post_import(self):
-        if self.version_str:
-            self.version = Version(version_str=self.version_str)
-        else:
-            self.version = None
-
-
-class VersionDefine(XmlObject):
-    name = XmlAttribute()
-    format = XmlAttribute()
-    type = XmlAttribute()
-
-    def produce_version_string(self, version):
-        value_string = self.format
-        value_string = value_string.replace("%MAJOR%", str(version.major))
-        value_string = value_string.replace("%MINOR%", str(version.minor))
-        value_string = value_string.replace("%POINT%", str(version.point))
-        value_string = value_string.replace("%VERSION%", str(version))
-        return value_string
-
-
-class Component(XmlObject):
-    id = XmlAttribute(required=True)
-    name = XmlAttribute(required=True)
-    description = XmlAttribute(required=True)
-    metainfo_path = XmlAttribute()
-    buildresults_path = XmlAttribute()
-    scope = XmlAttribute(required=True)
-    path = XmlAttribute(required=True)
-    type = XmlAttribute(required=True)
-    local = XmlAttribute()
-    keywords = XmlValueList()
-    boards = XmlValueList()
-    docPartNumber = XmlAttribute()
-    docVersion = XmlAttribute()
-    dependencies = XmlNodeList(ComponentDependency, tagname="componentDependency")
-    zip_partnumber = XmlAttribute()
-
-    def init_from_path(self, repo, path):
-        self.id = os.path.basename(path)
-        self.path = path
-        self.repo = repo
-        fields = self.readme_to_dict()
-        if 'title' in fields and fields['title']:
-            self.name = fields['title']
-        else:
-            self.name = self.id
-
-        if 'scope' in fields:
-            self.scope = fields['scope']
-        else:
-            self.scope = DEFAULT_SCOPE
-
-        if 'keywords' in fields:
-            self.keywords_text = fields['keywords']
-            if self.keywords_text == '' or self.keywords_text[0] != '<':
-                self.keywords = [x.strip() for x in fields['keywords'].split(',')]
-        else:
-            self.keywords_text = None
-            self.keywords = []
-
-        if 'boards' in fields:
-            self.boards_text = fields['boards']
-            if self.boards_text == '' or self.boards_text[0] != '<':
-                self.boards = [x.strip() for x in fields['boards'].split(',')]
-        else:
-            self.boards_text = None
-            self.boards = []
-
-        if 'description' in fields:
-            self.description = fields['description']
-        else:
-            self.description = "Software Block: " + self.name
-
-        if (os.path.exists(os.path.join(repo.path, path, self.id + '.metainfo'))):
-            # Use '/' instead of os.path.join because otherwise the generated file is not
-            # useable on linux if created on Windows
-            self.metainfo_path = path + '/' + self.id + '.metainfo'
-            self.buildresults_path = path + '/' + "." + self.id + '.buildinfo'
-
-        if self.metainfo_path:
-            if self.id[0:4] == "app_":
-                self.type = "applicationTemplate"
-            else:
-                self.type = "component"
-        else:
-            self.type = "demoCode"
-
-        if self.scope == "Roadmap":
-            if self.id[0:4] == "app_":
-                self.type = "applicationTemplate"
-            else:
-                self.type = "component"
-
-    def readme_to_dict(self):
-        if not self.has_readme():
-            return {}
-        fields = {}
-        xml_str = rst2xml(os.path.join(self.repo.path,self.path,'README.rst'))
-        dom = xml.dom.minidom.parseString(xml_str)
-        docnode = dom.getElementsByTagName('document')[0]
-        fields['title'] = docnode.getAttribute('title')
-        for field in dom.getElementsByTagName('field'):
-            name_element = field.getElementsByTagName('field_name')[0]
-            name = name_element.childNodes[0].data
-            paras = field.getElementsByTagName('paragraph')
-            value = ''
-            for p in paras:
-                if p.childNodes[0].nodeValue:
-                    value += p.childNodes[0].data
-            fields[name] = value
-        return fields
-
-    def __str__(self):
-        return "<" + self.repo.name + ":" + self.name  + ">"
-
-    def is_module(self):
-        return re.match('module_.*',self.id)
-
-    def is_published(self):
-        if self.repo.include_dirs != []:
-            return self.name in self.repo.include_dirs
-        if self.repo.exclude_dirs != []:
-            return self.name not in self.repo.include_dirs
-        return True
-
-    def readme_path(self):
-        return os.path.join(self.repo.path, self.path, 'README.rst')
-
-    def has_readme(self):
-        return os.path.exists(self.readme_path())
-
-
-class Repo(XmlObject):
+class Repo_(XmlObject):
     dependencies = XmlNodeList(Dependency, tagname="dependency")
     releases = XmlNodeList(Release)
     longname = XmlValue(tagname="name")
@@ -592,7 +19,7 @@ class Repo(XmlObject):
     exports = XmlValueList(tagname="binary_only")
     git_export = XmlValue(default=False)
     include_binaries = XmlValue(default=False)
-    xpd_version = XmlValue(default=xpd_version)
+    #xpd_version = XmlValue(default=xpd_version)
     release_notes = XmlNodeList(ReleaseNote)
     vendor = XmlValue()
     maintainer = XmlValue()
@@ -614,7 +41,7 @@ class Repo(XmlObject):
     boards = XmlValueList()
     extra_eclipse_projects = XmlValueList()
     non_xmos_projects = XmlValueList()
-    components = XmlNodeList(Component, wrapper="components")
+    #components = XmlNodeList(Component, wrapper="components")
     version_defines = XmlNodeList(VersionDefine, wrapper="version_defines")
     snippets = XmlValue(default=False)
     docmap_partnumber = XmlValue()
@@ -629,7 +56,9 @@ class Repo(XmlObject):
         self.sb = None
         self.branched_from_version = None
         self._repo_cache = {self.path:self}
-        super(Repo, self).__init__(**kwargs)
+        self._components = []
+        super(Repo_, self).__init__(**kwargs)
+    
 
         (stdout_lines, stderr_lines) = call_get_output(
                 ["git", "rev-parse", "--show-cdup"], cwd=path)
@@ -665,14 +94,22 @@ class Repo(XmlObject):
         self.xpd_file = os.path.join(git_dir,'xpd.xml')
 
         if read_file:
-            try:
-                self.parse(self.xpd_file)
-            except IOError:
-                self.parseString("<xpd></xpd>")
+            #try:
+            #    self.parse(self.xpd_file)
+            #except IOError:
+            self.parseString("<xpd></xpd>")
 
         if not master and (not parenthash or create_master):
-            self.master_repo = Repo(self.path, master=True)
+            self.master_repo = Repo_(self.path, master=True)
             self.merge_releases(self.master_repo)
+
+    @property
+    def components(self):
+        return self._components
+
+    @components.setter
+    def components(self, c):
+        self._components = c
 
     def merge_releases(self, other):
         for rel_other in other.releases:
@@ -697,7 +134,7 @@ class Repo(XmlObject):
         if not rel or not rel.parenthash:
             return None
 
-        return Repo(path=self.path, parenthash=rel.parenthash)
+        return Repo_(path=self.path, parenthash=rel.parenthash)
 
     def save(self):
         log_debug("Saving xpd.xml")
@@ -710,7 +147,7 @@ class Repo(XmlObject):
             ref = self.current_gitref()
             if ref != "master":
                 self.git_checkout("master", silent=True)
-                master_repo = Repo(self.path)
+                master_repo = Repo_(self.path)
                 master_repo.releases.append(release)
                 master_repo.save()
                 call(["git", "add", "xpd.xml"], cwd=self.path, silent=True)
@@ -814,8 +251,8 @@ class Repo(XmlObject):
                 log_error("Unable to parse branched_from version %s - clearing field" % self.branched_from)
                 self.branched_from = None
 
-    def pre_export(self):
-        self.xpd_version = xpd_version
+    #def pre_export(self):
+    #    self.xpd_version = xpd_version
 
     def latest_version(self):
         rels = [r for r in self.releases \
@@ -904,6 +341,8 @@ class Repo(XmlObject):
         return [d.repo for d in self.get_all_deps_once()] + [self]
 
     def add_dep(self, name):
+        
+        print(str(self)+": add_dep("+str(name)+")")
         if self.get_dependency(name):
             log_error("Dependency already exists")
             return False
@@ -914,9 +353,15 @@ class Repo(XmlObject):
             log_error("Cannot add dependency '%s' as folder '%s' does not exist" % (name, dep.get_local_path()))
             return False
 
-        dep.repo = Repo(dep.get_local_path())
+        print("creating Repo from " + str(dep.get_local_path())) 
+        dep.repo = Repo_(dep.get_local_path())
+        #print(str(dep.repo))
         dep.uri = dep.repo.uri()
         dep.githash = dep.repo.current_githash()
+
+        # RSO
+        dep.post_import()
+
         rel = dep.repo.current_release()
         if rel:
             dep.version_str = str(rel.version)
@@ -1006,7 +451,7 @@ class Repo(XmlObject):
     def get_module_version(self, module_name):
         repo_name = self.find_repo_containing_module(module_name)
         if not repo_name:
-            log_error('%s: Unable to find repo containing depedency %s' %
+            log_error('%s: 1 Unable to find repo containing depedency %s' %
                 (self.name, module_name))
             return None
 
@@ -1025,10 +470,10 @@ class Repo(XmlObject):
     def get_module_repo(self, module_name, is_update):
         repo_name = self.find_repo_containing_module(module_name)
 
-        #print("get_module_repo()")
-        #print(str(repo_name))
+        print("get_module_repo(). Found: " + str(repo_name)) #FIXME
+
         if not repo_name:
-            log_error('%s: Unable to find repo containing depedency %s' %
+            log_error('%s: 2 Unable to find repo containing depedency %s' %
                 (self.name, module_name))
             return None
 
@@ -1036,12 +481,17 @@ class Repo(XmlObject):
             return self
         else:
             repo_dep = self.get_dependency(repo_name)
+           
+            print("repo_dep: " + str(repo_dep))
+
             if repo_dep and repo_dep.repo:
                 return repo_dep.repo
 
+        print("get_module_repo() returning None")
+
         # Don't want this error message when this is an update that is going to fix it
         if not is_update:
-            log_error('%s: Unable to find repo containing depedency %s' %
+            log_error('%s: 3 Unable to find repo containing depedency %s' %
                 (self.name, module_name))
 
         return None
@@ -1064,7 +514,7 @@ class Repo(XmlObject):
               continue
           mkfile = os.path.join(path,x,'Makefile')
           modinfo = os.path.join(path,x,'module_build_info')
-          if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or (x in self.extra_eclipse_projects) or is_non_xmos_project(x, self) or re.match('^module_.*',x):
+          if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or (x in self.extra_eclipse_projects) or is_non_xmos_project(x, self) or re.match('^module_.*',x) or re.match('^lib_.*',x):
               comp = Component()
               comp.init_from_path(self, x)
               components.append(comp)
@@ -1345,7 +795,7 @@ class Repo(XmlObject):
                 for x in os.listdir(os.path.join(parent_dir,d)):
                     if x == sub:
                         deps = set([])
-                        repo = Repo(os.path.join(parent_dir,d))
+                        repo = Repo_(os.path.join(parent_dir,d))
                         for y in get_project_immediate_deps(repo, x):
                             deps.add(y)
 
@@ -1527,54 +977,29 @@ class Repo(XmlObject):
     def find_repo_containing_module(self, module_name):
         root_dir = os.path.join(self.path, "..")
 
+        #print("find_repo_containing_module: " + str(module_name))
+
         for dep_repo in os.listdir(root_dir):
             repo_path = os.path.join(root_dir, dep_repo)
             if os.path.isdir(repo_path):
                 for module_dir in os.listdir(repo_path):
                     if os.path.isdir(os.path.join(repo_path, module_dir)):
                         if module_dir == module_name:
+                            #print("found dir " + str(dep_repo))
                             return dep_repo
-
+        #print("not found")
         return None
 
-   
+    def find_repo_containing_module_path(self, module_name):
+        root_dir = os.path.join(self.path, "..")
 
+        for dep_repo in os.listdir(root_dir):
+            repo_path = os.path.join(root_dir, dep_repo)
+            if os.path.isdir(repo_path):
+                for module_dir in os.listdir(repo_path):
+                    if os.path.isdir(os.path.join(repo_path, module_dir)):
+                        if module_dir == module_name:
+                            return repo_path
 
-class Package(XmlObject):
-    name = XmlAttribute()
-    id = XmlAttribute()
-    hash = XmlAttribute()
-    project = XmlAttribute()
-    authorised = XmlAttribute()
-    packagename = XmlAttribute()
-    latestversion = XmlAttribute()
-    version = XmlAttribute()
-    description = XmlValue()
-    components = XmlNodeList(Component, wrapper="components")
-
-
-class AllSoftwareDescriptor(XmlObject):
-    packages = XmlNodeList(Package)
-    toolsVersion = XmlAttribute()
-
-
-class SoftwareDescriptor(XmlObject):
-    packages = XmlNodeList(Package)
-    toolsVersion = XmlAttribute()
-    id = XmlAttribute()
-    project = XmlAttribute()
-    name = XmlAttribute()
-
-
-class Doc(XmlObject):
-    category = XmlAttribute()
-    subcategory = XmlAttribute()
-    partnumber = XmlAttribute()
-    appname = XmlAttribute()
-    related = XmlValueList()
-    title = XmlAttribute()
-
-
-class DocMap(XmlObject):
-    docs = XmlNodeList(Doc)
+        return None
 
