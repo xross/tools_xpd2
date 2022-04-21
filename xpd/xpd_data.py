@@ -71,10 +71,10 @@ def get_project_immediate_deps(repo, project, is_update=False):
             continue
         dep = ComponentDependency()
         dep.module_name = module_name
-        print("dep.module_name: " + str(module_name))
+        #print("dep.module_name: " + str(module_name))
 
         mrepo = repo.get_module_repo(module_name, is_update)
-        print("mrepo: " + str(mrepo))
+        #print("mrepo: " + str(mrepo))
         
         if (mrepo):
             dep.repo = normalize_repo_uri(mrepo.location)
@@ -338,7 +338,7 @@ class Dependency(XmlObject):
             elif path in self.parent._repo_cache:
                 self.repo = self.parent._repo_cache[path]
             else:
-                self.repo = Repo(self.get_local_path(), parent=self.parent, parenthash=self.githash, create_master=True)
+                self.repo = Repo_(self.get_local_path(), parent=self.parent, parenthash=self.githash, create_master=True)
                 self.parent._repo_cache[path] = self.repo
 
             if self.repo.current_gitbranch():
@@ -384,6 +384,65 @@ class UseCase(XmlObject):
     hardware = XmlNode(HardwareSection, tagname="hardware")
     devices = XmlNode(DeviceSection, tagname="devices")
     description = XmlValue()
+
+@total_ordering
+class Release_:
+    #version_str = XmlAttribute(attrname="version", required=True)
+    #parenthash = XmlAttribute(required=True)
+    #githash = XmlAttribute()
+    #location = XmlValue()
+    #usecases = XmlNodeList(UseCase)
+    #warnings = XmlValueList()
+    #virtual = XmlAttribute()
+
+    def __init__(self, version_str, path, virtual=False):
+
+        self.version_str = version_str
+        self.parenthash = None
+        self.githash = None
+        self.virtual = virtual
+        self.path = path
+        
+        self.version = Version(version_str=self.version_str)
+
+        (self.githash, self.parenthash) = self._find_hashes()
+
+        #self.post_import()
+
+    #def post_import(self):
+    #    if self.parenthash and not self.githash:
+    #        self.githash = self.parent.get_child_hash(self.parenthash)
+        
+    def pre_export(self):
+        if hasattr(self,'version') and self.version != None:
+            self.version_str = str(self.version)
+        else:
+            self.version_str = None
+
+    def merge(self, other):
+        #TODO - merge usecase and location info
+        pass
+
+    def __lt__(self, other):
+        return self.version < other.version
+
+    def __eq__(self, other):
+        return self.version == other.version
+
+    def _find_hashes(self):
+
+        # Return hash at tag and parent
+        (stdout_lines, stderr_lines) = call_get_output(["git", "rev-list", "-n", "1", "v"+str(self.version_str)], cwd=self.path)
+        git_hash = stdout_lines[0].strip()
+      
+        (stdout_lines0, stderr_lines0) = call_get_output(["git", "rev-parse", git_hash+"^"], cwd=self.path)
+        parent_hash = stdout_lines0[0].strip()
+
+        return (git_hash, parent_hash)
+
+    def __str__(self):
+        return "<release:" + str(self.version) + ">"
+
 
 @total_ordering
 class Release(XmlObject):
@@ -564,7 +623,7 @@ class Component(XmlObject):
         return "<" + self.repo.name + ":" + self.name  + ">"
 
     def is_module(self):
-        return re.match('module_.*',self.id)
+        return re.match('module_.*',self.id) or re.match('lib_.*',self.id) 
 
     def is_published(self):
         if self.repo.include_dirs != []:
@@ -579,8 +638,7 @@ class Component(XmlObject):
     def has_readme(self):
         return os.path.exists(self.readme_path())
 
-
-class Repo(XmlObject):
+class Repo_(XmlObject):
     dependencies = XmlNodeList(Dependency, tagname="dependency")
     releases = XmlNodeList(Release)
     longname = XmlValue(tagname="name")
@@ -592,7 +650,7 @@ class Repo(XmlObject):
     exports = XmlValueList(tagname="binary_only")
     git_export = XmlValue(default=False)
     include_binaries = XmlValue(default=False)
-    xpd_version = XmlValue(default=xpd_version)
+    #xpd_version = XmlValue(default=xpd_version)
     release_notes = XmlNodeList(ReleaseNote)
     vendor = XmlValue()
     maintainer = XmlValue()
@@ -612,14 +670,13 @@ class Repo(XmlObject):
     xsoftip_excludes = XmlValueList()
     tools = XmlValueList(tagname="tools")
     boards = XmlValueList()
-    extra_eclipse_projects = XmlValueList()
+    #extra_eclipse_projects = XmlValueList()
     non_xmos_projects = XmlValueList()
-    components = XmlNodeList(Component, wrapper="components")
+    #components = XmlNodeList(Component, wrapper="components")
     version_defines = XmlNodeList(VersionDefine, wrapper="version_defines")
     snippets = XmlValue(default=False)
     docmap_partnumber = XmlValue()
     path = None
-    no_xsoftip = XmlValue(default=False)
 
     def __init__(self, path, parenthash=None, master=False, create_master=False, **kwargs):
         path = os.path.abspath(path)
@@ -629,7 +686,10 @@ class Repo(XmlObject):
         self.sb = None
         self.branched_from_version = None
         self._repo_cache = {self.path:self}
-        super(Repo, self).__init__(**kwargs)
+        self._components = []
+
+        super(Repo_, self).__init__(**kwargs)
+    
 
         (stdout_lines, stderr_lines) = call_get_output(
                 ["git", "rev-parse", "--show-cdup"], cwd=path)
@@ -660,19 +720,44 @@ class Repo(XmlObject):
 
             if stderr_lines == []:
                 read_file = False
-                self.parseString(''.join(stdout_lines), src="%s:master:xpd.xml"%self.path)
+                #self.parseString(''.join(stdout_lines), src="%s:master:xpd.xml"%self.path)
 
         self.xpd_file = os.path.join(git_dir,'xpd.xml')
 
         if read_file:
-            try:
-                self.parse(self.xpd_file)
-            except IOError:
-                self.parseString("<xpd></xpd>")
+            #try:
+            #    self.parse(self.xpd_file)
+            #except IOError:
+            self.parseString("<xpd></xpd>")
 
         if not master and (not parenthash or create_master):
-            self.master_repo = Repo(self.path, master=True)
+            self.master_repo = Repo_(self.path, master=True)
             self.merge_releases(self.master_repo)
+
+
+        self._releases = self.find_releases()
+
+    #@property
+    #def releases(self):
+    #    return self._releases
+
+    #@releases.setter
+    #def releases(self, r):
+    #    self._releases = r
+    @property
+    def components(self):
+        return self._components
+
+    @components.setter
+    def components(self, c):
+        self._components = c
+
+    def find_releases(self):
+        (stdout_lines, stderr_lines) = call_get_output(["git", "tag", "--merged", "remotes/origin/master", "-l", "v*"], cwd=self.path)
+        for line in stdout_lines + stderr_lines:
+            line = line.replace('v','').replace('\n','')
+            release = Release_(line, self.path)
+            self.releases.append(release)
 
     def merge_releases(self, other):
         for rel_other in other.releases:
@@ -697,7 +782,7 @@ class Repo(XmlObject):
         if not rel or not rel.parenthash:
             return None
 
-        return Repo(path=self.path, parenthash=rel.parenthash)
+        return Repo_(path=self.path, parenthash=rel.parenthash)
 
     def save(self):
         log_debug("Saving xpd.xml")
@@ -705,12 +790,13 @@ class Repo(XmlObject):
         f.write(self.toxml("xpd"))
         f.close()
 
+    '''
     def record_release(self, release):
         if self.git:
             ref = self.current_gitref()
             if ref != "master":
                 self.git_checkout("master", silent=True)
-                master_repo = Repo(self.path)
+                master_repo = Repo_(self.path)
                 master_repo.releases.append(release)
                 master_repo.save()
                 call(["git", "add", "xpd.xml"], cwd=self.path, silent=True)
@@ -726,6 +812,7 @@ class Repo(XmlObject):
                             cwd=self.path, silent=True)
 
         self.record_release(release)
+    '''
 
     def latest_release(self, release_filter=None):
         if release_filter:
@@ -755,6 +842,7 @@ class Repo(XmlObject):
     def current_release(self):
         if not self.path:
             return None
+       
         parent_hash = exec_and_match(["git","rev-parse","HEAD~1"],r'(.*)',cwd=self.path)
 
         rels = []
@@ -789,13 +877,13 @@ class Repo(XmlObject):
             comp.repo = self
 
         # Prune out releases which are not valid - can't determine a version number or githash
-        self.releases = [r for r in self.releases if r.version or r.githash]
+        #self.releases = [r for r in self.releases if r.version or r.githash]
 
         self.parse_changelog()
 
-        for exclude in self.xsoftip_excludes:
-            if not os.path.exists(os.path.join(self.path, exclude)):
-                log_warning("%s: xsoftip_exclude '%s' does not exist" % (self.name, exclude))
+        #for exclude in self.xsoftip_excludes:
+        #    if not os.path.exists(os.path.join(self.path, exclude)):
+        #        log_warning("%s: xsoftip_exclude '%s' does not exist" % (self.name, exclude))
 
         # Cache the untracked files in this repo as it is a very common action to check whether untracked
         (stdout_lines, stderr_lines) = call_get_output(
@@ -814,8 +902,8 @@ class Repo(XmlObject):
                 log_error("Unable to parse branched_from version %s - clearing field" % self.branched_from)
                 self.branched_from = None
 
-    def pre_export(self):
-        self.xpd_version = xpd_version
+    #def pre_export(self):
+    #    self.xpd_version = xpd_version
 
     def latest_version(self):
         rels = [r for r in self.releases \
@@ -904,6 +992,8 @@ class Repo(XmlObject):
         return [d.repo for d in self.get_all_deps_once()] + [self]
 
     def add_dep(self, name):
+        
+        #print(str(self)+": add_dep("+str(name)+")")
         if self.get_dependency(name):
             log_error("Dependency already exists")
             return False
@@ -914,15 +1004,20 @@ class Repo(XmlObject):
             log_error("Cannot add dependency '%s' as folder '%s' does not exist" % (name, dep.get_local_path()))
             return False
 
-        dep.repo = Repo(dep.get_local_path())
+        #print("creating Repo from " + str(dep.get_local_path())) 
+        dep.repo = Repo_(dep.get_local_path())
         dep.uri = dep.repo.uri()
         dep.githash = dep.repo.current_githash()
+
+        # RSO
+        dep.post_import()
+
         rel = dep.repo.current_release()
         if rel:
             dep.version_str = str(rel.version)
 
         self.dependencies.append(dep)
-        log_info("%s added %s as dependency with uri: %s" % (self.name, name, dep.uri))
+        #log_info("%s added %s as dependency with uri: %s" % (self.name, name, dep.uri))
         return True
 
     def remove_dep(self, name):
@@ -1006,7 +1101,7 @@ class Repo(XmlObject):
     def get_module_version(self, module_name):
         repo_name = self.find_repo_containing_module(module_name)
         if not repo_name:
-            log_error('%s: Unable to find repo containing depedency %s' %
+            log_error('%s: 1 Unable to find repo containing depedency %s' %
                 (self.name, module_name))
             return None
 
@@ -1025,10 +1120,8 @@ class Repo(XmlObject):
     def get_module_repo(self, module_name, is_update):
         repo_name = self.find_repo_containing_module(module_name)
 
-        #print("get_module_repo()")
-        #print(str(repo_name))
         if not repo_name:
-            log_error('%s: Unable to find repo containing depedency %s' %
+            log_error('%s: 2 Unable to find repo containing depedency %s' %
                 (self.name, module_name))
             return None
 
@@ -1036,12 +1129,13 @@ class Repo(XmlObject):
             return self
         else:
             repo_dep = self.get_dependency(repo_name)
+           
             if repo_dep and repo_dep.repo:
                 return repo_dep.repo
 
         # Don't want this error message when this is an update that is going to fix it
         if not is_update:
-            log_error('%s: Unable to find repo containing depedency %s' %
+            log_error('%s: 3 Unable to find repo containing depedency %s' %
                 (self.name, module_name))
 
         return None
@@ -1064,7 +1158,7 @@ class Repo(XmlObject):
               continue
           mkfile = os.path.join(path,x,'Makefile')
           modinfo = os.path.join(path,x,'module_build_info')
-          if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or (x in self.extra_eclipse_projects) or is_non_xmos_project(x, self) or re.match('^module_.*',x):
+          if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or is_non_xmos_project(x, self) or re.match('^module_.*',x) or re.match('^lib_.*',x):
               comp = Component()
               comp.init_from_path(self, x)
               components.append(comp)
@@ -1345,7 +1439,7 @@ class Repo(XmlObject):
                 for x in os.listdir(os.path.join(parent_dir,d)):
                     if x == sub:
                         deps = set([])
-                        repo = Repo(os.path.join(parent_dir,d))
+                        repo = Repo_(os.path.join(parent_dir,d))
                         for y in get_project_immediate_deps(repo, x):
                             deps.add(y)
 
@@ -1534,10 +1628,23 @@ class Repo(XmlObject):
                     if os.path.isdir(os.path.join(repo_path, module_dir)):
                         if module_dir == module_name:
                             return dep_repo
+        return None
+    
+    #TODO tidy
+    def find_repo_containing_module_path(self, module_name):
+        root_dir = os.path.join(self.path, "..")
+
+        for dep_repo in os.listdir(root_dir):
+            repo_path = os.path.join(root_dir, dep_repo)
+            if os.path.isdir(repo_path):
+                for module_dir in os.listdir(repo_path):
+                    if os.path.isdir(os.path.join(repo_path, module_dir)):
+                        if module_dir == module_name:
+                            return repo_path
 
         return None
 
-   
+
 
 
 class Package(XmlObject):

@@ -9,8 +9,8 @@ import zipfile
 import tempfile
 import shutil
 from copy import copy
-from xpd.xpd_data import Repo, Release, Version, Dependency
-from xpd.xpd_data_new import Repo_
+from xpd.xpd_data import Repo_, Release, Version, Dependency
+#from xpd.xpd_data_new import Repo_
 from xpd.xpd_data import AllSoftwareDescriptor, SoftwareDescriptor
 from xpd.xpd_data import DocMap, Doc
 from xpd.xpd_data import changelog_str_to_version
@@ -223,12 +223,12 @@ def find_current_dependencies(repo, is_update=False):
 
     return repos
 
-def xpd_add_dep(repo, options, args):
-    if len(args) < 1:
-        log_error("required repo name")
-        sys.exit(1)
-
-    return repo.add_dep(args[0])
+#def xpd_add_dep(repo, options, args):
+#    if len(args) < 1:
+#        log_error("required repo name")
+#        sys.exit(1)
+#
+#    return repo.add_dep(args[0])
 
 def get_date(repo, githash):
     try:
@@ -252,7 +252,7 @@ def check_dependency_versions(repo, is_rc):
     errors = 0
 
     for dep in repo.get_all_deps_once():
-        dep_master = Repo(dep.repo.path, parent=dep.parent, master=True)
+        dep_master = Repo_(dep.repo.path, parent=dep.parent, master=True)
         rel = dep_master.current_release()
         if not rel:
             if not repo.get_branched_from_version():
@@ -301,7 +301,7 @@ def xpd_check_deps(repo, options, args, return_current_ok=False, allow_updates=F
             current_ok = False
 
     for dep in [d for d in repo.dependencies if d.repo]:
-        dep_master = Repo(dep.repo.path, parent=dep.parent, master=True)
+        dep_master = Repo_(dep.repo.path, parent=dep.parent, master=True)
         rel = dep_master.current_release()
         if dep.githash != dep_master.current_githash() or \
            (rel and dep.version_str != str(rel.version)):
@@ -364,7 +364,7 @@ def xpd_list(repo, options, args):
         if rel.virtual == "True":
             log_info("%s (unknown git location)" % str(rel.version))
         else:
-            log_info(rel.version)
+            log_info(str(rel.version) + " parenthash: " + str(rel.parenthash))
 
 def xpd_upgrade_rc(repo, options, args):
     if len(args) < 1:
@@ -1156,14 +1156,9 @@ def insert_doc(repo_name, path, zipfile, base=None, insert_pdf=True,
             dst = dst.replace('_static', '.static')
             zipfile.writestr(dst, src_str)
 
-def xpd_status(repo, options, args):
-    xpd_show(repo, options, args)
-
-def xpd_info(repo, options, args):
-    xpd_show(repo, options, args)
-
 def xpd_show(repo, options, args):
     rel = repo.current_release()
+    print(str(rel))
     if rel:
         version = str(rel.version)
     else:
@@ -2309,7 +2304,7 @@ def xpd_init_dp_sources(repo, options, args):
 
 def dp_update_repo(repo, options, repo_name, release_name):
   # Recreate the Repo so that branches of dependencies are re-read
-  new_repo = Repo(repo.path)
+  new_repo = Repo_(repo.path)
 
   # Set the branched_from attribute so that update checks are performed appropriately
   new_repo.set_branched_from(release_name)
@@ -2730,82 +2725,6 @@ def xpd_install_local_xml(repo, cache_path, github=False, doing_buildresults=Fal
     f.close()
     return package
 
-def xpd_install_local(repo, options, args):
-    xpd_check_swblocks(repo, [], [])
-    cache_path = os.environ['XMOS_CACHE_PATH']
-    package = xpd_install_local_xml(repo, cache_path, github=options.github)
-    log_info("Package installed in local cache")
-    if not options.nodocs:
-        log_info("Building documentation")
-
-        repo.move_to_temp_sandbox(git_only=False)
-        xpd_build_docs(repo, options, [], buildlatex=False, local_only=True)
-
-        seealsos = ""
-        i = 0;
-        for doc_dir in repo.docdirs:
-            i = i + 1
-            local_name = package.name + "-local-doc-%d" % i
-            title = xdoc.get_title(os.path.join(repo.path, doc_dir))
-            dst = os.path.join(cache_path, local_name)
-            if os.path.exists(dst):
-                shutil.rmtree(dst)
-            shutil.copytree(os.path.join(repo.path, doc_dir, '_build', 'xdehtml'),
-                            dst)
-            seealsos += '<li><a href="../../%s/index.html">%s</a></li>' % (local_name, title)
-            log_info("Installed documentation from %s" % doc_dir)
-
-        seealsos = """
-        <div class="content">
-        <div class="seealso">
-          <h2>See Also</h2>
-            <ul class="iconmenu">
-            %s
-            </ul>
-        </div>
-        </div>
-        """ % seealsos
-
-        for comp in package.components:
-            zipfilepath=os.path.join(cache_path,
-                                     comp.docPartNumber+"("+comp.docVersion+").zip")
-            doc_dir = os.path.join(repo.path, comp.path, "_build", "xdehtml")
-
-            f = open(os.path.join(doc_dir, 'README.html'))
-            readme_str = f.read()
-            f.close()
-            readme_str = readme_str.replace("<!--seealsos-->", seealsos)
-            index = open(os.path.join(doc_dir, 'index.html'), 'wb')
-            index.write(readme_str)
-            index.close()
-            zfile = zipfile.ZipFile(zipfilepath, 'w')
-            for root, dirs, files in os.walk(doc_dir):
-                for f in files:
-                    fpath = os.path.join(root, f)
-                    arcname = os.path.join('html', os.path.relpath(fpath, doc_dir))
-                    zfile.write(fpath, arcname)
-            zfile.close()
-            if os.path.exists(os.path.join(cache_path,
-                                     comp.docPartNumber+"("+comp.docVersion+")")):
-                shutil.rmtree(os.path.join(cache_path,
-                                     comp.docPartNumber+"("+comp.docVersion+")"))
-            log_info("Installed " + zipfilepath)
-
-        repo.delete_temp_sandbox()
-
-    if options.install_code:
-        options.nobuild = True
-        options.nodocs = True
-        options.force = True
-        zfile = tempfile.mktemp()
-        xpd_make_zip(repo, options, args, dest=zfile)
-        installed_zip = os.path.join(cache_path, package.name)
-        shutil.copy(zfile, installed_zip)
-        installed_zip = os.path.join(cache_path, package.name+".zip")
-        shutil.copy(zfile, installed_zip)
-        log_info("Installed " + installed_zip)
-
-    return False
 
 def xpd_approve_latest(repo, options, args):
     if not repo.partnumber:
@@ -2888,7 +2807,7 @@ other_commands =[
             ("check_swblocks", "Check swblocks"),
             ("validate_swblock", "Validate swblock"),
             ("build_results", "Build results for swblock"),
-            ("add_dep", "Add dependency"),
+            #("add_dep", "Add dependency"),
             ("remove_dep", "Remove dependency"),
             ("show_deps", "Show dependencies"),
             ("check_deps", "Check dependencies of the current repository"),
@@ -2905,7 +2824,6 @@ other_commands =[
             ("init_dp_sources", "Create the sources required for a derived product."),
             ("init_dp_branch", "Setup the branches and git remotes for a derived product."),
             ("init_dp_backup", "Create the backup folders for a derived product on XMOS' servers."),
-            ("install_local", "Install into local xsoftipexploer cache (DEBUG)"),
             ("check_partinfo", "Check part information (DEBUG)"),
             ("make_docholder", "Make docholder (DEBUG)"),
             ("build_docs", "Make docs (DEBUG)"),
@@ -2929,29 +2847,18 @@ def get_git_dir(path):
 
 def create_repo(path):
 
-    print("create_repo("+str(path)+")")
     repo__ = Repo_(path)
 
     # Update component and repo dependencies
     repo__.components = repo__.get_software_blocks(is_update=True)
 
-    print("\nCOMPONENTS IN REPO: " +str(repo__))
     for c in repo__.components:
-        print(str(c.name) + ":")
-        print("Location: " + str(repo__.location))
-        print("Component Deps: ")
 
         for d in c.dependencies: 
-            print(str(type(d)) + "    " + str(d) + " repo: " + str(d.repo))
             d_repo_path = repo__.find_repo_containing_module_path(str(d))
-            print("local path: " + str(d_repo_path))
-            print(" ")
 
-        print("Repo Deps: ")
-        for rd in repo__.dependencies:
-            print(str(rd))
-            print(str(rd.get_local_path()))
-            rd.repo = create_repo(rd.get_local_path())
+    #for rd in repo__.dependencies:
+    #    rd.repo = create_repo(rd.get_local_path())
 
     return repo__
 
@@ -2992,9 +2899,6 @@ if __name__ == "__main__":
     optparser.add_option("--github", dest="github", action="store_true", default=False,
                          help="Treat repo as an \"Open Source Community\" repo for publishing")
 
-    optparser.add_option("--code", dest="install_code", action="store_true", default=False,
-                         help="Install code when doing an install_local")
-
     optparser.add_option("--all", dest="show_all", action="store_true", default=False,
                          help="Show all options")
 
@@ -3004,10 +2908,10 @@ if __name__ == "__main__":
     optparser.add_option("--logfile", dest="logfile", default=default_logfile,
                          help="Log file to be used for xpd output (default=%s)" % default_logfile)
 
-    if len(sys.argv) > 1 and sys.argv[1] == 'git':
-        repo = Repo(".")
-        repo.dep_iter(' '.join(sys.argv[1:]))
-        sys.exit(0)
+    #if len(sys.argv) > 1 and sys.argv[1] == 'git':
+    #    repo = Repo(".")
+    #    repo.dep_iter(' '.join(sys.argv[1:]))
+    #    sys.exit(0)
 
     (options, args) = optparser.parse_args()
 
@@ -3017,23 +2921,20 @@ if __name__ == "__main__":
     configure_logging(level_console='INFO', level_file='DEBUG', filename=options.logfile)
 
     command = args[0]
-    if command in ["create_dp", "init_dp_sources"]:
-      repo = None
-    else:
-      git_dir = get_git_dir('.')
-      os.chdir(git_dir)
-      repo = Repo(".")
+    #if command in ["create_dp", "init_dp_sources"]:
+    #  repo = None
+    #else:
+    #  git_dir = get_git_dir('.')
+    #  os.chdir(git_dir)
+    #  repo = Repo(".")
 
-      repo__ = create_repo(".")
-
-  
-
+    repo__ = create_repo(".")
 
     # Do not expect dependencies to exist if running get_deps
-    if command not in ["get_deps", "list", "create_dp", "init_dp_sources", "checkout"]:
-        for dep in repo.get_all_deps_once():
-            if not os.path.exists(dep.get_local_path()):
-                log_warning("Cannot find dependency: %s" % dep.repo_name)
+    #if command not in ["get_deps", "list", "create_dp", "init_dp_sources", "checkout"]:
+    #    for dep in repo.get_all_deps_once():
+    #        if not os.path.exists(dep.get_local_path()):
+    #            log_warning("Cannot find dependency: %s" % dep.repo_name)
 
     #FIXME
     # Do not expect dependencies to exist if running get_deps
@@ -3085,12 +2986,12 @@ if __name__ == "__main__":
 
         command_fn = eval("xpd_%s" % command)
 
-        if command_fn(repo, options, args):
-            if options.github:
-                repo.leave_github_mode()
-            repo.save()
+        #if command_fn(repo, options, args):
+        #    if options.github:
+        #        repo.leave_github_mode()
+        #    repo.save()
 
-        print("\n\nMY REPO: *****\n\n")
+        #print("\n\nMY REPO: *****\n\n")
 
 
         if command_fn(repo__, options, args):

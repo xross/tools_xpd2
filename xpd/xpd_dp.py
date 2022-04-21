@@ -4,7 +4,7 @@ import re
 import sys
 
 from xmos_logging import log_error, log_warning, log_info, log_debug
-from xpd.xpd_data import Repo
+from xpd.xpd_data import Repo_
 from xmos_subprocess import call, platform_is_windows
 
 def mkdir_p(path):
