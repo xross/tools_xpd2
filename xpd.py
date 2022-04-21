@@ -1158,7 +1158,6 @@ def insert_doc(repo_name, path, zipfile, base=None, insert_pdf=True,
 
 def xpd_show(repo, options, args):
     rel = repo.current_release()
-    print(str(rel))
     if rel:
         version = str(rel.version)
     else:
@@ -1195,7 +1194,7 @@ def xpd_show(repo, options, args):
     for app in repo.get_apps():
         print_software_block_details(app)
 
-    log_info("\nModules:\n")
+    log_info("\nLibraries:\n")
 
     for module in repo.get_modules():
         print_software_block_details(module)
@@ -1826,74 +1825,6 @@ def xpd_create_module(repo, options, args):
 def xpd_create_schema(repo, options, args):
     log_warning("This feature is not implemented yet")
     return false
-
-def xpd_init(repo, options, args):
-    xpd_check_info(repo, options, args, check_icon=False)
-
-    apps = [x for x in os.listdir(repo.path) if x[0:4] == 'app_']
-
-    if apps == []:
-        print("""
-Usually a repository contains at least one application that people can build
-to an executable. Even if the repository is primarily a component repository
-containing code modules for other projects it is usual to include a sample or
-test application within the repo.
-""")
-
-        if confirm("Would you like to create an application within this project", default=True):
-            xpd_create_app(repo, options, [])
-
-    modules = [x for x in os.listdir(repo.path) if x[0:7] == 'module_']
-
-    if modules == []:
-        print("""
-A repository can contains modules that contain sets of source files than can be re-used across applications.
-""")
-
-        if confirm("Would you like to create a module within this project", default=True):
-            xpd_create_module(repo, options, [])
-
-    if not os.path.exists(os.path.join(repo.path, 'Makefile')):
-        f = open(os.path.join(repo.path, 'Makefile'), 'wb')
-        f.write(templates.toplevel_makefile)
-        f.close()
-
-    if not os.path.exists(os.path.join(repo.path, 'doc')):
-        os.mkdir(os.path.join(repo.path, 'doc'))
-
-    if not os.path.exists(os.path.join(repo.path, 'LICENSE.txt')):
-        if confirm("Would you like to license the code in this repository under the XCore Open Source License", default=True):
-            holder = ''
-            while holder == '':
-                sys.stdout.write('Enter copyright holder: ')
-                holder = eval(input())
-            f = open(os.path.join(repo.path, 'LICENSE.txt'), 'wb')
-            f.write(templates.xcore_license % {'holder':holder})
-            f.close()
-
-    if not os.path.exists(os.path.join(repo.path, 'README.rst')):
-        maintainer = repo.maintainer
-        if not maintainer or maintainer=='':
-            maintainer = '<github username of maintainer>'
-        longname = repo.longname
-        if not longname or longname=='':
-            longname = '<title>'
-        desc = repo.description
-        if not desc or desc=='':
-            desc = 'A brief description of the repo'
-
-        log_info('Creating and adding template top-level README.rst')
-        f = open(os.path.join(repo.path, 'README.rst'), 'wb')
-        context = {'maintainer':maintainer,
-                   'longname':longname,
-                   'description':desc}
-        f.write(templates.readme % context)
-        f.close()
-        repo.git_add('README.rst')
-
-    xpd_check_deps(repo, options, args, allow_updates=True)
-
-    return True
 
 def xpd_check_infr(repo, options, args, return_ok=False):
     ok = True
@@ -2788,7 +2719,6 @@ def xpd_make_docmap(repo, options, args, return_str=False):
         return False
 
 common_commands =  [
-            ("init", "Initialize the xpd meta-information file"),
             ("status", "Show current status (can also use show or info)"),
             ("update", "Check and update metainformation for repository"),
             ("create_release", "Create a release"),
@@ -2799,7 +2729,6 @@ common_commands =  [
             ("create_doc_xrefs", "Create document xrefs for testing")]
 
 other_commands =[
-            ("info", "Same as status"),
             ("show", "Same as status"),
             ("checkout", "Checkout release"),
             ("check_all", "Check all meta information and infrastructure"),
@@ -2807,7 +2736,6 @@ other_commands =[
             ("check_swblocks", "Check swblocks"),
             ("validate_swblock", "Validate swblock"),
             ("build_results", "Build results for swblock"),
-            #("add_dep", "Add dependency"),
             ("remove_dep", "Remove dependency"),
             ("show_deps", "Show dependencies"),
             ("check_deps", "Check dependencies of the current repository"),
