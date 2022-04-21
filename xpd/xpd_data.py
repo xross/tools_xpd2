@@ -66,9 +66,22 @@ def changelog_str_to_version(version_str):
 def get_project_immediate_deps(repo, project, is_update=False):
     def create_component_dependencies(modules_str, is_update):
       deps = []
-      for module_name in modules_str.split(' '):
-        if module_name == '':
+    
+      for module_str in modules_str.split(' '):
+        if module_str in ["", "\\"]:
             continue
+       
+        module_name = module_str
+
+        # Try and extract version info
+        module_version = re.findall('\((.*?)\)', module_str)
+
+        if module_version:
+            module_version = module_version[0]
+
+            # Strip off version
+            module_name = module_str.split('(')[0]
+
         dep = ComponentDependency()
         dep.module_name = module_name
 
@@ -91,14 +104,35 @@ def get_project_immediate_deps(repo, project, is_update=False):
         deps.append(dep)
       return deps
 
+
     mkfile = os.path.join(repo.path,project,'Makefile')
     modinfo = os.path.join(repo.path,project,'module_build_info')
     deps = []
+
+    in_modules = False
+    
     if os.path.exists(modinfo):
-        for line in open(modinfo).readlines():
+
+        lines = open(modinfo).readlines()
+
+        for i in range(0, len(lines)):
+    
+            line = lines[i]
+
             m = re.match('.*DEPENDENT_MODULES\s*[+]?=\s*(.*)',line)
             if m:
-                deps += create_component_dependencies(m.groups(0)[0], is_update)
+              
+                modules_str = m.groups(0)[0]
+              
+                # Handle lists of modules with \
+                line_ = line
+                while(line_.strip().endswith("\\")):
+                    i = i + 1
+                    line_ = lines[i].strip()
+                    modules_str = modules_str[:-1] + line_
+                
+                deps += create_component_dependencies(modules_str, is_update)
+
 
     if os.path.exists(mkfile):
         for line in open(mkfile).readlines():
