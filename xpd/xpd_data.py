@@ -71,10 +71,8 @@ def get_project_immediate_deps(repo, project, is_update=False):
             continue
         dep = ComponentDependency()
         dep.module_name = module_name
-        #print("dep.module_name: " + str(module_name))
 
         mrepo = repo.get_module_repo(module_name, is_update)
-        #print("mrepo: " + str(mrepo))
         
         if (mrepo):
             dep.repo = normalize_repo_uri(mrepo.location)
@@ -578,7 +576,7 @@ class Component(XmlObject):
         if 'description' in fields:
             self.description = fields['description']
         else:
-            self.description = "Software Block: " + self.name
+            self.description = "XMOS Software Lib: " + self.name
 
         if (os.path.exists(os.path.join(repo.path, path, self.id + '.metainfo'))):
             # Use '/' instead of os.path.join because otherwise the generated file is not
@@ -604,7 +602,7 @@ class Component(XmlObject):
         if not self.has_readme():
             return {}
         fields = {}
-        xml_str = rst2xml(os.path.join(self.repo.path,self.path,'README.rst'))
+        xml_str = rst2xml(os.path.join(self.readme_path()))
         dom = xml.dom.minidom.parseString(xml_str)
         docnode = dom.getElementsByTagName('document')[0]
         fields['title'] = docnode.getAttribute('title')
@@ -633,7 +631,7 @@ class Component(XmlObject):
         return True
 
     def readme_path(self):
-        return os.path.join(self.repo.path, self.path, 'README.rst')
+        return os.path.join(self.repo.path, 'README.rst')
 
     def has_readme(self):
         return os.path.exists(self.readme_path())
@@ -993,7 +991,6 @@ class Repo_(XmlObject):
 
     def add_dep(self, name):
         
-        #print(str(self)+": add_dep("+str(name)+")")
         if self.get_dependency(name):
             log_error("Dependency already exists")
             return False
@@ -1004,7 +1001,6 @@ class Repo_(XmlObject):
             log_error("Cannot add dependency '%s' as folder '%s' does not exist" % (name, dep.get_local_path()))
             return False
 
-        #print("creating Repo from " + str(dep.get_local_path())) 
         dep.repo = Repo_(dep.get_local_path())
         dep.uri = dep.repo.uri()
         dep.githash = dep.repo.current_githash()
@@ -1017,7 +1013,7 @@ class Repo_(XmlObject):
             dep.version_str = str(rel.version)
 
         self.dependencies.append(dep)
-        #log_info("%s added %s as dependency with uri: %s" % (self.name, name, dep.uri))
+        log_info("%s added %s as dependency with uri: %s" % (self.name, name, dep.uri))
         return True
 
     def remove_dep(self, name):
