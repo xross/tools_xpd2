@@ -665,7 +665,20 @@ class Component(XmlObject):
         return True
 
     def readme_path(self):
-        return os.path.join(self.repo.path, 'README.rst')
+        
+        read_me_path = os.path.join(self.repo.path, self.path, 'README.rst')
+
+        if os.path.exists(read_me_path):
+            return read_me_path
+
+        read_me_path = os.path.join(self.repo.path, 'README.rst')
+        
+        if os.path.exists(read_me_path):
+            return read_me_path
+
+        return None
+        
+
 
     def has_readme(self):
         return os.path.exists(self.readme_path())
