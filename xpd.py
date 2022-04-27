@@ -181,7 +181,7 @@ def show_deps(repo, indent, prefix):
         show_deps(dep.repo, indent, '%s  %s%s' % (prefix, ' ' if dep == repo.dependencies[-1] else '|', space))
 
 def xpd_show_deps(repo, options, args):
-    log_info("\nDEPENDENCIES:\n")
+    log_info("\nREPO DEPENDENCIES:\n")
     show_deps(repo, '  ', '')
     if not options.github:
         get_multiple_version_errors(repo, print_help=False)
@@ -254,15 +254,13 @@ def check_dependency_versions(repo, is_rc):
     for dep in repo.get_all_deps_once():
         dep_master = Repo_(dep.repo.path, parent=dep.parent, master=True)
         rel = dep_master.current_release()
+
         if not rel:
             if not repo.get_branched_from_version():
               errors += cdv_message("Dependency '%s' is not on a specified version (found githash %s)" % (
                                     dep_master.name, dep_master.current_version_or_githash()), is_rc)
         elif is_rc and not rel.version.is_rc():
             errors += cdv_message("Dependency '%s' is not an rc" % dep_master.name, is_rc)
-
-        if not dep_master.partnumber:
-            errors += cdv_message("Dependency '%s' is not a published component" % dep_master.name, is_rc)
 
         # Check whether the repo is publicly visible (commit is not still local)
         (stdout_lines, stderr_lines) = call_get_output(
@@ -272,11 +270,13 @@ def check_dependency_versions(repo, is_rc):
             errors += cdv_message('%s of dependency %s has not been pushed yet' % (
                                     dep.version_str if dep.version_str else dep.githash, dep_master.name), is_rc)
 
-    return errors
+    for m in repo.get_modules():
+        for d in m.dependencies:
+            if not d.required_version.met_by(d.version):
+                errors += 1
+                log_error("Dependency %s does not meet requirement %s" %(d, d.required_version))
 
-def xpd_update_deps(repo, options, args):
-    xpd_check_deps(repo, options, args, allow_updates=True)
-    return True
+    return errors
 
 def xpd_check_deps(repo, options, args, return_current_ok=False, allow_updates=False, is_rc=False, update_uri=False):
     deps = [d.repo_name for d in repo.dependencies]
@@ -289,7 +289,7 @@ def xpd_check_deps(repo, options, args, return_current_ok=False, allow_updates=F
             repo.add_dep(dep_repo)
             update = True
         else:
-            log_warning("Dependency %s is missing from xpd.xml" % dep_repo)
+            log_warning("Dependency %s is missing" % dep_repo)
             current_ok = False
 
     for dep_repo in set(deps) - repos:
@@ -297,7 +297,7 @@ def xpd_check_deps(repo, options, args, return_current_ok=False, allow_updates=F
             repo.remove_dep(dep_repo)
             update = True
         else:
-            log_warning("Dependency %s is no longer required in xpd.xml" % dep_repo)
+            log_warning("Dependency %s is no longer required" % dep_repo)
             current_ok = False
 
     for dep in [d for d in repo.dependencies if d.repo]:
@@ -331,9 +331,8 @@ def xpd_check_deps(repo, options, args, return_current_ok=False, allow_updates=F
           dep.uri = dep_master.uri()
 
     if not current_ok:
-        log_info("Use 'xpd update_deps' to update dependencies")
+        log_info("Something has gone wrong with deps")
 
-    # xpd update_deps cannot fix errors detected below automatically
     errors = check_dependency_versions(repo, is_rc=is_rc)
     if errors:
         current_ok = False
@@ -1156,7 +1155,7 @@ def insert_doc(repo_name, path, zipfile, base=None, insert_pdf=True,
             dst = dst.replace('_static', '.static')
             zipfile.writestr(dst, src_str)
 
-def xpd_show(repo, options, args):
+def xpd_status(repo, options, args):
     rel = repo.current_release()
     if rel:
         version = str(rel.version)
@@ -1189,6 +1188,12 @@ def xpd_show(repo, options, args):
         log_info("Description: %s" % swblock.description)
         log_info("   Keywords: %s" % ','.join(swblock.keywords))
         log_info("  Published: %s" % swblock.is_published())
+        log_info("       Deps:")
+        for d in swblock.dependencies:
+            if d.required_version:
+                log_info("             %s (required: %s)" % (d.module_name, d.required_version))
+            else:
+                log_info("             %s" % d.module_name)
         log_info("")
 
     for app in repo.get_apps():
@@ -2217,8 +2222,8 @@ def xpd_check_all(repo, options, args):
         log_info("=================================================================")
     return True
 
-def xpd_update(repo, options, args):
-    return xpd_check_all(repo, options, args)
+#def xpd_update(repo, options, args):
+#    return xpd_check_all(repo, options, args)
 
 def xpd_init_dp_sources(repo, options, args):
   if len(args) != 4:
@@ -2720,7 +2725,6 @@ def xpd_make_docmap(repo, options, args, return_str=False):
 
 common_commands =  [
             ("status", "Show current status (can also use show or info)"),
-            ("update", "Check and update metainformation for repository"),
             ("create_release", "Create a release"),
             ("make_zip", "Make zipfile of release"),
             ("publish", "Publish the current version to cognidox"),
@@ -2729,7 +2733,6 @@ common_commands =  [
             ("create_doc_xrefs", "Create document xrefs for testing")]
 
 other_commands =[
-            ("show", "Same as status"),
             ("checkout", "Checkout release"),
             ("check_all", "Check all meta information and infrastructure"),
             ("check_info", "Check related information"),
@@ -2785,8 +2788,8 @@ def create_repo(path):
         for d in c.dependencies: 
             d_repo_path = repo__.find_repo_containing_module_path(str(d))
 
-    #for rd in repo__.dependencies:
-    #    rd.repo = create_repo(rd.get_local_path())
+    for rd in repo__.dependencies:
+        rd.repo = create_repo(rd.get_local_path())
 
     return repo__
 
