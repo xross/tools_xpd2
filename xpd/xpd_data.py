@@ -1641,11 +1641,14 @@ class Repo_(XmlObject):
             if re.match(rst_title_regexp, line):
                 continue
 
+            if "legacy release history" in line.lower():
+                break
+
             try:
                 v = Version(version_str=line.strip())
                 if v in all_versions:
                     log_error("%s: Duplicate release note entries for %s" %
-                        (self.name, fstr))
+                        (self.name, str(v)))
                 all_versions.add(v)
             except VersionParseError:
                 v = None
