@@ -9,7 +9,7 @@ import zipfile
 import tempfile
 import shutil
 from copy import copy
-from xpd.xpd_data import Repo_, Release, Version, Dependency
+from xpd.xpd_data import Repo_, Release_, Version, Dependency
 #from xpd.xpd_data_new import Repo_
 from xpd.xpd_data import AllSoftwareDescriptor, SoftwareDescriptor
 from xpd.xpd_data import DocMap, Doc
@@ -59,7 +59,7 @@ def get_all_dep_versions(repo, ignore_missing=False):
     '''
     deps = {}
     for dep in repo.get_all_deps(ignore_missing=ignore_missing):
-        version = dep.version_str if dep.version_str else dep.githash
+        version = dep.version if dep.version else dep.githash
 
         name = dep.repo_name
         existing = deps.get(name, set())
@@ -150,15 +150,20 @@ def get_multiple_version_errors(repo, print_help=True):
 
     return errors
 
-def show_deps(repo, indent, prefix):
+
+
+def show_deps_repos(repo, indent, prefix):
     log_info("%s%s%s:%s" % (indent, prefix, repo.name, " has no dependencies" if not repo.dependencies else ''))
 
     for dep in repo.dependencies:
         repo.assert_exists(dep)
-        if dep.version_str:
-            expected = dep.version_str
+        
+        if dep.version:
+            actual_version = dep.version
         else:
-            expected = dep.githash
+            actual_version = dep.githash
+        
+        required_version = None 
 
         local_mod = ""
         actual = "???"
@@ -167,22 +172,22 @@ def show_deps(repo, indent, prefix):
             if dep.repo.has_local_modifications(is_dependency=True):
                 local_mod = "(local modifications)"
 
-            if rel:
-                actual = str(rel.version)
-            else:
-                actual = dep.repo.current_githash()
-
-        if actual == expected:
-            log_info("%s%s  +- %s %s (ok) %s" % (indent, prefix, dep.repo_name, expected, local_mod))
-        else:
-            log_info("%s%s  +- %s %s (found %s) %s" % (indent, prefix, dep.repo_name, expected, actual, local_mod))
+        # Show what version of the dep we require
+        # TODO this searching is not okay..
+        for l in repo.get_libs():
+            for d in l.dependencies:
+                if d.module_name == dep.repo_name:
+                    required_version = d.required_version
+                    
+        # Show what version of the repo we have
+        log_info("%s%s  +- %s %s (required: %s) %s" % (indent, prefix, dep.repo_name, actual_version, required_version, local_mod))
 
         space = ' '*len(dep.repo.name)
-        show_deps(dep.repo, indent, '%s  %s%s' % (prefix, ' ' if dep == repo.dependencies[-1] else '|', space))
+        show_deps_repos(dep.repo, indent, '%s  %s%s' % (prefix, ' ' if dep == repo.dependencies[-1] else '|', space))
 
 def xpd_show_deps(repo, options, args):
-    log_info("\nREPO DEPENDENCIES:\n")
-    show_deps(repo, '  ', '')
+    log_info("\nDEPENDENCIES (REPOS):\n")
+    show_deps_repos(repo, '  ', '')
     if not options.github:
         get_multiple_version_errors(repo, print_help=False)
 
@@ -272,9 +277,13 @@ def check_dependency_versions(repo, is_rc):
 
     for m in repo.get_modules():
         for d in m.dependencies:
-            if not d.required_version.met_by(d.version):
-                errors += 1
-                log_error("Dependency %s does not meet requirement %s" %(d, d.required_version))
+            if not d.version:
+                    #TODO check hash?
+                    errors += 1
+                    log_error("Dependency %s does not meet requirement %s" %(d, d.required_version))
+            elif d.repo and not d.required_version.met_by(d.version):
+                    errors += 1
+                    log_error("Dependency %s does not meet requirement %s" %(d, d.required_version))
 
     return errors
 
@@ -2725,14 +2734,18 @@ def xpd_make_docmap(repo, options, args, return_str=False):
 
 common_commands =  [
             ("status", "Show current status (can also use show or info)"),
+            ("list", "List releases"),
+            ("show_deps", "Show dependencies"),
+            
             ("create_release", "Create a release"),
             ("make_zip", "Make zipfile of release"),
             ("publish", "Publish the current version to cognidox"),
             ("publish_github", "Publish the current version to cognidox as a github open source stub"),
-            ("list", "List releases"),
             ("create_doc_xrefs", "Create document xrefs for testing")]
 
 other_commands =[
+            ("check_deps", "Check dependencies of the current repository"),
+            
             ("checkout", "Checkout release"),
             ("check_all", "Check all meta information and infrastructure"),
             ("check_info", "Check related information"),
@@ -2740,8 +2753,6 @@ other_commands =[
             ("validate_swblock", "Validate swblock"),
             ("build_results", "Build results for swblock"),
             ("remove_dep", "Remove dependency"),
-            ("show_deps", "Show dependencies"),
-            ("check_deps", "Check dependencies of the current repository"),
             ("update_deps", "Update dependencies of the current repository"),
             ("get_deps", "Clone the dependencies of this repository. Optionally takes a version."),
             ("check_infr", "Check infrastructure (Makefiles, eclipse projects)"),

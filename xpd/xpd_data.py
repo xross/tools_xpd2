@@ -60,7 +60,6 @@ def changelog_str_to_version(version_str):
             return None
     return version
 
-#FIXME handle lists with \
 #FIXME handle version numbers
 
 def get_project_immediate_deps(repo, project, is_update=False):
@@ -73,11 +72,11 @@ def get_project_immediate_deps(repo, project, is_update=False):
        
         module_name = module_str
 
-        # Try and extract version info
-        module_version = re.findall('\((.*?)\)', module_str)
+        # Try and extract the version we want 
+        module_req_version = re.findall('\((.*?)\)', module_str)
 
-        if module_version:
-            module_version = module_version[0]
+        if module_req_version:
+            module_req_version = module_req_version[0]
 
             # Strip off version
             module_name = module_str.split('(')[0]
@@ -90,16 +89,24 @@ def get_project_immediate_deps(repo, project, is_update=False):
         if (mrepo):
             dep.repo = normalize_repo_uri(mrepo.location)
         else:
-            # RSO
-            # We are not currently tracking the repo then add it
-            repo.add_dep(module_name) 
-            mrepo = repo.get_module_repo(module_name, is_update)
-            dep.repo = normalize_repo_uri(mrepo.location)
+            # We are not currently tracking the repo so add it
+            okay = repo.add_dep(module_name) 
+            
+            if okay:
+                mrepo = repo.get_module_repo(module_name, is_update)
+                dep.repo = normalize_repo_uri(mrepo.location)
 
-        version_str = repo.get_module_version(module_name)
-        
-        if version_str:
-            dep.version_str = version_str
+        version = repo.get_lib_version(module_name)
+   
+
+        if version:
+            dep.version = version
+            #dep.githash = repo.get_hash()
+        else:
+            dep.githash = mrepo.current_githash()
+
+        if module_req_version:
+            dep.required_version = RequiredVersion(module_req_version)
         
         deps.append(dep)
       return deps
@@ -227,30 +234,6 @@ class Version(object):
     def is_full(self):
         return not self.branch_name and self.rtype in ['', 'release']
 
-    '''
-    def __cmp__(self, other):
-        if other == None:
-            return 1
-        if self.major != other.major:
-            return cmp(self.major, other.major)
-        elif self.minor != other.minor:
-            return cmp(self.minor, other.minor)
-        elif self.point != other.point:
-            return cmp(self.point, other.point)
-        elif self.rtype != other.rtype:
-            if self.rtype == '':
-                return 1
-            elif other.rtype == '':
-                return -1
-            else:
-                return cmp(self.rtype, other.rtype)
-        else:
-            if self.rtype in ['', 'release']:
-                return 0
-            else:
-                return cmp(self.rnumber, other.rnumber)
-    '''
-
     def __lt__(self, other):
         return (self.major, self.minor, self.point) < (other.major, other.minor, other.point)
 
@@ -329,27 +312,149 @@ class Version(object):
         except:
            return False
 
-class ComponentDependency(XmlObject):
-    version_str = XmlAttribute(attrname="version")
-    module_name = XmlText()
-    repo = XmlAttribute() #String! eg git://github.com/repo_name 
+
+class RequiredVersion(Version):
+
+    import operator
+
+    operators = {
+        '=' : operator.eq,
+        '>' : operator.gt,
+        '<' : operator.lt,
+        '<=' : operator.le, 
+        '>=' : operator.ge 
+    }
+
+    def __init__(self, version_str, **kwargs):
+        
+        if version_str[:1] in self.operators:
+            self._op = version_str[:1]
+            version_str = version_str[2:]
+        elif version_str[0] in self.operators:
+            self._op = version_str[0]
+            version_str = version_str[1:]
+        else:
+            self._op = "="
+
+        super().__init__(version_str = version_str, **kwargs)
+
+    # Check a version meets this requirement
+    def met_by(self, version: Version) -> bool:
+        op_func = self.operators[self._op]
+        return op_func(version, self) 
+        
+    def __str__(self):
+        return self._op + super().__str__()
+
+
+class ComponentDependency():
+
+    def __init__(self, version=None, required_version=None, githash=None, required_githash=None):
+
+        self._version = version
+        self._required_version = required_version
+        self._githash = githash
+        self._required_githash = required_githash
+        self._repo = None
+
+    #This is a string eg git://github.com/repo_name 
+    @property 
+    def repo(self):
+        return self._repo
+
+    @repo.setter
+    def repo(self, r):
+        self._repo = r
+
+    @property
+    def version(self):
+        return self._version
+
+    @version.setter
+    def version(self, v):
+        self._version = v
+
+    @property
+    def required_version(self):
+        return self._required_version
+
+    @required_version.setter
+    def required_version(self, rv):
+        self._required_version = rv
+
+    @property
+    def githash(self):
+        return self._githash
+
+    @property
+    def githashshort(self):
+        if self.githash:
+            return self.githash[:8]
+        return None
+
+    @githash.setter
+    def githash(self, g):
+        self._githash = g
+
+    @property
+    def required_githash(self):
+        return self._required_githash
+
+    @required_githash.setter
+    def required_githash(self, gh):
+        self._required_githash = gh
 
     def __str__(self):
-        if self.version_str:
-            return "%s (%s)" % (self.module_name, self.version_str)
+        if self.version:
+            return "<ComponentDependency: %s (%s)>" % (self.module_name, str(self.version))
         else:
-            return "%s" % self.module_name
+            return "<ComponentDependency: %s (%s)>" % (self.module_name, str(self.githashshort))
 
     def __repr__(self):
         return self.__str__()
 
 
-class Dependency(XmlObject):
-    repo_name = XmlAttribute(attrname="repo", required=True)
-    uri = XmlValue(required=True)
-    githash = XmlValue(required=True)
-    gitbranch = XmlValue()
-    version_str = XmlValue(tagname="version")
+class Dependency():
+    #repo_name = XmlAttribute(attrname="repo", required=True)
+    #uri = XmlValue(required=True)
+    #githash = XmlValue(required=True)
+    #gitbranch = XmlValue()
+    #version_str = XmlValue(tagname="version")
+    
+    def __init__(self, parent, repo_name:str, repo=None):
+        self._version = None
+        self.parent = parent #Repo_()
+        self.gitbranch = None
+        self._repo_name = repo_name
+        self._repo = repo
+
+    @property
+    def repo(self):
+        return self._repo
+
+    @repo.setter
+    def repo(self, r):
+        self._repo = r
+
+    @property 
+    def uri(self):
+        return self._repo.uri()
+
+    @property 
+    def githash(self):
+        return self._repo.current_githash()
+
+    @property
+    def repo_name(self):
+        return self._repo_name
+
+    @property
+    def version(self):
+        return self._version
+   
+    @version.setter
+    def version(self, v):
+        self._verison = v
 
     def get_local_path(self):
         root_repo = self.parent
@@ -368,16 +473,16 @@ class Dependency(XmlObject):
                 log_error("Dependency recursion detected: %s" % ' -> '.join(names))
                 sys.exit(1)
             elif path in self.parent._repo_cache:
-                self.repo = self.parent._repo_cache[path]
+                self._repo = self.parent._repo_cache[path]
             else:
-                self.repo = Repo_(self.get_local_path(), parent=self.parent, parenthash=self.githash, create_master=True)
+                self._repo = Repo_(self.get_local_path(), parent=self.parent, parenthash=self.githash, create_master=True)
                 self.parent._repo_cache[path] = self.repo
 
-            if self.repo.current_gitbranch():
+            if self._repo.current_gitbranch():
                 self.gitbranch = self.repo.current_gitbranch()
 
         else:
-            self.repo = None
+            self._repo = None
 
     def __str__(self):
         return self.repo_name
@@ -419,13 +524,6 @@ class UseCase(XmlObject):
 
 @total_ordering
 class Release_:
-    #version_str = XmlAttribute(attrname="version", required=True)
-    #parenthash = XmlAttribute(required=True)
-    #githash = XmlAttribute()
-    #location = XmlValue()
-    #usecases = XmlNodeList(UseCase)
-    #warnings = XmlValueList()
-    #virtual = XmlAttribute()
 
     def __init__(self, version_str, path, virtual=False):
 
@@ -445,11 +543,11 @@ class Release_:
     #    if self.parenthash and not self.githash:
     #        self.githash = self.parent.get_child_hash(self.parenthash)
         
-    def pre_export(self):
-        if hasattr(self,'version') and self.version != None:
-            self.version_str = str(self.version)
-        else:
-            self.version_str = None
+    #def pre_export(self):
+    #    if hasattr(self,'version') and self.version != None:
+    #        self.version_str = str(self.version)
+    #    else:
+    #        self.version_str = None
 
     def merge(self, other):
         #TODO - merge usecase and location info
@@ -474,53 +572,6 @@ class Release_:
 
     def __str__(self):
         return "<release:" + str(self.version) + ">"
-
-
-@total_ordering
-class Release(XmlObject):
-    version_str = XmlAttribute(attrname="version", required=True)
-    parenthash = XmlAttribute(required=True)
-    githash = XmlAttribute()
-    location = XmlValue()
-    usecases = XmlNodeList(UseCase)
-    warnings = XmlValueList()
-    virtual = XmlAttribute()
-
-    def post_import(self):
-        if self.parenthash and not self.githash:
-            self.githash = self.parent.get_child_hash(self.parenthash)
-        if self.version_str:
-            self.version = Version(version_str=self.version_str)
-        else:
-            self.version = None
-
-    def pre_export(self):
-        if hasattr(self,'version') and self.version != None:
-            self.version_str = str(self.version)
-        else:
-            self.version_str = None
-
-    def merge(self, other):
-        #TODO - merge usecase and location info
-        pass
-
-    def __lt__(self, other):
-        return self.version < other.version
-
-    def __eq__(self, other):
-        return self.version == other.version
-
-    '''
-    def __cmp__(self, other):
-        if other == None:
-            return 1
-        else:
-            return cmp(self.version, other.version)
-    '''
-
-    def __str__(self):
-        return "<release:" + str(self.version) + ">"
-
 
 class ReleaseNote(XmlObject):
     version_str = XmlAttribute(attrname="version")
@@ -685,7 +736,7 @@ class Component(XmlObject):
 
 class Repo_(XmlObject):
     dependencies = XmlNodeList(Dependency, tagname="dependency")
-    releases = XmlNodeList(Release)
+    releases = XmlNodeList(Release_)
     longname = XmlValue(tagname="name")
     description = XmlValue()
     icon = XmlValue()
@@ -1042,15 +1093,14 @@ class Repo_(XmlObject):
             log_error("Dependency already exists")
             return False
 
-        dep = Dependency(parent=self)
-        dep.repo_name = name
+
+        dep = Dependency(parent=self, repo_name=name)
+        #dep.repo_name = name
         if not os.path.isdir(dep.get_local_path()):
             log_error("Cannot add dependency '%s' as folder '%s' does not exist" % (name, dep.get_local_path()))
             return False
 
         dep.repo = Repo_(dep.get_local_path())
-        dep.uri = dep.repo.uri()
-        dep.githash = dep.repo.current_githash()
 
         # RSO
         dep.post_import()
@@ -1141,23 +1191,28 @@ class Repo_(XmlObject):
                 dep.repo._restore_path()
         shutil.rmtree(self.sb)
 
-    def get_module_version(self, module_name):
-        repo_name = self.find_repo_containing_module(module_name)
+    # Return None of not on a version
+    def get_lib_version(self, lib_name):
+        repo_name = self.find_repo_containing_module(lib_name)
         if not repo_name:
             log_error('%s: 1 Unable to find repo containing depedency %s' %
-                (self.name, module_name))
+                (self.name, lib_name))
             return None
 
         rel = None
         if repo_name == self.name:
-            rel = self.latest_release()
+            rel = self.current_release()
+            #rel = self.latest_release()
         else:
             repo_dep = self.get_dependency(repo_name)
             if repo_dep and repo_dep.repo:
-                rel = repo_dep.repo.latest_release()
+                #rel = repo_dep.repo.latest_release()
+                rel = repo_dep.repo.current_release()
 
         if rel:
-            return rel.version.final_version_str()
+            #return rel.version.final_version_str()
+            return rel.version
+        
         return None
 
     def get_module_repo(self, module_name, is_update):
@@ -1213,8 +1268,12 @@ class Repo_(XmlObject):
     def get_apps(self):
         return [x for x in self.get_software_blocks() if not x.is_module()]
 
-    def get_modules(self):
+    def get_libs(self):
         return [x for x in self.get_software_blocks() if x.is_module()]
+
+    def get_modules(self):
+        return self.get_libs()
+    
 
     def get_dependency(self, dep_name):
         for dep in self.dependencies:
