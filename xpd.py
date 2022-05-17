@@ -46,7 +46,7 @@ def confirm(msg, default=False):
         If no sensible response is found, prompt again.
     """
     while True:
-        x = eval(input(msg + " (y/n) [%s]? " % ("y" if default else "n")))
+        x = input(msg + " (y/n) [%s]? " % ("y" if default else "n"))
         if not x:
             return default
         if x.upper() in ["N", "NO"]:
@@ -372,7 +372,8 @@ def xpd_list(repo, options, args):
         if rel.virtual == "True":
             log_info("%s (unknown git location)" % str(rel.version))
         else:
-            log_info(str(rel.version) + " parenthash: " + str(rel.parenthash))
+            #log_info(str(rel.version) + " parenthash: " + str(rel.parenthash))
+            log_info(str(rel.version))
 
 def xpd_upgrade_rc(repo, options, args):
     if len(args) < 1:
@@ -468,7 +469,8 @@ def xpd_create_release(repo, options, args):
     else:
         rtype = None
         while True:
-            x = eval(input("Enter release type (a=alpha,b=beta,r=rc): "))
+            #x = input("Enter release type (a=alpha,b=beta,r=rc): ")
+            print(str(x))
             if x in ['a', 'alpha']:
                 rtype = 'alpha'
             elif x in ['b', 'beta']:
@@ -510,7 +512,7 @@ def xpd_create_release(repo, options, args):
 
         version = None
         while True:
-            x = eval(input("Enter version number [%s]:" % latest_in_changelog))
+            x = input("Enter version number [%s]:" % latest_in_changelog)
             if not x:
                 x = latest_in_changelog
 
@@ -569,7 +571,7 @@ def xpd_create_release(repo, options, args):
         log_error("Cannot find release notes for %s, please update CHANGELOG.rst" % fstr)
         return True
 
-    release = Release()
+    release = Release_()
     release.version = version
 
     log_info("Running checks")
@@ -633,7 +635,7 @@ def xpd_create_release(repo, options, args):
     xpd_update_readme(repo, options, [])
     repo.git_add('README.rst')
 
-    repo.save_and_commit_release(release)
+    repo.commit_release(release)
 
     release.githash = repo.get_child_hash(release.parenthash)
 
@@ -1176,6 +1178,8 @@ def xpd_status(repo, options, args):
     log_info("           Version: %s" % version)
     log_info("          Location: %s" % repo.location)
     log_info("       Description: %s" % repo.description)
+    log_info("       Maintainers: %s" % repo.maintainers)
+
     if repo.git_export != None:
         log_info("   Export git info: %s" % repo.git_export)
 
@@ -1391,7 +1395,7 @@ def xpd_update_readme(repo, options, args,
     lines = [x for x in lines if x != '-DELETED-\n']
 
     if write_back:
-        with open(os.path.join(repo.path, "README.rst"), 'wb') as f:
+        with open(os.path.join(repo.path, "README.rst"), 'w') as f:
             for line in lines:
                 f.write(line)
 
@@ -1425,7 +1429,7 @@ def check_swblock(repo, options, args, comp, verbose=True):
            valid = False
 
         if comp.scope not in ALLOWED_SCOPES:
-           log_error("Software block %s invalid scope" % comp.path)
+           log_error("Software block %s invalid scope: (%s)" % (comp.path, comp.scope))
            log_info("Update README to set scope to one of:")
            for scope in ALLOWED_SCOPES:
                log_info("         " + scope)
@@ -1491,8 +1495,8 @@ def xpd_check_swblocks(repo, options, args, return_valid=False, verbose=True, va
     for comp in to_remove:
         repo.components.remove(comp)
 
-    if repo.no_xsoftip:
-        repo.components = []
+    #if repo.no_xsoftip:
+    #    repo.components = []
 
     if validate:
         log_info("Running validate script on all swblocks")
@@ -1612,26 +1616,22 @@ def xpd_get_deps(repo, options, args):
   repo.clone_deps(version_name)
   return False
 
-def xpd_check_info(repo, options, args, check_icon=True):
+def xpd_check_info(repo, options, args):
     update = False
+    '''
+    # TODO github API for description
     if repo.description==None or repo.description=="":
         print("The repo's description is one or two paragraphs description the contents of the repository.")
         if confirm("No description found. Add one", default=True):
             print("Enter paragraph description:\n")
-            repo.description = eval(input())
+            repo.description = input()
             update = True
-
-    if False and check_icon and repo.icon==None:
-        print("The repo's icon is a path relative to the repository pointing to a 16x16 png icon representing the repository.")
-        if confirm("No icon found. Add one", default=True):
-            print("Enter path to icon: ")
-            repo.icon = eval(input())
-            update = True
+    '''
 
     if False and repo.docdirs==[]:
         if confirm("No documentation path found. Add one", default=True):
             print("Enter documentation path: ")
-            docdir = eval(input())
+            docdir = input()
             repo.docdirs.append(docdir)
             update = True
 
@@ -1642,19 +1642,18 @@ def xpd_check_info(repo, options, args, check_icon=True):
             repo.vendor = eval(input())
             update = True
 
-    if repo.maintainer==None:
-        print("The repository's maintainer is a person who is reponsible for the repository. All repos should have a maintainer.")
+    if repo.maintainers==None:
+        print("The repository's maintainer is a person who is reponsible for the repository. All repos should have at least one maintainer.")
         if confirm("No maintainer found. Add one", default=True):
             print("Enter maintainer github username: ")
-            repo.maintainer = eval(input())
+            repo.maintainers = input()
             update = True
 
-    if not repo.xcore_repo and re.match('.*github.com', repo.location):
-        repo.xcore_repo = "git://github.com/xcore/" + os.path.basename(repo.location)
-        update = True
+    #if not repo.xcore_repo and re.match('.*github.com', repo.location):
+    #    repo.xcore_repo = "git://github.com/xcore/" + os.path.basename(repo.location)
+    #    update = True
 
-    update_partinfo = xpd_check_partinfo(repo, options, args)
-    update = update or update_partinfo
+    update = update
 
     return update
 
@@ -1842,10 +1841,10 @@ def xpd_create_schema(repo, options, args):
 
 def xpd_check_infr(repo, options, args, return_ok=False):
     ok = True
-    project_ok = xpd.check_project.check_project(repo, force_creation=True)
-    ok = ok and project_ok
-    cproject_ok = xpd.check_project.check_cproject(repo, force_creation=True)
-    ok = ok and cproject_ok
+    #project_ok = xpd.check_project.check_project(repo, force_creation=True)
+    #ok = ok and project_ok
+    #cproject_ok = xpd.check_project.check_cproject(repo, force_creation=True)
+    #ok = ok and cproject_ok
     makefiles_ok = xpd.check_project.check_makefiles(repo, force_creation=True)
     ok = ok and makefiles_ok
     changelog_ok = xpd.check_project.check_changelog(repo, force_creation=True)
@@ -1862,43 +1861,6 @@ def xpd_check_makefiles(repo, options, args, return_ok=False):
         return ok
     else:
         return False
-
-def xpd_check_partinfo(repo, options, args):
-    update = False
-    if not repo.partnumber:
-        print("If this is an XMOS package or a github repo showing to the xsoftipexplorer, there should be an associated part number for the repository.")
-        if confirm("No part number found. Add one", default=True):
-            repo.partnumber = \
-                cognidox.query_and_create_document('/Projects/Apps',
-                                                   default_title=repo.longname,
-                                                   doctype='DH',
-                                                   auto_create=True)
-            repo.subpartnumber = \
-                cognidox.query_and_create_document('/Projects/Apps',
-                                                   default_title=repo.name+".zip",
-                                                   doctype='SM',
-                                                   auto_create=True)
-            update = True
-    if repo.partnumber and not repo.subpartnumber:
-        print("ERROR: there is a part number for the document holder but not for the zipfile. Something is quite wrong with the xpd.xml")
-        sys.exit(1)
-    # if not repo.partnumber:
-    #     print "Cannot find a partnumber. If using cognidox, this should be the partnumber for the document holder *not* the zipfile itself. If a partnumber exists for the zipfile but not the document holder then please create a new partnumber"
-    #     repo.partnumber = \
-    #         cognidox.query_and_create_document('/Projects/Apps',
-    #                                            default_title=repo.longname,
-    #                                            doctype='DH')
-    #     update = True
-    # if not repo.subpartnumber:
-    #     print "Need to create document for actual zipfile of software"
-    #     repo.subpartnumber = \
-    #         cognidox.query_and_create_document('/Projects/Apps',
-    #                                            default_title=repo.name+".zip",
-    #                                            doctype='SM')
-    #     update = True
-    log_info("Main part number = %s" % repo.partnumber)
-    log_info("Zipfile part number = %s" % repo.subpartnumber)
-    return update
 
 def xpd_make_docholder(repo, options, args, to_file=None):
     import_xdoc()
@@ -2038,43 +2000,6 @@ def xpd_build_topdoc(repo, options=None, args=None):
     log_info("Top level document created in %s" % topdoc_path)
 
     repo.topdoc_path = topdoc_path
-
-def xpd_create_doc_xrefs(repo, options, args):
-    import_xdoc()
-    rstonlysuffix = '.__rstonlythisone__'
-    if not options.github:
-     for docdir in repo.docdirs:
-        docdir = os.path.join(repo.path, docdir)
-        curdir = os.path.abspath(os.curdir)
-        os.chdir(docdir)
-        xdoc_config = {}
-        xdoc_config['AUTO_CREATE'] = "1"
-        xdoc_config['FORCE_UPLOAD'] = '1'
-        xdoc_config['COGNIDOX_PATH'] = "/Projects/Apps"
-        xdoc.main('xref_all', config=xdoc_config)
-        build_dir = os.path.join(docdir, '_build')
-        if os.path.exists(build_dir):
-            shutil.rmtree(build_dir)
-
-    for swblock in repo.components:
-        docdir = os.path.join(repo.path, swblock.path)
-        curdir = os.path.abspath(os.curdir)
-        os.chdir(docdir)
-        xdoc_config = {}
-        xdoc_config['SOURCE_SUFFIX'] = rstonlysuffix
-        xdoc_config['ALT_TITLE'] = "%s README" % swblock.id
-        xdoc_config['FORCE_UPLOAD'] = '1'
-        xdoc_config['AUTO_CREATE'] = "1"
-        xdoc_config['COGNIDOX_PATH'] = "/Projects/Apps"
-        xdoc_config['SW_VERSION'] = repo.current_version_or_githash()
-        readme = os.path.join(docdir, 'README.rst')
-        shutil.copy(readme, readme.replace('.rst', rstonlysuffix))
-
-        if repo.is_xmos_repo() or options.github:
-            xdoc.main('xref_all', config=xdoc_config)
-        build_dir = os.path.join(docdir, '_build')
-        if os.path.exists(build_dir):
-            shutil.rmtree(build_dir)
 
 def xpd_build_docs(repo, options=None, args=None, buildlatex=True,
                    local_only=False):
@@ -2218,7 +2143,7 @@ def xpd_check_all(repo, options, args):
     ok = ok and res
     res = xpd_check_infr(repo, options, args, return_ok=True)
     if res:
-        log_info("MAKEFILE/ECLIPSE PROJECT INFORMATION OK")
+        log_info("MAKEFILE/PROJECT INFORMATION OK")
     ok = ok and res
     if not ok:
         log_info("")
@@ -2289,57 +2214,6 @@ def add_changelog_header(repo, customer, project, release_name):
 
         f.write("%s\n" % line)
     f.close()
-
-def do_init_dp_branch(repo, options, customer, project, release_name):
-  vrepo = init_dp_branch(repo, customer, project, release_name)
-
-  # Get the reverse list of all the dependencies - and only once
-  for dep in vrepo.get_all_deps_reversed_once():
-    dp_update_repo(dep.repo, options, repo.name, release_name)
-
-  add_changelog_header(vrepo, customer, project, release_name)
-  vrepo.git_add("CHANGELOG.rst")
-
-  dp_update_repo(vrepo, options, repo.name, release_name)
-
-  return vrepo
-
-def xpd_init_dp_branch(repo, options, args):
-  if len(args) != 3:
-    log_error("init_dp_branch CUSTOMER PROJECT RELEASE")
-    sys.exit(1)
-
-  customer = args[0]
-  project = args[1]
-  release_name = args[2]
-  do_init_dp_branch(repo, options, customer, project, release_name)
-  return False
-
-def xpd_init_dp_backup(repo, options, args):
-  if len(args) != 2:
-    log_error("init_dp_backup CUSTOMER PROJECT")
-    sys.exit(1)
-
-  customer = args[0]
-  project = args[1]
-  init_dp_backup(repo, customer, project)
-  return False
-
-def xpd_create_dp(repo, options, args):
-  if len(args) != 4:
-    log_error("create_dp REPO_URL CUSTOMER PROJECT RELEASE")
-    sys.exit(1)
-
-  repo_url = args[0]
-  customer = args[1]
-  project = args[2]
-  release_name = args[3]
-
-  repo = init_dp_sources(repo_url, customer, project, release_name)
-  repo = do_init_dp_branch(repo, options, customer, project, release_name)
-  init_dp_backup(repo, customer, project)
-
-  return False
 
 def notes_version_matches(notes_version_str, version):
     if notes_version_str == version.final_version_str():
@@ -2568,7 +2442,8 @@ def xpd_validate_swblock(repo, options, args, return_valid=False):
         log_error('%s is not a software block' % swblock_id)
         return False
 
-    if not repo.no_xsoftip:
+    #if not repo.no_xsoftip:
+    if True:
       for comp in sw_blocks:
         if comp.id == swblock_id or swblock_id == 'all':
             if not comp.name in component_names:
@@ -2703,46 +2578,18 @@ def xpd_show_project_deps(repo, options, args):
         log_info(proj)
         log_info(deps)
 
-def xpd_make_docmap(repo, options, args, return_str=False):
-    import_xdoc()
-    xref = xmos_xref.XRefInfo('xpd')
-    dmap = DocMap()
-    dmap.parse(os.path.join(repo.path, "input_doc_map.xml"))
-    new_dmap = DocMap()
-    for doc in dmap.docs:
-        swblock = repo.find_swblock(doc.appname)
-        if not swblock:
-            continue
-        docinfo = xref.get_or_create_docinfo_from_dir(os.path.join(repo.path, swblock.path))
-        if not docinfo.partnum:
-            continue
-        newdoc = Doc()
-        newdoc.category = doc.category
-        newdoc.subcategory = doc.subcategory
-        newdoc.partnumber = docinfo.partnum
-        newdoc.title = docinfo.title
-        if swblock.zip_partnumber:
-            newdoc.related = [swblock.zip_partnumber]
-        new_dmap.docs.append(newdoc)
-
-
-    if return_str:
-        return new_dmap.toxml("docs")
-    else:
-        log_info(new_dmap.toxml("docs"))
-        return False
-
 common_commands =  [
             ("status", "Show current status (can also use show or info)"),
             ("list", "List releases"),
             ("show_deps", "Show dependencies"),
             
             ("create_release", "Create a release"),
+            
             ("make_zip", "Make zipfile of release"),
-            ("publish", "Publish the current version to cognidox"),
+            #("publish", "Publish the current version to cognidox"),
             ("publish_github", "Publish the current version to cognidox as a github open source stub"),
-            ("create_doc_xrefs", "Create document xrefs for testing")]
 
+            ]
 other_commands =[
             ("check_deps", "Check dependencies of the current repository"),
             
@@ -2762,17 +2609,13 @@ other_commands =[
             ("create_module", "Create module within project"),
             ("create_schema", "Create a Relax NG schema file for xpd.xml"),
             ("diff", "Shows difference between two versions"),
-            ("create_dp", "Create a derived product project."),
-            ("init_dp_sources", "Create the sources required for a derived product."),
-            ("init_dp_branch", "Setup the branches and git remotes for a derived product."),
-            ("init_dp_backup", "Create the backup folders for a derived product on XMOS' servers."),
             ("check_partinfo", "Check part information (DEBUG)"),
             ("make_docholder", "Make docholder (DEBUG)"),
             ("build_docs", "Make docs (DEBUG)"),
             ("build_topdoc", "Make toplevel docs (DEBUG)"),
             ("update_changelog", "Update the CHANGELOG.rst as the release will (DEBUG)"),
             ("show_project_deps", "Show app/modules dependencies (DEBUG)"),
-            ("make_docmap", "Create snippets doc map for website (DEBUG)")]
+            ]
 
 hidden_commands = [("approve_latest", "Approved latest cognidox version")]
 
@@ -2939,7 +2782,6 @@ if __name__ == "__main__":
         if command_fn(repo__, options, args):
             if options.github:
                 repo__.leave_github_mode()
-            repo__.save()
 
         print_status_summary()
 

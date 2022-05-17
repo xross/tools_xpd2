@@ -525,17 +525,21 @@ class UseCase(XmlObject):
 @total_ordering
 class Release_:
 
-    def __init__(self, version_str, path, virtual=False):
+    def __init__(self, version_str=None, path=None, virtual=False):
 
-        self.version_str = version_str
+        self.version_str = version_str #TODO rm me. Use str(version)
         self.parenthash = None
         self.githash = None
         self.virtual = virtual
         self.path = path
+        self.version = None
+       
+        if version_str:
+            self.version = Version(version_str=self.version_str)
+               
+        if path:
+            (self.githash, self.parenthash) = self._find_hashes()
         
-        self.version = Version(version_str=self.version_str)
-
-        (self.githash, self.parenthash) = self._find_hashes()
 
         #self.post_import()
 
@@ -563,11 +567,18 @@ class Release_:
 
         # Return hash at tag and parent
         (stdout_lines, stderr_lines) = call_get_output(["git", "rev-list", "-n", "1", "v"+str(self.version_str)], cwd=self.path)
-        git_hash = stdout_lines[0].strip()
-      
-        (stdout_lines0, stderr_lines0) = call_get_output(["git", "rev-parse", git_hash+"^"], cwd=self.path)
-        parent_hash = stdout_lines0[0].strip()
+        if stdout_lines:
+            git_hash = stdout_lines[0].strip()
+        else:
+            git_hash = None
 
+        (stdout_lines0, stderr_lines0) = call_get_output(["git", "rev-parse", git_hash+"^"], cwd=self.path)
+        
+        if stdout_lines0:
+            parent_hash = stdout_lines0[0].strip()
+        else:
+            parent_hash = None
+        
         return (git_hash, parent_hash)
 
     def __str__(self):
@@ -739,16 +750,15 @@ class Repo_(XmlObject):
     releases = XmlNodeList(Release_)
     longname = XmlValue(tagname="name")
     description = XmlValue()
-    icon = XmlValue()
     location = XmlValue()
-    xcore_repo = XmlValue()
+    #xcore_repo = XmlValue()
     docdirs = XmlValueList()
     exports = XmlValueList(tagname="binary_only")
     git_export = XmlValue(default=False)
     include_binaries = XmlValue(default=False)
     #xpd_version = XmlValue(default=xpd_version)
     release_notes = XmlNodeList(ReleaseNote)
-    vendor = XmlValue()
+    vendor = "XMOS"
     maintainer = XmlValue()
     keywords = XmlValueList()
     usecases = XmlNodeList(UseCase)
@@ -784,8 +794,9 @@ class Repo_(XmlObject):
         self._repo_cache = {self.path:self}
         self._components = []
 
+        self._maintainers = self._find_maintainers()
+
         super(Repo_, self).__init__(**kwargs)
-    
 
         (stdout_lines, stderr_lines) = call_get_output(
                 ["git", "rev-parse", "--show-cdup"], cwd=path)
@@ -833,13 +844,16 @@ class Repo_(XmlObject):
 
         self._releases = self.find_releases()
 
-    #@property
-    #def releases(self):
-    #    return self._releases
+    @property
+    def maintainers(self):
+        return self._maintainers
 
-    #@releases.setter
-    #def releases(self, r):
-    #    self._releases = r
+    @maintainers.setter
+    def maintainers(self, c):
+        raise Exception('I know Python!')
+        self._maintainers = c
+        #TODO write to CODEOWNERS
+
     @property
     def components(self):
         return self._components
@@ -850,7 +864,8 @@ class Repo_(XmlObject):
 
     def find_releases(self):
         (stdout_lines, stderr_lines) = call_get_output(["git", "tag", "--merged", "remotes/origin/master", "-l", "v*"], cwd=self.path)
-        for line in stdout_lines + stderr_lines:
+        
+        for line in stdout_lines:
             line = line.replace('v','').replace('\n','')
             release = Release_(line, self.path)
             self.releases.append(release)
@@ -880,35 +895,54 @@ class Repo_(XmlObject):
 
         return Repo_(path=self.path, parenthash=rel.parenthash)
 
-    def save(self):
-        log_debug("Saving xpd.xml")
-        f = open(self.xpd_file, 'wb')
-        f.write(self.toxml("xpd"))
-        f.close()
+    # TODO this is quite fragile
+    def _find_maintainers(self):
 
-    '''
+        codeowners_path = None
+        if os.path.exists(os.path.join(self.path, "CODEOWNERS")):
+            codeowners_path = os.path.join(self.path, "CODEOWNERS")
+
+        if os.path.exists(os.path.join(self.path, ".github","CODEOWNERS")):
+            codeowners_path = os.path.join(self.path, ".github", "CODEOWNERS")
+
+        if not codeowners_path:
+            return None
+
+        with open(codeowners_path, "r") as f_ptr:
+            lines = f_ptr.readlines()
+            for l in lines:
+                if l[0] == "*":
+                    return l[1:].strip()
+
+    # Do not currently allow releases on anything but master
+    # TODO release is a merge from current branch to master THEN tag
     def record_release(self, release):
+
         if self.git:
             ref = self.current_gitref()
             if ref != "master":
-                self.git_checkout("master", silent=True)
+
+                #TODO git flow
+                log_error("can only make releases from master")
+                exit()
+                error = self.git_checkout("master", silent=True)
+
+                if error:
+                    log_error("Could not checkout master branch")
+                    return 
+
                 master_repo = Repo_(self.path)
                 master_repo.releases.append(release)
-                master_repo.save()
-                call(["git", "add", "xpd.xml"], cwd=self.path, silent=True)
                 call(["git", "commit", "-m", "'Record release: %s'" % str(release.version)],
                                 cwd=self.path, silent=True)
                 self.git_checkout(ref, silent=True)
 
-    def save_and_commit_release(self, release):
-        self.save()
+    def commit_release(self, release):
+        
         if self.git:
-            call(["git", "add", "xpd.xml"], cwd=self.path, silent=True)
             call(["git", "commit", "-m", "'Release: %s'" % str(release.version)],
                             cwd=self.path, silent=True)
-
         self.record_release(release)
-    '''
 
     def latest_release(self, release_filter=None):
         if release_filter:
@@ -1474,6 +1508,7 @@ class Repo_(XmlObject):
         retval = call(["git", "checkout", githash], cwd=self.path, silent=silent)
         if retval:
           log_error("%s: failed to checkout %s" % (self.name, githash))
+          return retval
 
     def git_tag(self, version_string):
         v = Version(version_str=version_string)
@@ -1619,7 +1654,7 @@ class Repo_(XmlObject):
                     file_patched = False
                     with open(full_path, "r") as f_ptr:
                         lines = f_ptr.readlines()
-                    with open(full_path, "wb") as f_ptr:
+                    with open(full_path, "w") as f_ptr:
                         for line in lines:
                             (line, patched) = self.line_patch_version_defines(full_path, line, version)
                             file_patched |= patched
