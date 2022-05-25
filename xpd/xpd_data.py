@@ -538,8 +538,11 @@ class Release_:
         self._notes = notes
        
         if version_str:
-            self.version = Version(version_str=self.version_str)
-               
+            try: 
+                self.version = Version(version_str=self.version_str)
+            except VersionParseError:
+                raise VersionParseError
+
         if path:
             (self.githash, self.parenthash) = self._find_hashes()
 
@@ -912,8 +915,12 @@ class Repo_(XmlObject):
         for line in stdout_lines:
             line = str(line)
             line = str(line).replace('v','').replace('\n','')
-            release = Release_(line, self.path)
-            self._releases.append(release)
+        
+            try:
+                release = Release_(line, self.path)
+                self._releases.append(release)
+            except VersionParseError:
+                log_warning(f'Bad version in tag: {line}')
 
     def merge_releases(self, other):
         for rel_other in other.releases:
