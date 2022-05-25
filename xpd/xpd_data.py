@@ -11,8 +11,10 @@ from docutils.core import publish_file
 import xml.dom.minidom
 from io import StringIO
 from functools import total_ordering
+from urllib.error import HTTPError
+import urllib
 
-xpd_version = "1.0"
+xpd_version = "2.0"
 
 DEFAULT_SCOPE='Experimental'
 
@@ -525,7 +527,7 @@ class UseCase(XmlObject):
 @total_ordering
 class Release_:
 
-    def __init__(self, version_str=None, path=None, virtual=False):
+    def __init__(self, version_str=None, path=None, virtual=False, notes = None):
 
         self.version_str = version_str #TODO rm me. Use str(version)
         self.parenthash = None
@@ -533,25 +535,21 @@ class Release_:
         self.virtual = virtual
         self.path = path
         self.version = None
+        self._notes = notes
        
         if version_str:
             self.version = Version(version_str=self.version_str)
                
         if path:
             (self.githash, self.parenthash) = self._find_hashes()
-        
 
-        #self.post_import()
+    @property
+    def notes(self):
+        return self._notes
 
-    #def post_import(self):
-    #    if self.parenthash and not self.githash:
-    #        self.githash = self.parent.get_child_hash(self.parenthash)
-        
-    #def pre_export(self):
-    #    if hasattr(self,'version') and self.version != None:
-    #        self.version_str = str(self.version)
-    #    else:
-    #        self.version_str = None
+    @notes.setter
+    def notes(self, n):
+        self._notes = n
 
     def merge(self, other):
         #TODO - merge usecase and location info
@@ -583,19 +581,6 @@ class Release_:
 
     def __str__(self):
         return "<release:" + str(self.version) + ">"
-
-class ReleaseNote(XmlObject):
-    version_str = XmlAttribute(attrname="version")
-
-    def post_import(self):
-        if self.version_str:
-            self.version = Version(version_str=self.version_str)
-        else:
-            self.version = None
-
-    def __cmp__(self, other):
-        return cmp(self.version, other.version)
-
 
 class ChangeLog(XmlObject):
     version_str = XmlAttribute(attrname="version")
@@ -747,17 +732,15 @@ class Component(XmlObject):
 
 class Repo_(XmlObject):
     dependencies = XmlNodeList(Dependency, tagname="dependency")
-    releases = XmlNodeList(Release_)
+    #releases = XmlNodeList(Release_)
     longname = XmlValue(tagname="name")
     description = XmlValue()
     location = XmlValue()
     #xcore_repo = XmlValue()
-    docdirs = XmlValueList()
+    #docdirs = XmlValueList()
     exports = XmlValueList(tagname="binary_only")
     git_export = XmlValue(default=False)
     include_binaries = XmlValue(default=False)
-    #xpd_version = XmlValue(default=xpd_version)
-    release_notes = XmlNodeList(ReleaseNote)
     vendor = "XMOS"
     maintainer = XmlValue()
     keywords = XmlValueList()
@@ -776,9 +759,7 @@ class Repo_(XmlObject):
     xsoftip_excludes = XmlValueList()
     tools = XmlValueList(tagname="tools")
     boards = XmlValueList()
-    #extra_eclipse_projects = XmlValueList()
     non_xmos_projects = XmlValueList()
-    #components = XmlNodeList(Component, wrapper="components")
     version_defines = XmlNodeList(VersionDefine, wrapper="version_defines")
     snippets = XmlValue(default=False)
     docmap_partnumber = XmlValue()
@@ -793,8 +774,14 @@ class Repo_(XmlObject):
         self.branched_from_version = None
         self._repo_cache = {self.path:self}
         self._components = []
+        self._releases = []
+        self._docdirs = []
 
         self._maintainers = self._find_maintainers()
+        
+        self.find_releases() # Populate self._releases
+
+        self._find_docdirs() # Populates self._docdirs
 
         super(Repo_, self).__init__(**kwargs)
 
@@ -840,9 +827,57 @@ class Repo_(XmlObject):
         if not master and (not parenthash or create_master):
             self.master_repo = Repo_(self.path, master=True)
             self.merge_releases(self.master_repo)
+   
+    @property
+    def docdirs(self):
+        return self._docdirs
 
+    @property
+    def releases(self):
+        return self._releases
 
-        self._releases = self.find_releases()
+    @property
+    def github_api_url(self):
+
+        base_url = "https://api.github.com/repos/"
+        uri = self.uri()
+    
+        if uri.find("github.com") == -1:
+            return None
+    
+        m = re.match(".*github.com[:/](.*)\.git", uri)
+        user_repo = m.groups(0)[0]
+
+        api_url = base_url + user_repo + "/releases"
+        return api_url
+
+    @property
+    def github_upload_url(self):
+
+        base_url = "https://uploads.github.com/repos/"
+        uri = self.uri()
+    
+        if uri.find("github.com") == -1:
+            return None
+    
+        m = re.match(".*github.com[:/](.*)\.git", uri)
+        user_repo = m.groups(0)[0]
+
+        api_url = base_url + user_repo + "/releases"
+        return api_url
+    
+    @property
+    def github_user(self):
+
+        uri = self.uri()
+    
+        if uri.find("github.com") == -1:
+            return None
+    
+        m = re.match(".*github.com[:/](.*)/", uri)
+        user_repo = m.groups(0)[0]
+
+        return user_repo
 
     @property
     def maintainers(self):
@@ -862,28 +897,47 @@ class Repo_(XmlObject):
     def components(self, c):
         self._components = c
 
+    def _find_docdirs(self):
+
+        for root, dirs, files in os.walk(self.path):
+           
+            if "doc" in dirs:
+                docpath = os.path.join(root, "doc")
+                if "_build" not in docpath:
+                    self._docdirs.append(os.path.relpath(docpath, self.path))
+
     def find_releases(self):
         (stdout_lines, stderr_lines) = call_get_output(["git", "tag", "--merged", "remotes/origin/master", "-l", "v*"], cwd=self.path)
         
         for line in stdout_lines:
-            line = line.replace('v','').replace('\n','')
+            line = str(line)
+            line = str(line).replace('v','').replace('\n','')
             release = Release_(line, self.path)
-            self.releases.append(release)
+            self._releases.append(release)
 
     def merge_releases(self, other):
         for rel_other in other.releases:
             rel = None
-            for r in self.releases:
+            for r in self._releases:
                 if rel_other.version == r.version:
                     rel = r
             if rel:
                 rel.merge(rel_other)
             else:
-                self.releases.append(rel_other)
+                self._releases.append(rel_other)
+    
+    # Returns all releases matching a certain verison (we could have 1.0.0alpha and 1.0.0beta for example)
+    def get_releases(self, version):
+        
+        releases = []
+        for r in self._releases:
+            if r.version == version:
+                releases.append(r)        
+        return releases
 
     def get_release(self, version):
         found = None
-        for r in self.releases:
+        for r in self._releases:
             if r.version == version:
                 found = r
         return found
@@ -914,6 +968,34 @@ class Repo_(XmlObject):
                 if l[0] == "*":
                     return l[1:].strip()
 
+    # Should already of made tag by this point (we could check this)
+    def create_github_release(self, gh, release):
+
+        #TODO check it doesnt already exist
+        url_suffix = self.github_api_url
+        print(str(url_suffix))
+        tag_name = "v"+str(release.version)
+        name = tag_name
+        body = "\n".join(release.notes)
+        prerelease = False
+        
+        if any(pre in tag_name for pre in ('alpha', 'beta', 'rc')):
+            prerelease = True
+        
+        try:
+            gh.github_api_call(
+                url_suffix=url_suffix,
+                post_data={
+                    "tag_name": tag_name,
+                    "name": name,
+                    "body": body,
+                    "draft": False,
+                    "prerelease": prerelease,
+                },
+            )
+        except urllib.error.HTTPError:
+            print(f"Could not create release! The tag {tag_name} may not exist of the release already exists")
+
     # Do not currently allow releases on anything but master
     # TODO release is a merge from current branch to master THEN tag
     def record_release(self, release):
@@ -922,6 +1004,7 @@ class Repo_(XmlObject):
             ref = self.current_gitref()
             if ref != "master":
 
+                #TODO make relase on upstream master
                 #TODO git flow
                 log_error("can only make releases from master")
                 exit()
@@ -946,9 +1029,9 @@ class Repo_(XmlObject):
 
     def latest_release(self, release_filter=None):
         if release_filter:
-            rels = [r for r in self.releases if release_filter(r)]
+            rels = [r for r in self._releases if release_filter(r)]
         else:
-            rels = self.releases
+            rels = self._releases
         rels.sort()
         if rels != []:
             return rels[-1]
@@ -976,7 +1059,7 @@ class Repo_(XmlObject):
         parent_hash = exec_and_match(["git","rev-parse","HEAD~1"],r'(.*)',cwd=self.path)
 
         rels = []
-        for release in self.releases:
+        for release in self._releases:
             if hasattr(release,'parenthash') and parent_hash == release.parenthash:
                rels.append(release)
 
@@ -998,7 +1081,9 @@ class Repo_(XmlObject):
                 vstr = self.current_githash()
         return vstr
 
+    # TODO remove this step
     def post_import(self):
+
         if self.longname == None:
             self.longname = self.name
         if self.location == None:
@@ -1006,14 +1091,12 @@ class Repo_(XmlObject):
         for comp in self.components:
             comp.repo = self
 
-        # Prune out releases which are not valid - can't determine a version number or githash
-        #self.releases = [r for r in self.releases if r.version or r.githash]
 
         self.parse_changelog()
-
-        #for exclude in self.xsoftip_excludes:
-        #    if not os.path.exists(os.path.join(self.path, exclude)):
-        #        log_warning("%s: xsoftip_exclude '%s' does not exist" % (self.name, exclude))
+        
+        # TODO Prune out releases which are not valid - can't determine a version number or githash
+        # TODO Prune out releases not in change log (and warn)
+        #self.releases = [r for r in self.releases if r.version or r.githash]
 
         # Cache the untracked files in this repo as it is a very common action to check whether untracked
         (stdout_lines, stderr_lines) = call_get_output(
@@ -1032,11 +1115,8 @@ class Repo_(XmlObject):
                 log_error("Unable to parse branched_from version %s - clearing field" % self.branched_from)
                 self.branched_from = None
 
-    #def pre_export(self):
-    #    self.xpd_version = xpd_version
-
     def latest_version(self):
-        rels = [r for r in self.releases \
+        rels = [r for r in self._releases \
                       if r.version and r.version.rtype=="release"]
         rels.sort()
         if rels == []:
@@ -1162,12 +1242,12 @@ class Repo_(XmlObject):
                               r'(.*) %s' % parenthash,
                               cwd=self.path)
 
-    def get_release_notes(self, version):
-        for rnote in self.release_notes:
-            if rnote.version == version:
-                return rnote
-        else:
-            return None
+    #def get_release_notes(self, version):
+    #    for rnote in self.release_notes:
+    #        if rnote.version == version:
+    #            return rnote
+    #    else:
+    #        return None
 
     def is_xmos_repo(self):
         if self.vendor and re.match(r'.*XMOS.*',self.vendor.upper()):
@@ -1753,10 +1833,22 @@ class Repo_(XmlObject):
                 current_version = v
                 items = []
             else:
-                items.append(line.rstrip())
+                #ignore blank lines
+                if line.strip() != "":
+                    items.append(line.strip())
 
         if current_version:
             self.changelog_entries.append((str(current_version), items))
+
+        # Add notes to each release object
+        # TODO Pull into a different func?
+        for c in self.changelog_entries:
+
+            (current_version, notes) = c
+            version = Version(version_str = current_version)
+            releases = self.get_releases(version)
+            for r in releases:
+                r.notes = notes
 
     def find_repo_containing_module(self, module_name):
         root_dir = os.path.join(self.path, "..")
