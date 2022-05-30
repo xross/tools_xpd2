@@ -18,6 +18,8 @@ xpd_version = "2.0"
 
 DEFAULT_SCOPE='Experimental'
 
+ORGANISATIONS=['xmos', 'xmos-int']
+
 def normalize_repo_uri(uri):
     if uri.find("github.com") == -1:
         return ""
@@ -844,12 +846,20 @@ class Repo_(XmlObject):
 
         base_url = "https://api.github.com/repos/"
         uri = self.uri()
-    
+   
+        if ".git" not in uri:
+            uri = uri + ".git"
+
         if uri.find("github.com") == -1:
             return None
     
         m = re.match(".*github.com[:/](.*)\.git", uri)
-        user_repo = m.groups(0)[0]
+       
+        if m: 
+            user_repo = m.groups(0)[0]
+        else:
+            # TODO: handle
+            raise
 
         api_url = base_url + user_repo + "/releases"
         return api_url
@@ -859,6 +869,9 @@ class Repo_(XmlObject):
 
         base_url = "https://uploads.github.com/repos/"
         uri = self.uri()
+
+        if ".git" not in uri:
+            uri = uri + ".git"
     
         if uri.find("github.com") == -1:
             return None
@@ -913,14 +926,13 @@ class Repo_(XmlObject):
         (stdout_lines, stderr_lines) = call_get_output(["git", "tag", "--merged", "remotes/origin/master", "-l", "v*"], cwd=self.path)
         
         for line in stdout_lines:
-            line = str(line)
             line = str(line).replace('v','').replace('\n','')
         
             try:
                 release = Release_(line, self.path)
                 self._releases.append(release)
             except VersionParseError:
-                log_warning(f'Bad version in tag: {line}')
+                log_warning(f'Bad version in tag: {str(line)}')
 
     def merge_releases(self, other):
         for rel_other in other.releases:
@@ -1248,13 +1260,6 @@ class Repo_(XmlObject):
         return exec_and_match(["git","rev-list","--parents","--all"],
                               r'(.*) %s' % parenthash,
                               cwd=self.path)
-
-    #def get_release_notes(self, version):
-    #    for rnote in self.release_notes:
-    #        if rnote.version == version:
-    #            return rnote
-    #    else:
-    #        return None
 
     def is_xmos_repo(self):
         if self.vendor and re.match(r'.*XMOS.*',self.vendor.upper()):
