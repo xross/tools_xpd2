@@ -9,7 +9,7 @@ from xpd import templates
 from xmos_logging import log_error, log_warning, log_info, log_debug
 from xmos_subprocess import call_get_output, platform_is_windows
 
-rst_title_regexp = r'[-=^~.][-=^~.]+'
+rst_title_regexp = r'[-=^~#.][-=^~#.]+'
 
 rand = random.Random()
 
