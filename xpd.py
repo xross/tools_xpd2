@@ -439,16 +439,19 @@ def branch_candidates(repo):
 def build_sw(repo, options):
     if options.nobuild:
         return
-    log_info("Building repo")
+    log_info("Building repo sw")
     ret = call(["xmake", "CONFIG=All", "NO_IGNORE_ERRORS=1", "all"], cwd=repo.path, silent=True)
     if ret != 0 and not options.force:
         log_error("Build failed")
         sys.exit(1)
-    log_info("Building repo ok")
+    log_info("Building repo sw ok")
 
 def xpd_build(repo, options, args):
+    
+    log_info("Building sw")
     build_sw(repo, options)
-    xpd_build_docs(repo, options)
+    log_info("building docs")
+    xpd_build_docs(repo, options, args)
 
 # TODO if a pre-release check this is mentioned in the release notes
 def xpd_create_release(repo, options, args):
@@ -641,7 +644,6 @@ def xpd_create_release(repo, options, args):
     log_info("Creating sandbox and checking build")
     repo.move_to_temp_sandbox()
     build_sw(repo, options)
-
     repo.delete_temp_sandbox()
 
     release.parenthash = repo.current_githash()
@@ -652,6 +654,10 @@ def xpd_create_release(repo, options, args):
 
     xpd_update_readme(repo, options, [])
     repo.git_add('README.rst')
+
+    # Build docs must happen after readme update
+    # TODO this should in in a temp sandbox?
+    xpd_build_docs(repo, options, args)
 
     repo.commit_release(release)
 
@@ -2497,11 +2503,6 @@ if __name__ == "__main__":
     optparser.add_option("--logfile", dest="logfile", default=default_logfile,
                          help="Log file to be used for xpd output (default=%s)" % default_logfile)
 
-    #if len(sys.argv) > 1 and sys.argv[1] == 'git':
-    #    repo = Repo(".")
-    #    repo.dep_iter(' '.join(sys.argv[1:]))
-    #    sys.exit(0)
-
     (options, args) = optparser.parse_args()
 
     if len(args) < 1:
@@ -2510,21 +2511,9 @@ if __name__ == "__main__":
     configure_logging(level_console='INFO', level_file='DEBUG', filename=options.logfile)
 
     command = args[0]
-    #if command in ["create_dp", "init_dp_sources"]:
-    #  repo = None
-    #else:
-    #  git_dir = get_git_dir('.')
-    #  os.chdir(git_dir)
-    #  repo = Repo(".")
 
     repo__ = create_repo(".")
-
-    # Do not expect dependencies to exist if running get_deps
-    #if command not in ["get_deps", "list", "create_dp", "init_dp_sources", "checkout"]:
-    #    for dep in repo.get_all_deps_once():
-    #        if not os.path.exists(dep.get_local_path()):
-    #            log_warning("Cannot find dependency: %s" % dep.repo_name)
-
+    
     #FIXME
     if command not in ["get_deps", "list", "create_dp", "init_dp_sources", "checkout"]:
         for dep in repo__.get_all_deps_once():
