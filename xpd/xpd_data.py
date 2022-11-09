@@ -466,7 +466,7 @@ class Dependency():
    
     @version.setter
     def version(self, v):
-        self._verison = v
+        self._version = v
 
     def get_local_path(self):
         root_repo = self.parent
@@ -930,13 +930,14 @@ class Repo_(XmlObject):
                     self._docdirs.append(os.path.relpath(docpath, self.path))
 
     def find_releases(self):
+
         (stdout_lines, stderr_lines) = call_get_output(["git", "tag", "--merged", "remotes/origin/master", "-l", "v*"], cwd=self.path)
         
         for line in stdout_lines:
             line = str(line).replace('v','').replace('\n','')
         
             try:
-                release = Release_(line, self.path)
+                release = Release_(version_str=line, path=self.path)
                 self._releases.append(release)
             except VersionParseError:
                 log_warning(f'Bad version in tag: {str(line)}')
@@ -1251,10 +1252,13 @@ class Repo_(XmlObject):
 
         rel = dep.repo.current_release()
         if rel:
-            dep.version_str = str(rel.version)
+            dep.version = rel.version
 
         self.dependencies.append(dep)
-        log_info("%s added %s as dependency with uri: %s" % (self.name, name, dep.uri))
+        if dep.version:
+            log_info("%s added %s as dependency with uri: %s @ %s" % (self.name, name, dep.uri, dep.version))
+        else:
+            log_info("%s added %s as dependency with uri: %s" % (self.name, name, dep.uri))
         return True
 
     def remove_dep(self, name):
