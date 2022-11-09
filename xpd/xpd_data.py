@@ -20,6 +20,8 @@ DEFAULT_SCOPE='Experimental'
 
 ORGANISATIONS=['xmos', 'xmos-int']
 
+INCLUDE_BINARIES=['sw_']
+
 def normalize_repo_uri(uri):
     if uri.find("github.com") == -1:
         return ""
@@ -27,6 +29,14 @@ def normalize_repo_uri(uri):
     if not m:
         return uri
     return "git://github.com/" + m.groups(0)[0]
+
+def normalize_repo_url(uri):
+    if uri.find("github.com") == -1:
+        return ""
+    m = re.match(".*github.com[:/](.*)", uri)
+    if not m:
+        return uri
+    return "www.github.com/" + re.sub('\.git$', '', m.groups(0)[0])
 
 def rst2xml(path):
     """Convert restructured text to XML"""
@@ -80,7 +90,7 @@ def get_project_immediate_deps(repo, project, is_update=False):
         module_req_version = re.findall('\((.*?)\)', module_str)
 
         if module_req_version:
-            module_req_version = module_req_version[0]
+            module_req_version = module_req_version[0].strip()
 
             # Strip off version
             module_name = module_str.split('(')[0]
@@ -115,7 +125,6 @@ def get_project_immediate_deps(repo, project, is_update=False):
         deps.append(dep)
       return deps
 
-
     mkfile = os.path.join(repo.path,project,'Makefile')
     modinfo = os.path.join(repo.path,project,'module_build_info')
     deps = []
@@ -143,7 +152,6 @@ def get_project_immediate_deps(repo, project, is_update=False):
                     modules_str = modules_str[:-1] + line_
                 
                 deps += create_component_dependencies(modules_str, is_update)
-
 
     if os.path.exists(mkfile):
         for line in open(mkfile).readlines():
@@ -330,9 +338,9 @@ class RequiredVersion(Version):
     }
 
     def __init__(self, version_str, **kwargs):
-        
+       
         if version_str[:1] in self.operators:
-            self._op = version_str[:1]
+            self._op = version_str[:2]
             version_str = version_str[2:]
         elif version_str[0] in self.operators:
             self._op = version_str[0]
@@ -538,12 +546,14 @@ class Release_:
         self.path = path
         self.version = None
         self._notes = notes
-       
+      
+        #print("Release("+version_str+")")
         if version_str:
             try: 
                 self.version = Version(version_str=self.version_str)
             except VersionParseError:
                 raise VersionParseError
+        #print(str(self.version))
 
         if path:
             (self.githash, self.parenthash) = self._find_hashes()
@@ -700,7 +710,7 @@ class Component(XmlObject):
             for p in paras:
                 if p.childNodes[0].nodeValue:
                     value += p.childNodes[0].data
-            fields[name] = value
+            fields[name.lower()] = value
         return fields
 
     def __str__(self):
@@ -745,29 +755,23 @@ class Repo_(XmlObject):
     #docdirs = XmlValueList()
     exports = XmlValueList(tagname="binary_only")
     git_export = XmlValue(default=False)
-    include_binaries = XmlValue(default=False)
     vendor = "XMOS"
     maintainer = XmlValue()
     keywords = XmlValueList()
     usecases = XmlNodeList(UseCase)
-    changelog = XmlNodeList(ChangeLog)
+    #changelog = XmlNodeList(ChangeLog)
     partnumber = XmlValue()
     subpartnumber = XmlValue()
-    xcore_partnumber = XmlValue()
-    xcore_subpartnumber = XmlValue()
+    #xcore_partnumber = XmlValue()
+    #xcore_subpartnumber = XmlValue()
     domain = XmlValue()
     subdomain = XmlValue()
     licence = XmlValue()
     branched_from = XmlValue()
     include_dirs = XmlValueList()
     exclude_dirs = XmlValueList()
-    xsoftip_excludes = XmlValueList()
     tools = XmlValueList(tagname="tools")
     boards = XmlValueList()
-    non_xmos_projects = XmlValueList()
-    version_defines = XmlNodeList(VersionDefine, wrapper="version_defines")
-    snippets = XmlValue(default=False)
-    docmap_partnumber = XmlValue()
     path = None
 
     def __init__(self, path, parenthash=None, master=False, create_master=False, **kwargs):
@@ -781,6 +785,14 @@ class Repo_(XmlObject):
         self._components = []
         self._releases = []
         self._docdirs = []
+        self.changelog_entries = []
+        self.non_xmos_projects = []
+        self.include_dirs = []
+        self.exclude_dirs = []
+        self._untracked_files = []
+        self.snippets = []
+        self.version_defines = []
+        self.include_binaries = any(self.name.startswith(i) for i in INCLUDE_BINARIES)
 
         self._maintainers = self._find_maintainers()
         
@@ -821,13 +833,8 @@ class Repo_(XmlObject):
                 read_file = False
                 #self.parseString(''.join(stdout_lines), src="%s:master:xpd.xml"%self.path)
 
-        self.xpd_file = os.path.join(git_dir,'xpd.xml')
-
-        if read_file:
-            #try:
-            #    self.parse(self.xpd_file)
-            #except IOError:
-            self.parseString("<xpd></xpd>")
+        # TODO Rm me
+        self.parseString("<xpd></xpd>")
 
         if not master and (not parenthash or create_master):
             self.master_repo = Repo_(self.path, master=True)
@@ -917,8 +924,8 @@ class Repo_(XmlObject):
 
         for root, dirs, files in os.walk(self.path):
            
-            if "doc" in dirs:
-                docpath = os.path.join(root, "doc")
+            if "rst" in dirs:
+                docpath = root
                 if "_build" not in docpath:
                     self._docdirs.append(os.path.relpath(docpath, self.path))
 
@@ -1110,22 +1117,27 @@ class Repo_(XmlObject):
         for comp in self.components:
             comp.repo = self
 
-
         self.parse_changelog()
         
+        # Prune out releases not in change log
+        # TODO warn?
+        changelog_versions = []
+        for (v,c) in self.changelog_entries:
+            changelog_versions.append(v)
+        self._releases = [r for r in self._releases if (str(r.version.final_version_str())) in changelog_versions]
+
         # TODO Prune out releases which are not valid - can't determine a version number or githash
-        # TODO Prune out releases not in change log (and warn)
-        #self.releases = [r for r in self.releases if r.version or r.githash]
+        #self._releases = [r for r in self._releases if r.version or r.githash]
 
         # Cache the untracked files in this repo as it is a very common action to check whether untracked
         (stdout_lines, stderr_lines) = call_get_output(
                 ["git", "status", "--porcelain", "--ignored"], cwd=self.path)
 
-        self.untracked_files = []
+        self._untracked_files = []
         for line in stdout_lines + stderr_lines:
             m = re.match('^(?:\?\?|!!) (.*)', line)
             if m:
-                self.untracked_files.append(m.group(1))
+                self._untracked_files.append(m.group(1))
 
         if self.branched_from:
             try:
@@ -1168,7 +1180,7 @@ class Repo_(XmlObject):
         if os.path.isdir(os.path.join(self.path, path)) and not path.endswith('/'):
             path = path + '/'
 
-        if any([l for l in self.untracked_files if path == l]):
+        if any([l for l in self._untracked_files if path == l]):
             return True
         return False
 
@@ -1221,14 +1233,13 @@ class Repo_(XmlObject):
         return [d.repo for d in self.get_all_deps_once()] + [self]
 
     def add_dep(self, name):
-        
+       
         if self.get_dependency(name):
             log_error("Dependency already exists")
             return False
 
-
         dep = Dependency(parent=self, repo_name=name)
-        #dep.repo_name = name
+        
         if not os.path.isdir(dep.get_local_path()):
             log_error("Cannot add dependency '%s' as folder '%s' does not exist" % (name, dep.get_local_path()))
             return False
@@ -1364,31 +1375,38 @@ class Repo_(XmlObject):
 
         return None
 
-    def get_software_blocks(self, ignore_xsoftip_excludes=False, is_update=False):
-        path = self.path
+    def get_software_blocks_(self, path, is_update, search_for_deps):
+        #path = self.path
         components = []
-        for x in os.listdir(path):
-          if x == 'doc':
-              continue
-          if x in self.exclude_dirs:
-              continue
-          if x in self.docdirs:
-              continue
-          if not ignore_xsoftip_excludes and x in self.xsoftip_excludes:
-              continue
-          if x.startswith('__'):
-              continue
-          if self.is_untracked(x):
-              continue
-          mkfile = os.path.join(path,x,'Makefile')
-          modinfo = os.path.join(path,x,'module_build_info')
-          if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or is_non_xmos_project(x, self) or re.match('^module_.*',x) or re.match('^lib_.*',x):
-              comp = Component()
-              comp.init_from_path(self, x)
-              components.append(comp)
-              comp.dependencies = get_project_immediate_deps(self, x, is_update=is_update)
-              log_debug("Component %s has dependencies: %s" % (comp, comp.dependencies))
+        for x in os.listdir(path): 
+            if x == 'doc':
+                continue
+            if x in self.exclude_dirs:
+                continue
+            if x in self.docdirs:
+                continue
+            if x.startswith('__'):
+                continue
+            if self.is_untracked(x):
+                continue
+            mkfile = os.path.join(path,x,'Makefile')
+            modinfo = os.path.join(path,x,'module_build_info')
+            if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or is_non_xmos_project(x, self) or re.match('^module_.*',x) or re.match('^lib_.*',x):
+                #print(str(mkfile))
+                comp = Component()
+                comp.init_from_path(self, x)
+                components.append(comp)
+                if search_for_deps:
+                    comp.dependencies = get_project_immediate_deps(self, os.path.join(path,x), is_update=is_update)
+                    log_debug("Component %s has dependencies: %s" % (comp, comp.dependencies))
 
+        return components
+
+    def get_software_blocks(self, is_update=False, search_for_deps=True):
+        
+        components = self.get_software_blocks_(self.path, is_update, search_for_deps)
+        if os.path.exists(os.path.join(self.path, "examples")):
+            components += self.get_software_blocks_(os.path.join(self.path,"examples"), is_update, search_for_deps)
         return components
 
     def get_apps(self):
@@ -1833,7 +1851,7 @@ class Repo_(XmlObject):
             try:
                 v = Version(version_str=line.strip())
                 if v in all_versions:
-                    log_error("%s: Duplicate release note entries for %s" %
+                    log_warning("%s: Duplicate release note entries for %s" %
                         (self.name, str(v)))
                 all_versions.add(v)
             except VersionParseError:
@@ -1847,7 +1865,7 @@ class Repo_(XmlObject):
             else:
                 #ignore blank lines
                 if line.strip() != "":
-                    items.append(line.strip())
+                    items.append(line)
 
         if current_version:
             self.changelog_entries.append((str(current_version), items))
