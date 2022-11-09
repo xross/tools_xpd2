@@ -1405,8 +1405,8 @@ class Repo_(XmlObject):
     def get_software_blocks(self, is_update=False, search_for_deps=True):
         
         components = self.get_software_blocks_(self.path, is_update, search_for_deps)
-        if os.path.exists(os.path.join(self.path, "examples")):
-            components += self.get_software_blocks_(os.path.join(self.path,"examples"), is_update, search_for_deps)
+        #if os.path.exists(os.path.join(self.path, "examples")):
+        #    components += self.get_software_blocks_(os.path.join(self.path,"examples"), is_update, search_for_deps)
         return components
 
     def get_apps(self):
