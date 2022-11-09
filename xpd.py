@@ -320,7 +320,7 @@ def xpd_check_deps(repo, options, args, return_current_ok=False, allow_updates=F
         dep_master = Repo_(dep.repo.path, parent=dep.parent, master=True)
         rel = dep_master.current_release()
         if dep.githash != dep_master.current_githash() or \
-           (rel and dep.version_str != str(rel.version)):
+           (rel and str(dep.version) != str(rel.version)):
             if allow_updates:
                 from_date = get_date(dep_master, dep.githash)
                 to_date = get_date(dep_master, dep_master.current_githash())
@@ -2434,7 +2434,6 @@ common_commands =  [
             ("list", "List releases"),
             ("show_deps", "Show dependencies"),
             ("create_release", "Create a release"),
-            
             ("make_zip", "Make zipfile of release"),
 
             ]
