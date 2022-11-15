@@ -1039,10 +1039,12 @@ def zip_repo(repo, zipfile, exports, include_binaries=False, force=False, no_app
 
     repo_files = find_files(repo.path)
     excludes = []
-
+    
+    # Exclude docs from release zips
     for docdir in repo.docdirs:
         excludes.append(docdir + re.escape(os.path.sep) + '*')
 
+    excludes.append('Jenkinsfile')
     excludes.append('*_build' + re.escape(os.path.sep) + '*')
     excludes.append('__*')
     excludes.append('*app_description')
@@ -1054,8 +1056,9 @@ def zip_repo(repo, zipfile, exports, include_binaries=False, force=False, no_app
     excludes.append('input_doc_map.xml')
     excludes.append('*' + re.escape(os.path.sep) + '__*')
 
-    for component in repo.components:
-        excludes.append('*' + component.path + re.escape(os.path.sep) + 'README.rst')
+    #TODO FIXME Since we are not currently rendering readme files then include RST
+    #for component in repo.components:
+    #    excludes.append('*' + component.path + re.escape(os.path.sep) + 'README.rst')
 
     if xpd.check_project.flat_projects:
         excludes.append('.cproject')
