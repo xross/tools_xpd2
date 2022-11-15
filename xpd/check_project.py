@@ -430,7 +430,7 @@ def check_toplevel_makefile(repo, force_creation=False):
     if updates_required:
         if prompt(force_creation, "There is a problem with the toplevel Makefile.\n" +
                                   "Do you want xpd to create a new one", True):
-             f = open(os.path.join(repo.path,'Makefile'), 'wb')
+             f = open(os.path.join(repo.path,'Makefile'), 'w')
              f.write(templates.toplevel_makefile)
              f.close()
              if file_changed(path):
