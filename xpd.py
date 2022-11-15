@@ -165,8 +165,9 @@ def get_multiple_version_errors(repo, print_help=True):
 
 
 
-def show_deps_repos(repo, indent, prefix):
-    log_info("%s%s%s:%s" % (indent, prefix, repo.name, " has no dependencies" if not repo.dependencies else ''))
+def get_deps_repos(repo, strings, indent, prefix):
+
+    strings += "\n" + ("%s%s%s:%s" % (indent, prefix, repo.name, " has no dependencies" if not repo.dependencies else ''))
 
     for dep in repo.dependencies:
         repo.assert_exists(dep)
@@ -193,16 +194,30 @@ def show_deps_repos(repo, indent, prefix):
                     required_version = d.required_version
                     
         # Show what version of the repo we have
-        log_info("%s%s  +- %s %s (required: %s) %s" % (indent, prefix, dep.repo_name, actual_version, required_version, local_mod))
+        strings += "\n" + ("%s%s  +- %s %s (required: %s) %s" % (indent, prefix, dep.repo_name, actual_version, required_version, local_mod))
 
         space = ' '*len(dep.repo.name)
-        show_deps_repos(dep.repo, indent, '%s  %s%s' % (prefix, ' ' if dep == repo.dependencies[-1] else '|', space))
+        strings = get_deps_repos(dep.repo, strings, indent, '%s  %s%s' % (prefix, ' ' if dep == repo.dependencies[-1] else '|', space))
+
+    return strings
 
 def xpd_show_deps(repo, options, args):
+
     log_info("\nDEPENDENCIES (REPOS):\n")
-    show_deps_repos(repo, '  ', '')
+    
+    strings = get_deps_repos(repo, "", '  ', '')
+
     if not options.github:
         get_multiple_version_errors(repo, print_help=False)
+
+    log_info(strings)
+
+def xpd_dump_deps(repo, options, args):
+    outfile = open("deps.txt", 'w')
+    outfile.write("\nDEPENDENCIES (REPOS):\n")
+    strings = get_deps_repos(repo, "", '  ', '')
+    outfile.write(strings)
+    outfile.close()
 
 #def find_components(repo, is_update=True):
 #    components = repo.get_software_blocks(ignore_xsoftip_excludes=True, is_update=is_update)
@@ -679,8 +694,8 @@ def xpd_find_assets(repo, options, args, release=None):
    
     assets = []
     
-    if "github" not in repo.uri():
-        log_error(f"Can only upload assets to github repos {repo.uri()}")
+    if "github" not in repo.location:
+        log_error(f"Can only upload assets to github repos ({repo.location})")
         exit(1)
     
     if not options.nodocs:
@@ -690,7 +705,7 @@ def xpd_find_assets(repo, options, args, release=None):
             docdir = os.path.join(docdir, "pdf")
 
             if not os.path.exists(os.path.join(repo.path, docdir)):
-                log_error("%s: docdir '%s' does not exist. Are docs built?" % (repo.name, docdir))
+                log_error("%s: docdir '%s' does not exist. Are docs built?" % (repo.path, docdir))
                 exit(1)
                 break
             
@@ -702,10 +717,24 @@ def xpd_find_assets(repo, options, args, release=None):
 
     # For sw_ repos upload a zip
     if repo.name.startswith("sw_"):
-        zip_name = repo.name + ".zip"
-        assets.append(Path(os.path.join(repo.path, zip_name)))
-        log_info(f'Found zip asset: {zip_name}')
+     
+        release = repo.current_release()
+        if release:
+            version_string = str(release.version)
+        else:
+            log_error("Repository not at specific version point in git. Cannot publish.")
+            sys.exit(1)
+    
+        zip_name = repo.name + "_" + version_string + ".zip"
+        zip_path = Path(os.path.join(repo.path, zip_name))
         
+        assets.append(zip_path)
+        
+        if not os.path.exists(zip_path):
+            log_error(f'Cannot find zip asset: {zip_name}')
+            sys.exit(1)
+        else:
+            log_info(f'Found zip asset: {zip_name}')
 
     return assets
 
@@ -720,6 +749,9 @@ def xpd_create_github_release(repo, options, args, dest=None, release=None):
     version_str=str(release.version)
 
     log_info(f"Creating github release for {version_str}")
+
+    log_info(f"Creating zip file")
+    xpd_make_zip(repo, options, args)
 
     assets = xpd_find_assets(repo, options, args, release)
 
@@ -812,10 +844,11 @@ def xpd_make_zip(repo, options, args, dest=None):
             else:
                 arcname = os.path.join(repo.name, block.path, 'README.txt')
                 f.write(src, arcname=arcname)
+        #FIXME
+        #if not options.github:
+        #    insert_topdoc(repo, f)
 
-        if not options.github:
-            insert_topdoc(repo, f)
-
+        '''
         xref = xmos_xref.XRefInfo('xpd')
 
         for dep in repo.get_all_deps_once():
@@ -859,6 +892,7 @@ def xpd_make_zip(repo, options, args, dest=None):
                     tmpfile.close()
                 else:
                     log_warning("Cannot find relevant version of %s is cognidox. DEPENDENCIES SHOULD BE OFF RELEASED VERSIONS OF COMPONENTS" % dep.repo.name)
+        '''
 
     info_string = "<zipinfo>\n"
     info_string += "   <main>%s</main>\n" % repo.name
@@ -867,6 +901,9 @@ def xpd_make_zip(repo, options, args, dest=None):
     info_string += "</zipinfo>"
 
     f.writestr('.zipinfo', info_string)
+
+    dep_info = get_deps_repos(repo, "", '  ', '')
+    f.writestr('/deps.txt', dep_info)
 
     f.close()
     log_info("Created %s" % fname)
@@ -948,7 +985,9 @@ def xpd_make_zip(repo, options, args, dest=None):
                                        version = version,
                                        draft=False)
 
-    if options.upload:
+    #if options.upload:
+    # FIXME
+    if False:
         log_info("Uploading zip file to cognidox part number %s" % repo.subpartnumber)
         m = re.match('(.*)rc(\d+)$', version_string)
         if m:
@@ -976,11 +1015,14 @@ def xpd_make_zip(repo, options, args, dest=None):
         os.remove(".docholder.xml")
 
     log_info("Tidying up")
-    #repo.delete_temp_sandbox()
+    
+    repo.delete_temp_sandbox()
+    
     if os.path.exists(os.path.join(repo.path, '_build')):
         shutil.rmtree(os.path.join(repo.path, '_build'))
-    if not options.nodocs:
-        xref.update()
+    #if not options.nodocs:
+    #    xref.update()
+    
     return update
 
 def find_files(path):
@@ -1201,6 +1243,9 @@ def insert_topdoc(repo, zipfile):
 
 def insert_doc(repo_name, path, zipfile, base=None, insert_pdf=True,
                is_xmos_repo=True, repo=None):
+
+    #FIXME
+    return
 
     import_xdoc()
     config = xdoc.get_config(path)
@@ -1973,7 +2018,7 @@ def xpd_build_docs(repo, options=None, args=None, buildlatex=True, local_only=Fa
     if options.nodocs:
         return
 
-    log_info("Building docs")
+        log_info(f"Building docs in {repo.path}")
     for docdir in repo.docdirs:
         
         if not os.path.exists(os.path.join(repo.path, docdir)):
@@ -2172,7 +2217,7 @@ def xpd_update_changelog(repo, options, args):
 
     for (dep_name, expected) in list(get_all_dep_versions(repo).items()):
         # Having run get_multiple_version_errors() there should now only be one version
-        version_str = next(iter(expected))
+        version_str = str(next(iter(expected)))
         try:
             rel = Version(version_str=version_str)
             to_releases[dep_name] = rel
@@ -2453,8 +2498,8 @@ other_commands =[
             ("update_readme", "Update README.rst with latest metainformation"),
             ("check_makefiles", "Check makefiles"),
             ("check_partinfo", "Check part information (DEBUG)"),
+            ("dump_deps", "Dump deps info to file (DEBUG)"),
 
-            
             # TODO:
             
             ("checkout", "Checkout release"),
@@ -2552,7 +2597,7 @@ if __name__ == "__main__":
 
     search_for_deps = True
 
-    if command in ["list", "find_assets", "build_docs", "create_github_release"]:
+    if command in ["list", "find_assets", "build_docs"]:
         search_for_deps = False
 
     
