@@ -1302,16 +1302,13 @@ class Repo_(XmlObject):
         for d in excludes:
             shutil.rmtree(os.path.join(self.path,d))
 
-    def _move_to_temp_sandbox(self, path, git_only=True, shallow=True):
+    def _move_to_temp_sandbox(self, path, git_only=True):
         temp_repo_path = os.path.join(path,os.path.basename(self.path))
         if git_only:
-            (stdout_lines, stderr_lines) = call_get_output(["git", "clone", self.path], cwd=path)
 
-            if shallow:
-                (stdout_lines, stderr_lines) = call_get_output(["git", "fetch", "--depth","1","origin", self.current_githash()], cwd=temp_repo_path)
-                (stdout_lines, stderr_lines) = call_get_output(["git", "checkout", "FETCH_HEAD"], cwd=temp_repo_path)
-            else:
-                (stdout_lines, stderr_lines) = call_get_output(["git", "checkout", self.current_githash()], cwd=temp_repo_path)
+            # Note, tree-less clone to keep size down
+            (stdout_lines, stderr_lines) = call_get_output(["git", "clone", "--filter=tree:0", self.path], cwd=path)
+            (stdout_lines, stderr_lines) = call_get_output(["git", "checkout", self.current_githash()], cwd=temp_repo_path)
         else:
             shutil.copytree(self.path, temp_repo_path)
 
@@ -1322,13 +1319,13 @@ class Repo_(XmlObject):
     def orig_path(self):
         return self._path
 
-    def move_to_temp_sandbox(self, git_only=True, shallow=True):
+    def move_to_temp_sandbox(self, git_only=True, shallow=False):
         dependencies = self.get_all_deps_once()
         self.sb = tempfile.mkdtemp()
         self._move_to_temp_sandbox(self.sb,git_only=git_only)
         for dep in dependencies:
             if dep.repo:
-                dep.repo._move_to_temp_sandbox(self.sb,git_only=git_only, shallow=shallow)
+                dep.repo._move_to_temp_sandbox(self.sb,git_only=git_only)
 
     def _restore_path(self):
         self.path = self._path
