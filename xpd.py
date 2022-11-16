@@ -1050,10 +1050,11 @@ def zip_repo(repo, zipfile, exports, include_binaries=False, force=False, no_app
     excludes.append('*app_description')
     excludes.append('*module_description')
     excludes.append('.zipinfo')
-    excludes.append('.DS_Store')
+    excludes.append('*.DS_Store')
     excludes.append('*issue.zip')
     excludes.append('*.build_*')
     excludes.append('*.build' + re.escape(os.path.sep) + '*')
+    excludes.append('*tests' + re.escape(os.path.sep) + '*')
     excludes.append('input_doc_map.xml')
     excludes.append('*' + re.escape(os.path.sep) + '__*')
 
