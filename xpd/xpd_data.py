@@ -754,7 +754,7 @@ class Repo_(XmlObject):
     #xcore_repo = XmlValue()
     #docdirs = XmlValueList()
     exports = XmlValueList(tagname="binary_only")
-    git_export = XmlValue(default=False)
+    #git_export = XmlValue(default=False)
     vendor = "XMOS"
     maintainer = XmlValue()
     keywords = XmlValueList()
@@ -780,6 +780,7 @@ class Repo_(XmlObject):
         self.name = os.path.split(self.path)[-1]
         self.git = True
         self.sb = None
+        self._git_export = True
         self.branched_from_version = None
         self._repo_cache = {self.path:self}
         self._components = []
@@ -839,6 +840,10 @@ class Repo_(XmlObject):
         if not master and (not parenthash or create_master):
             self.master_repo = Repo_(self.path, master=True)
             self.merge_releases(self.master_repo)
+   
+    @property
+    def git_export(self):
+        return self._git_export
    
     @property
     def docdirs(self):
@@ -1180,7 +1185,7 @@ class Repo_(XmlObject):
     def is_untracked(self, path):
         if os.path.isdir(os.path.join(self.path, path)) and not path.endswith('/'):
             path = path + '/'
-
+#
         if any([l for l in self._untracked_files if path == l]):
             return True
         return False
@@ -1297,13 +1302,16 @@ class Repo_(XmlObject):
         for d in excludes:
             shutil.rmtree(os.path.join(self.path,d))
 
-    def _move_to_temp_sandbox(self, path, git_only=True):
+    def _move_to_temp_sandbox(self, path, git_only=True, shallow=True):
         temp_repo_path = os.path.join(path,os.path.basename(self.path))
         if git_only:
-            (stdout_lines, stderr_lines) = call_get_output(
-                    ["git", "clone", self.path], cwd=path)
-            (stdout_lines, stderr_lines) = call_get_output(
-                    ["git", "checkout", self.current_githash()], cwd=temp_repo_path)
+            (stdout_lines, stderr_lines) = call_get_output(["git", "clone", self.path], cwd=path)
+
+            if shallow:
+                (stdout_lines, stderr_lines) = call_get_output(["git", "fetch", "--depth","1","origin", self.current_githash()], cwd=temp_repo_path)
+                (stdout_lines, stderr_lines) = call_get_output(["git", "checkout", "FETCH_HEAD"], cwd=temp_repo_path)
+            else:
+                (stdout_lines, stderr_lines) = call_get_output(["git", "checkout", self.current_githash()], cwd=temp_repo_path)
         else:
             shutil.copytree(self.path, temp_repo_path)
 
@@ -1314,13 +1322,13 @@ class Repo_(XmlObject):
     def orig_path(self):
         return self._path
 
-    def move_to_temp_sandbox(self, git_only=True):
+    def move_to_temp_sandbox(self, git_only=True, shallow=True):
         dependencies = self.get_all_deps_once()
         self.sb = tempfile.mkdtemp()
         self._move_to_temp_sandbox(self.sb,git_only=git_only)
         for dep in dependencies:
             if dep.repo:
-                dep.repo._move_to_temp_sandbox(self.sb,git_only=git_only)
+                dep.repo._move_to_temp_sandbox(self.sb,git_only=git_only, shallow=shallow)
 
     def _restore_path(self):
         self.path = self._path
