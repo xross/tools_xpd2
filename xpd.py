@@ -670,7 +670,7 @@ def xpd_create_release(repo, options, args):
 
     log_info("Created release %s" % str(release.version))
 
-    xpd_update_readme(repo, options, [])
+    xpd_update_readme(repo, options, [], xmos_package=repo.is_xmos_repo(), new_release=release)
     repo.git_add('README.rst')
 
     # Build docs must happen after readme update
@@ -1362,7 +1362,7 @@ def rst_make_title(title, ch):
 
 def xpd_update_readme(repo, options, args,
                       xmos_package=False, write_back=True,
-                      use_current_version=False, doclinks=False):
+                      use_current_version=False, doclinks=False, new_release=None):
     """ Updates the README.rst and returns the contents.
     """
     log_info("Updating README in " + repo.name)
@@ -1374,7 +1374,7 @@ def xpd_update_readme(repo, options, args,
         log_error("%s: Missing top-level README.rst (run 'xpd init' to create a default one)" % repo.name)
         return []
 
-    remove_items = ['Latest release', 'Stable release', 'Maintainer', 'Description', 'Status', 'Required packages']
+    remove_items = ['Latest release', 'Stable release', 'Maintainer', 'Description', 'Status', 'Required packages', 'Vendor', 'Version']
 
     remove_sections = ['Required Modules', 'Required Repositories', 'Required software (dependencies)','Required Software (dependencies)']
     if xmos_package:
@@ -1432,15 +1432,27 @@ def xpd_update_readme(repo, options, args,
     new_header = "\n"
 
     version_string = None
-    rel = repo.current_release()
+
+    # Updating readme to a release we're creating but not commited yet
+    if new_release:
+        rel = new_release
+    else:
+        rel = repo.current_release()
+
     if rel:
         version_string = str(rel.version)
     else:
         version_string = repo.current_githash()
 
-    if version_string and use_current_version:
+    #if version_string and use_current_version:
+    #    new_header += ":Version: %s\n" % version_string
+    #elif repo.latest_release():
+    #    new_header += ":Latest release: %s\n" % repo.latest_release().version
+
+    # This seems more sensible than the above logic?
+    if version_string:
         new_header += ":Version: %s\n" % version_string
-    elif repo.latest_release():
+    if version_string != str(repo.latest_release().version):
         new_header += ":Latest release: %s\n" % repo.latest_release().version
 
     if xmos_package and repo.vendor:
@@ -1466,7 +1478,9 @@ def xpd_update_readme(repo, options, args,
             if dep.repo.name == 'xcommon':
                 lines += ['  * xcommon (if using development tools earlier than 11.11.0)\n']
             else:
-                if xmos_package or not dep.uri:
+                # Always giving uri seems more useful now everything on github?
+                # if xmos_package or not dep.uri:
+                if not dep.uri:
                     lines += ['  * %s\n' % dep.repo.name]
                 else:
                     lines += ['  * %s (%s)\n' % (dep.repo.name, normalize_repo_url(dep.uri))]
@@ -1500,10 +1514,7 @@ def xpd_update_readme(repo, options, args,
         support = """Support
 =======
 
-  This package is support by XMOS Ltd. Issues can be raised against the software
-  at:
-
-      http://www.xmos.com/support
+This package is supported by XMOS Ltd. Issues can be raised against the software at: http://www.xmos.com/support
 """
 
         lines += [x+'\n' for x in support.split('\n')]
