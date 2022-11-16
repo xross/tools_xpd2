@@ -1035,11 +1035,11 @@ def find_files(path):
 
 def zip_repo(repo, zipfile, exports, include_binaries=False, force=False, no_app_projects=False):
 
-    print(f'zip_repo({str(repo)})')
+    log_info(f'zip_repo({str(repo)})')
 
     repo_files = find_files(repo.path)
     excludes = []
-    
+
     # Exclude docs from release zips
     for docdir in repo.docdirs:
         excludes.append(docdir + re.escape(os.path.sep) + '*')
@@ -1050,6 +1050,7 @@ def zip_repo(repo, zipfile, exports, include_binaries=False, force=False, no_app
     excludes.append('*app_description')
     excludes.append('*module_description')
     excludes.append('.zipinfo')
+    excludes.append('.DS_Store')
     excludes.append('*issue.zip')
     excludes.append('*.build_*')
     excludes.append('*.build' + re.escape(os.path.sep) + '*')
@@ -1077,8 +1078,13 @@ def zip_repo(repo, zipfile, exports, include_binaries=False, force=False, no_app
                 if os.path.commonprefix([f, i]) == i:
                     ok = False
 
+        # Ignore all git files for now
         if re.match(".*\.git", f):
             ok = False
+
+        # If we are exporting git allow through .gitignore
+        if repo.git_export and re.match(".*\.gitignore", f):
+            ok = True
 
         for pattern in excludes:
             pattern = pattern.replace(".", "\.")
