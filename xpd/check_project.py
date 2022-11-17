@@ -536,21 +536,29 @@ def check_docdir(repo):
      pass
 
 def patch_makefile(makefile_str):
-     lines = makefile_str.split('\n')
-     for line in lines:
-          if re.match('.*Makefile.toplevel',line):
-               return makefile_str
-     new_lines = []
-     found_common_include = False
-     for line in lines:
-          if re.match('# The following part of the', line) or \
-             re.match('XMOS_MAKE_PATH', line):
-               found_common_include = True
-               break
-          new_lines.append(line)
-     if not found_common_include:
-          return makefile_str
-     makefile_str = '\n'.join(new_lines)
-     makefile_str += templates.makefile_include_str
-     return makefile_str
+    lines = makefile_str.split('\n')
+    for line in lines:
+        if re.match('.*Makefile.toplevel',line):
+            return makefile_str
+    
+    new_lines = []
+    found_common_include = False
+    breakline = 0
+
+    for line in lines:
+        if re.match('# The following part of the', line) or re.match('XMOS_MAKE_PATH', line):
+            found_common_include = True
+            break
+        new_lines.append(line)
+        breakline += 1
+     
+    if not found_common_include:
+        return makefile_str
+
+    if re.match('#=============================================================================', new_lines[-1]):
+        new_lines = new_lines[:-1]
+    makefile_str = '\n'.join(new_lines)
+    makefile_str += templates.makefile_include_str
+
+    return makefile_str
 
