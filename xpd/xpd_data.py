@@ -553,7 +553,6 @@ class Release_:
                 self.version = Version(version_str=self.version_str)
             except VersionParseError:
                 raise VersionParseError
-        #print(str(self.version))
 
         if path:
             (self.githash, self.parenthash) = self._find_hashes()
@@ -755,7 +754,7 @@ class Repo_(XmlObject):
     #docdirs = XmlValueList()
     exports = XmlValueList(tagname="binary_only")
     #git_export = XmlValue(default=False)
-    vendor = "XMOS"
+    vendor = "XMOS" #TODO allow for other vendors - get info from repo
     maintainer = XmlValue()
     keywords = XmlValueList()
     usecases = XmlNodeList(UseCase)
@@ -1185,15 +1184,17 @@ class Repo_(XmlObject):
     def is_untracked(self, path):
         if os.path.isdir(os.path.join(self.path, path)) and not path.endswith('/'):
             path = path + '/'
-#
+
         if any([l for l in self._untracked_files if path == l]):
             return True
         return False
 
+    # TODO cache URI on first discovery?
     def uri(self):
-        return exec_and_match(["git","remote","show","-n","origin"],
+        uri = exec_and_match(["git","remote","show","-n","origin"],
                               r'.*Fetch URL: (.*)',
                               cwd=self.path)
+        return uri
 
     def licence_is_general(self):
         if not self.licence or self.licence == 'general':
@@ -1306,8 +1307,12 @@ class Repo_(XmlObject):
         temp_repo_path = os.path.join(path,os.path.basename(self.path))
         if git_only:
 
+            # Originally cloning from a local repo - but when the README is updated using this temp SB the URIs are wrong.
+            # Ideally clone locally since this saves us some time and we can be offline... 
+            # For now use a half way house and use local as reference
+            (stdout_lines, stderr_lines) = call_get_output(["git", "clone", "--reference", self.path, "--dissociate", self.uri()], cwd=path)
             # Note, tree-less clone to keep size down
-            (stdout_lines, stderr_lines) = call_get_output(["git", "clone", "--filter=tree:0", self.path], cwd=path)
+            #(stdout_lines, stderr_lines) = call_get_output(["git", "clone", "--filter=tree:0", self.path], cwd=path)
             (stdout_lines, stderr_lines) = call_get_output(["git", "checkout", self.current_githash()], cwd=temp_repo_path)
         else:
             shutil.copytree(self.path, temp_repo_path)
@@ -1322,6 +1327,7 @@ class Repo_(XmlObject):
     def move_to_temp_sandbox(self, git_only=True, shallow=False):
         dependencies = self.get_all_deps_once()
         self.sb = tempfile.mkdtemp()
+        print(str(self.sb))
         self._move_to_temp_sandbox(self.sb,git_only=git_only)
         for dep in dependencies:
             if dep.repo:
@@ -1401,7 +1407,6 @@ class Repo_(XmlObject):
             mkfile = os.path.join(path,x,'Makefile')
             modinfo = os.path.join(path,x,'module_build_info')
             if os.path.exists(mkfile) or os.path.exists(modinfo) or x == 'module_xcommon' or is_non_xmos_project(x, self) or re.match('^module_.*',x) or re.match('^lib_.*',x):
-                #print(str(mkfile))
                 comp = Component()
                 comp.init_from_path(self, x)
                 components.append(comp)
