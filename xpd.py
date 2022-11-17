@@ -828,7 +828,6 @@ def xpd_make_zip(repo, options, args, dest=None):
     zip_repo(repo, f, exports, include_binaries=repo.include_binaries, force=options.force)
 
     for dep in repo.get_all_deps_once():
-        print(str(dep))
         zip_repo(dep.repo, f, exports, force=options.force, no_app_projects=True)
 
     if not options.nodocs:
