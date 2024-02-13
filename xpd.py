@@ -171,13 +171,13 @@ def get_deps_repos(repo, strings, indent, prefix):
 
     for dep in repo.dependencies:
         repo.assert_exists(dep)
-        
+
         if dep.version:
             actual_version = dep.version
         else:
             actual_version = dep.githash
-        
-        required_version = None 
+
+        required_version = None
 
         local_mod = ""
         actual = "???"
@@ -192,7 +192,7 @@ def get_deps_repos(repo, strings, indent, prefix):
             for d in l.dependencies:
                 if d.module_name == dep.repo_name:
                     required_version = d.required_version
-                    
+
         # Show what version of the repo we have
         strings += "\n" + ("%s%s  +- %s %s (required: %s) %s" % (indent, prefix, dep.repo_name, actual_version, required_version, local_mod))
 
@@ -204,7 +204,7 @@ def get_deps_repos(repo, strings, indent, prefix):
 def xpd_show_deps(repo, options, args):
 
     log_info("\nDEPENDENCIES (REPOS):\n")
-    
+
     strings = get_deps_repos(repo, "", '  ', '')
 
     if not options.github:
@@ -450,6 +450,7 @@ def branch_candidates(repo):
 
 def build_sw(repo, options):
     if options.nobuild:
+        log_warning("Skipping build")
         return
     log_info("Building repo sw")
     ret = call(["xmake", "NO_IGNORE_ERRORS=1", "all"], cwd=repo.path, silent=False)
@@ -459,7 +460,7 @@ def build_sw(repo, options):
     log_info("Building repo sw ok")
 
 def xpd_build(repo, options, args):
-    
+
     log_info("Building sw")
     build_sw(repo, options)
     log_info("building docs")
@@ -467,14 +468,14 @@ def xpd_build(repo, options, args):
 
 # TODO if a pre-release check this is mentioned in the release notes
 def xpd_create_release(repo, options, args):
-    
+
     #TODO FIXME set github based on repo url
     if options.github:
         errors = False
     else:
         errors = get_multiple_version_errors(repo)
 
-   
+
     if errors and not options.force:
         sys.exit(1)
 
@@ -530,6 +531,7 @@ def xpd_create_release(repo, options, args):
     (latest_in_changelog, items) = notes[0]
 
     if hasattr(options, 'release_version') and options.release_version:
+        print('release_version: ' + str(options.release_version))
         version = Version(version_str=options.release_version)
     else:
         latest = repo.latest_full_release()
@@ -560,6 +562,7 @@ def xpd_create_release(repo, options, args):
             except:
                 log_error("Invalid version number '%s'" % x)
 
+    print(str(branched_from_version))
     if branched_from_version:
         version.rtype = branched_from_version.rtype
         version.rnumber = branched_from_version.rnumber
@@ -691,13 +694,13 @@ def xpd_create_release(repo, options, args):
     return False
 
 def xpd_find_assets(repo, options, args, release=None):
-   
+
     assets = []
-    
+
     if "github" not in repo.location:
         log_error(f"Can only upload assets to github repos ({repo.location})")
         exit(1)
-    
+
     if not options.nodocs:
 
         # Find build pdf in all doc dirs
@@ -708,28 +711,28 @@ def xpd_find_assets(repo, options, args, release=None):
                 log_error("%s: docdir '%s' does not exist. Are docs built?" % (repo.path, docdir))
                 exit(1)
                 break
-            
+
             pdf_files = glob.glob(os.path.join(repo.path, docdir, "*.pdf"))
-           
+
             for p in pdf_files:
                 assets.append(Path(p))
                 log_info(f'Found doc asset: {p}')
 
     # For sw_ repos upload a zip
     if repo.name.startswith("sw_"):
-     
+
         release = repo.current_release()
         if release:
             version_string = str(release.version)
         else:
             log_error("Repository not at specific version point in git. Cannot publish.")
             sys.exit(1)
-    
+
         zip_name = repo.name + "_" + version_string + ".zip"
         zip_path = Path(os.path.join(repo.path, zip_name))
-        
+
         assets.append(zip_path)
-        
+
         if not os.path.exists(zip_path):
             log_error(f'Cannot find zip asset: {zip_name}')
             sys.exit(1)
@@ -1014,14 +1017,14 @@ def xpd_make_zip(repo, options, args, dest=None):
         os.remove(".docholder.xml")
 
     log_info("Tidying up")
-    
+
     repo.delete_temp_sandbox()
-    
+
     if os.path.exists(os.path.join(repo.path, '_build')):
         shutil.rmtree(os.path.join(repo.path, '_build'))
     #if not options.nodocs:
     #    xref.update()
-    
+
     return update
 
 def find_files(path):
@@ -1049,6 +1052,7 @@ def zip_repo(repo, zipfile, exports, include_binaries=False, force=False, no_app
     excludes.append('*app_description')
     excludes.append('*module_description')
     excludes.append('.zipinfo')
+    excludes.append('requirements.txt')
     excludes.append('*.DS_Store')
     excludes.append('*issue.zip')
     excludes.append('*.build_*')
@@ -1057,13 +1061,15 @@ def zip_repo(repo, zipfile, exports, include_binaries=False, force=False, no_app
     excludes.append('input_doc_map.xml')
     excludes.append('*' + re.escape(os.path.sep) + '__*')
 
-    #TODO FIXME Since we are not currently rendering readme files then include RST
-    #for component in repo.components:
-    #    excludes.append('*' + component.path + re.escape(os.path.sep) + 'README.rst')
+    # When exporting git info do not exclude readme rst files - otherwise git status will not be clean
+    # TODO FIXME Since we are not currently rendering readme files then include RST files for now in all cases
+    if False and not repo.git_export:
+        for component in repo.components:
+            excludes.append('*' + component.path + re.escape(os.path.sep) + 'README.rst')
 
-    if xpd.check_project.flat_projects:
-        excludes.append('.cproject')
-        excludes.append('.project')
+    #if xpd.check_project.flat_projects:
+    #    excludes.append('.cproject')
+    #    excludes.append('.project')
 
     for f in repo_files:
         f = f.rstrip()
@@ -1146,7 +1152,6 @@ def zip_repo(repo, zipfile, exports, include_binaries=False, force=False, no_app
 
     if repo.git_export:
         log_info("exporting git")
-        log_info(repo)
         for root, dirs, files in os.walk(os.path.join(repo.path, ".git")):
             for f in files:
                 fullpath = os.path.join(root, f)
@@ -1360,7 +1365,7 @@ def rst_make_title(title, ch):
     return [title, underline, '']
 
 def xpd_update_readme(repo, options, args,
-                      xmos_package=False, write_back=True,
+                      xmos_package=True, write_back=True,
                       use_current_version=False, doclinks=False, new_release=None):
     """ Updates the README.rst and returns the contents.
     """
@@ -1437,6 +1442,7 @@ def xpd_update_readme(repo, options, args,
         rel = new_release
     else:
         rel = repo.current_release()
+        print(f"current_release: {rel}")
 
     if rel:
         version_string = str(rel.version)
@@ -1452,7 +1458,7 @@ def xpd_update_readme(repo, options, args,
     if version_string:
         new_header += ":Version: %s\n" % version_string
     if version_string != str(repo.latest_release().version):
-        new_header += ":Latest release: %s\n" % repo.latest_release().version
+        new_header += ":Latest release: %s" % repo.latest_release().version
 
     if xmos_package and repo.vendor:
         new_header += ":Vendor: %s\n" % repo.vendor
@@ -1508,19 +1514,17 @@ def xpd_update_readme(repo, options, args,
                 doc_header += '\n\n'
             else:
                 lines += ['Documentation\n', '=============\n', '\n',
-                          'You can find the documentation for this software in the doc/ directory of the package.\n\n']
+                          'You can find the documentation for this software in the /doc directory of the package.\n\n']
 
-        support = """Support
-=======
+        support = ['Support\n', '=======\n', '\n', 'This package is supported by XMOS Ltd. Issues can be raised against the software at: http://www.xmos.com/support\n']
 
-This package is supported by XMOS Ltd. Issues can be raised against the software at: http://www.xmos.com/support
-"""
+        lines += support
 
-        lines += [x+'\n' for x in support.split('\n')]
-
+    new_header = new_header.rstrip()
     new_header = [x + '\n' for x in new_header.split('\n')]
     doc_header = [x + '\n' for x in doc_header.split('\n')]
 
+    prologue[0] = '-DELETED-\n' #hack
     lines = heading + new_header + prologue + doc_header + lines
 
     for i in range(len(lines)-1):
@@ -1884,7 +1888,7 @@ def xpd_diff(repo, options, args):
     common_deps_of_two_versions = set(dep_map1.keys()) & set(dep_map2.keys())
     only_in_version1 = set(dep_map1.keys()) - set(common_deps_of_two_versions)
     only_in_version2 = set(dep_map2.keys()) - set(common_deps_of_two_versions)
-    
+
     if options.output_file:
         output_file = open(options.output_file, 'w')
     else:
@@ -2032,33 +2036,36 @@ def xpd_check_partinfo(repo, options, args):
 # TODO we could use xdoc package. However, its in currently in py2.
 # For the moment we will use xdoc as tool installed by xdoc_released
 def xpd_build_docs(repo, options=None, args=None, buildlatex=True, local_only=False):
-   
+
     errors = 0
 
     if options.nodocs:
+        log_info("--nodocs. Skipping")
         return
 
-        log_info(f"Building docs in {repo.path}")
+    log_info(f"Building docs in {repo.path}")
+
     for docdir in repo.docdirs:
-        
+
         if not os.path.exists(os.path.join(repo.path, docdir)):
             log_error("%s: docdir '%s' does not exist" % (repo.name, docdir))
             errors = errors + 1
             break
 
         log_info(f"    {docdir}")
-        
+
         (stdout_lines, stderr_lines) = call_get_output(["xdoc", "xmospdf"], cwd=docdir)
 
         output = "".join(stdout_lines)
         output = output.join(stderr_lines)
-      
+
         for line in output.lower():
-            if "error" in line:
-                if "details of errors/warnings" not in line: 
+            if "error" in line and "details of errors/warnings" not in line:
+                    errors = errors + 1
+            if "Traceback" in line:
                     errors = errors + 1
 
-    if errors: 
+    if errors:
         log_error(f"Error building doc: {docdir}")
     else:
         log_info("Building docs ok")
@@ -2491,7 +2498,7 @@ def xpd_show_project_deps(repo, options, args):
         log_info(deps)
 
 
-            
+
 
 
 common_commands =  [
@@ -2521,7 +2528,7 @@ other_commands =[
             ("dump_deps", "Dump deps info to file (DEBUG)"),
 
             # TODO:
-            
+
             ("checkout", "Checkout release"),
             ("validate_swblock", "Validate swblock"),
             ("get_deps", "Clone the dependencies of this repository. Optionally takes a version."),
@@ -2542,21 +2549,21 @@ def get_git_dir(path):
 
     return git_dir
 
-def create_repo(path, search_for_deps=True):
+def create_repo(options, path, search_for_deps=True):
 
-    repo__ = Repo_(path)
+    repo__ = Repo_(path, git_export=options.gitexport)
 
     # Update component and repo dependencies
     repo__.components = repo__.get_software_blocks(is_update=True, search_for_deps = search_for_deps)
 
     for c in repo__.components:
 
-        for d in c.dependencies: 
+        for d in c.dependencies:
             d_repo_path = repo__.find_repo_containing_module_path(str(d))
 
     if search_for_deps:
         for rd in repo__.dependencies:
-            rd.repo = create_repo(rd.get_local_path())
+            rd.repo = create_repo(options, rd.get_local_path())
 
     return repo__
 
@@ -2587,6 +2594,11 @@ if __name__ == "__main__":
 
     optparser.add_option("--nobuild", dest="nobuild", action="store_true", default=False,
                          help="Do not build when creating a release/package")
+
+    # By default we do not export git history in release zips, however it is useful during debug to check
+    # for any changes in the release zip
+    optparser.add_option("--gitexport", dest="gitexport", action="store_true", default=False,
+                         help="Export git info in release zips")
 
     optparser.add_option("--nodocs", dest="nodocs", action="store_true", default=False,
                          help="Do not build docs when creating a release/package")
@@ -2620,7 +2632,7 @@ if __name__ == "__main__":
     if command in ["list", "find_assets", "build_docs"]:
         search_for_deps = False
 
-    
+
     #FIXME
     #if command not in ["get_deps", "list", "create_dp", "init_dp_sources", "checkout"]:
     #    for dep in repo__.get_all_deps_once():
@@ -2639,8 +2651,8 @@ if __name__ == "__main__":
         if command == 'publish_github':
             options.github = True
 
-        repo__ = create_repo(".", search_for_deps)
-        
+        repo__ = create_repo(options, ".", search_for_deps)
+
         command_fn = eval("xpd_%s" % command)
 
         if command_fn(repo__, options, args):
@@ -2649,7 +2661,7 @@ if __name__ == "__main__":
 
         print_status_summary()
 
-   
+
 
 
     else:

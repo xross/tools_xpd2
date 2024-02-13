@@ -773,13 +773,13 @@ class Repo_(XmlObject):
     boards = XmlValueList()
     path = None
 
-    def __init__(self, path, parenthash=None, master=False, create_master=False, **kwargs):
+    def __init__(self, path, parenthash=None, master=False, create_master=False, git_export=True, **kwargs):
         path = os.path.abspath(path)
         self.path = path
         self.name = os.path.split(self.path)[-1]
         self.git = True
         self.sb = None
-        self._git_export = True
+        self._git_export = git_export
         self.branched_from_version = None
         self._repo_cache = {self.path:self}
         self._components = []
@@ -1052,10 +1052,15 @@ class Repo_(XmlObject):
                 self.git_checkout(ref, silent=True)
 
     def commit_release(self, release):
-        
+       
+        print("commit_release")
+
         if self.git:
             call(["git", "commit", "-m", "'Release: %s'" % str(release.version)],
                             cwd=self.path, silent=True)
+            print("done commit")
+        else:
+            print("self.git was none")
         self.record_release(release)
 
     def latest_release(self, release_filter=None):
@@ -1419,6 +1424,8 @@ class Repo_(XmlObject):
     def get_software_blocks(self, is_update=False, search_for_deps=True):
         
         components = self.get_software_blocks_(self.path, is_update, search_for_deps)
+
+        # Currently we don't include dependencies of examples 
         #if os.path.exists(os.path.join(self.path, "examples")):
         #    components += self.get_software_blocks_(os.path.join(self.path,"examples"), is_update, search_for_deps)
         return components
@@ -1558,7 +1565,7 @@ class Repo_(XmlObject):
           self.dep_iter("git checkout %s" % version_name)
           return None
 
-      rel = self.get_release(version)
+      rel = self.het_release(version)
       if not rel:
         log_error("Release '%s' not found" % version)
         sys.exit(1)
@@ -1637,9 +1644,13 @@ class Repo_(XmlObject):
     def git_tag(self, version_string):
         v = Version(version_str=version_string)
 
+        print("git_tag: " + str(version_string))
         rel = self.get_release(v)
+        print(str(rel))
+        print(str(rel.parenthash))
 
         relhash = self.get_child_hash(rel.parenthash)
+        print(str(relhash))
 
         if not relhash:
            log_error("Cannot determine release hash")
