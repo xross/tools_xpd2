@@ -79,14 +79,14 @@ def changelog_str_to_version(version_str):
 def get_project_immediate_deps(repo, project, is_update=False):
     def create_component_dependencies(modules_str, is_update):
       deps = []
-    
+
       for module_str in modules_str.split(' '):
         if module_str in ["", "\\"]:
             continue
-       
+
         module_name = module_str
 
-        # Try and extract the version we want 
+        # Try and extract the version we want
         module_req_version = re.findall('\((.*?)\)', module_str)
 
         if module_req_version:
@@ -99,19 +99,19 @@ def get_project_immediate_deps(repo, project, is_update=False):
         dep.module_name = module_name
 
         mrepo = repo.get_module_repo(module_name, is_update)
-        
+
         if (mrepo):
             dep.repo = normalize_repo_uri(mrepo.location)
         else:
             # We are not currently tracking the repo so add it
-            okay = repo.add_dep(module_name) 
-            
+            okay = repo.add_dep(module_name)
+
             if okay:
                 mrepo = repo.get_module_repo(module_name, is_update)
                 dep.repo = normalize_repo_uri(mrepo.location)
 
         version = repo.get_lib_version(module_name)
-   
+
 
         if version:
             dep.version = version
@@ -121,7 +121,7 @@ def get_project_immediate_deps(repo, project, is_update=False):
 
         if module_req_version:
             dep.required_version = RequiredVersion(module_req_version)
-        
+
         deps.append(dep)
       return deps
 
@@ -130,27 +130,27 @@ def get_project_immediate_deps(repo, project, is_update=False):
     deps = []
 
     in_modules = False
-    
+
     if os.path.exists(modinfo):
 
         lines = open(modinfo).readlines()
 
         for i in range(0, len(lines)):
-    
+
             line = lines[i]
 
             m = re.match('.*DEPENDENT_MODULES\s*[+]?=\s*(.*)',line)
             if m:
-              
+
                 modules_str = m.groups(0)[0]
-              
+
                 # Handle lists of modules with \
                 line_ = line
                 while(line_.strip().endswith("\\")):
                     i = i + 1
                     line_ = lines[i].strip()
                     modules_str = modules_str[:-1] + line_
-                
+
                 deps += create_component_dependencies(modules_str, is_update)
 
     if os.path.exists(mkfile):
@@ -252,7 +252,7 @@ class Version(object):
     def __eq__(self, other):
         return (self.major, self.minor, self.point) == (other.major, other.minor, other.point)
 
-    def __hash__(self): 
+    def __hash__(self):
         return hash((self.major, self.minor, self.point))
 
     def __str__(self):
@@ -333,12 +333,12 @@ class RequiredVersion(Version):
         '=' : operator.eq,
         '>' : operator.gt,
         '<' : operator.lt,
-        '<=' : operator.le, 
-        '>=' : operator.ge 
+        '<=' : operator.le,
+        '>=' : operator.ge
     }
 
     def __init__(self, version_str, **kwargs):
-       
+
         if version_str[:1] in self.operators:
             self._op = version_str[:2]
             version_str = version_str[2:]
@@ -353,8 +353,8 @@ class RequiredVersion(Version):
     # Check a version meets this requirement
     def met_by(self, version: Version) -> bool:
         op_func = self.operators[self._op]
-        return op_func(version, self) 
-        
+        return op_func(version, self)
+
     def __str__(self):
         return self._op + super().__str__()
 
@@ -369,8 +369,8 @@ class ComponentDependency():
         self._required_githash = required_githash
         self._repo = None
 
-    #This is a string eg git://github.com/repo_name 
-    @property 
+    #This is a string eg git://github.com/repo_name
+    @property
     def repo(self):
         return self._repo
 
@@ -432,7 +432,7 @@ class Dependency():
     #githash = XmlValue(required=True)
     #gitbranch = XmlValue()
     #version_str = XmlValue(tagname="version")
-    
+
     def __init__(self, parent, repo_name:str, repo=None):
         self._version = None
         self.parent = parent #Repo_()
@@ -448,11 +448,11 @@ class Dependency():
     def repo(self, r):
         self._repo = r
 
-    @property 
+    @property
     def uri(self):
         return self._repo.uri()
 
-    @property 
+    @property
     def githash(self):
         return self._repo.current_githash()
 
@@ -463,7 +463,7 @@ class Dependency():
     @property
     def version(self):
         return self._version
-   
+
     @version.setter
     def version(self, v):
         self._version = v
@@ -546,10 +546,10 @@ class Release_:
         self.path = path
         self.version = None
         self._notes = notes
-      
+
         #print("Release("+version_str+")")
         if version_str:
-            try: 
+            try:
                 self.version = Version(version_str=self.version_str)
             except VersionParseError:
                 raise VersionParseError
@@ -585,12 +585,12 @@ class Release_:
             git_hash = None
 
         (stdout_lines0, stderr_lines0) = call_get_output(["git", "rev-parse", git_hash+"^"], cwd=self.path)
-        
+
         if stdout_lines0:
             parent_hash = stdout_lines0[0].strip()
         else:
             parent_hash = None
-        
+
         return (git_hash, parent_hash)
 
     def __str__(self):
@@ -716,7 +716,7 @@ class Component(XmlObject):
         return "<" + self.repo.name + ":" + self.name  + ">"
 
     def is_module(self):
-        return re.match('module_.*',self.id) or re.match('lib_.*',self.id) 
+        return re.match('module_.*',self.id) or re.match('lib_.*',self.id)
 
     def is_published(self):
         if self.repo.include_dirs != []:
@@ -726,19 +726,19 @@ class Component(XmlObject):
         return True
 
     def readme_path(self):
-        
+
         read_me_path = os.path.join(self.repo.path, self.path, 'README.rst')
 
         if os.path.exists(read_me_path):
             return read_me_path
 
         read_me_path = os.path.join(self.repo.path, 'README.rst')
-        
+
         if os.path.exists(read_me_path):
             return read_me_path
 
         return None
-        
+
 
 
     def has_readme(self):
@@ -795,7 +795,7 @@ class Repo_(XmlObject):
         self.include_binaries = any(self.name.startswith(i) for i in INCLUDE_BINARIES)
 
         self._maintainers = self._find_maintainers()
-        
+
         self.find_releases() # Populate self._releases
 
         self._find_docdirs() # Populates self._docdirs
@@ -839,11 +839,11 @@ class Repo_(XmlObject):
         if not master and (not parenthash or create_master):
             self.master_repo = Repo_(self.path, master=True)
             self.merge_releases(self.master_repo)
-   
+
     @property
     def git_export(self):
         return self._git_export
-   
+
     @property
     def docdirs(self):
         return self._docdirs
@@ -857,16 +857,16 @@ class Repo_(XmlObject):
 
         base_url = "https://api.github.com/repos/"
         uri = self.uri()
-   
+
         if ".git" not in uri:
             uri = uri + ".git"
 
         if uri.find("github.com") == -1:
             return None
-    
+
         m = re.match(".*github.com[:/](.*)\.git", uri)
-       
-        if m: 
+
+        if m:
             user_repo = m.groups(0)[0]
         else:
             # TODO: handle
@@ -883,24 +883,24 @@ class Repo_(XmlObject):
 
         if ".git" not in uri:
             uri = uri + ".git"
-    
+
         if uri.find("github.com") == -1:
             return None
-    
+
         m = re.match(".*github.com[:/](.*)\.git", uri)
         user_repo = m.groups(0)[0]
 
         api_url = base_url + user_repo + "/releases"
         return api_url
-    
+
     @property
     def github_user(self):
 
         uri = self.uri()
-    
+
         if uri.find("github.com") == -1:
             return None
-    
+
         m = re.match(".*github.com[:/](.*)/", uri)
         user_repo = m.groups(0)[0]
 
@@ -927,7 +927,7 @@ class Repo_(XmlObject):
     def _find_docdirs(self):
 
         for root, dirs, files in os.walk(self.path):
-           
+
             if "rst" in dirs:
                 docpath = root
                 if "_build" not in docpath:
@@ -935,11 +935,18 @@ class Repo_(XmlObject):
 
     def find_releases(self):
 
-        (stdout_lines, stderr_lines) = call_get_output(["git", "tag", "--merged", "remotes/origin/master", "-l", "v*"], cwd=self.path)
-        
+        # RSO made this change to pickup releases on maintenence branches
+        (stdout_lines, stderr_lines) = call_get_output(["git", "tag", "-l", "v*"], cwd=self.path)
+
+        #(stdout_lines, stderr_lines) = call_get_output(["git", "tag", "--merged", "remotes/origin/master", "-l", "v*"], cwd=self.path)
+
+        # try main
+        #if stdout_lines == []:
+        #    (stdout_lines, stderr_lines) = call_get_output(["git", "tag", "--merged", "remotes/origin/main", "-l", "v*"], cwd=self.path)
+
         for line in stdout_lines:
             line = str(line).replace('v','').replace('\n','')
-        
+
             try:
                 release = Release_(version_str=line, path=self.path)
                 self._releases.append(release)
@@ -956,14 +963,14 @@ class Repo_(XmlObject):
                 rel.merge(rel_other)
             else:
                 self._releases.append(rel_other)
-    
+
     # Returns all releases matching a certain verison (we could have 1.0.0alpha and 1.0.0beta for example)
     def get_releases(self, version):
-        
+
         releases = []
         for r in self._releases:
             if r.version == version:
-                releases.append(r)        
+                releases.append(r)
         return releases
 
     def get_release(self, version):
@@ -1009,10 +1016,10 @@ class Repo_(XmlObject):
         name = tag_name
         body = "\n".join(release.notes)
         prerelease = False
-        
+
         if any(pre in tag_name for pre in ('alpha', 'beta', 'rc')):
             prerelease = True
-        
+
         try:
             gh.github_api_call(
                 url_suffix=url_suffix,
@@ -1043,7 +1050,7 @@ class Repo_(XmlObject):
 
                 if error:
                     log_error("Could not checkout master branch")
-                    return 
+                    return
 
                 master_repo = Repo_(self.path)
                 master_repo.releases.append(release)
@@ -1052,7 +1059,7 @@ class Repo_(XmlObject):
                 self.git_checkout(ref, silent=True)
 
     def commit_release(self, release):
-       
+
         print("commit_release")
 
         if self.git:
@@ -1091,7 +1098,7 @@ class Repo_(XmlObject):
     def current_release(self):
         if not self.path:
             return None
-       
+
         parent_hash = exec_and_match(["git","rev-parse","HEAD~1"],r'(.*)',cwd=self.path)
 
         rels = []
@@ -1128,7 +1135,7 @@ class Repo_(XmlObject):
             comp.repo = self
 
         self.parse_changelog()
-        
+
         # Prune out releases not in change log
         # TODO warn?
         changelog_versions = []
@@ -1245,13 +1252,13 @@ class Repo_(XmlObject):
         return [d.repo for d in self.get_all_deps_once()] + [self]
 
     def add_dep(self, name):
-       
+
         if self.get_dependency(name):
             log_error("Dependency already exists")
             return False
 
         dep = Dependency(parent=self, repo_name=name)
-        
+
         if not os.path.isdir(dep.get_local_path()):
             log_error("Cannot add dependency '%s' as folder '%s' does not exist" % (name, dep.get_local_path()))
             return False
@@ -1313,7 +1320,7 @@ class Repo_(XmlObject):
         if git_only:
 
             # Originally cloning from a local repo - but when the README is updated using this temp SB the URIs are wrong.
-            # Ideally clone locally since this saves us some time and we can be offline... 
+            # Ideally clone locally since this saves us some time and we can be offline...
             # For now use a half way house and use local as reference
             (stdout_lines, stderr_lines) = call_get_output(["git", "clone", "--reference", self.path, "--dissociate", self.uri()], cwd=path)
             # Note, tree-less clone to keep size down
@@ -1369,7 +1376,7 @@ class Repo_(XmlObject):
         if rel:
             #return rel.version.final_version_str()
             return rel.version
-        
+
         return None
 
     def get_module_repo(self, module_name, is_update):
@@ -1384,7 +1391,7 @@ class Repo_(XmlObject):
             return self
         else:
             repo_dep = self.get_dependency(repo_name)
-           
+
             if repo_dep and repo_dep.repo:
                 return repo_dep.repo
 
@@ -1398,7 +1405,7 @@ class Repo_(XmlObject):
     def get_software_blocks_(self, path, is_update, search_for_deps):
         #path = self.path
         components = []
-        for x in os.listdir(path): 
+        for x in os.listdir(path):
             if x == 'doc':
                 continue
             if x in self.exclude_dirs:
@@ -1422,10 +1429,10 @@ class Repo_(XmlObject):
         return components
 
     def get_software_blocks(self, is_update=False, search_for_deps=True):
-        
+
         components = self.get_software_blocks_(self.path, is_update, search_for_deps)
 
-        # Currently we don't include dependencies of examples 
+        # Currently we don't include dependencies of examples
         #if os.path.exists(os.path.join(self.path, "examples")):
         #    components += self.get_software_blocks_(os.path.join(self.path,"examples"), is_update, search_for_deps)
         return components
@@ -1438,7 +1445,7 @@ class Repo_(XmlObject):
 
     def get_modules(self):
         return self.get_libs()
-    
+
 
     def get_dependency(self, dep_name):
         for dep in self.dependencies:
@@ -1664,7 +1671,7 @@ class Repo_(XmlObject):
                     ["git", "diff", "-r", hash1, "-r", hash2], cwd=self.path)
             for line in stdout_lines + stderr_lines:
                 output_file.write(line)
-                
+
         else:
             call(["git", "diff", "-r", hash1, "-r", hash2], cwd=self.path)
 
@@ -1916,7 +1923,7 @@ class Repo_(XmlObject):
                         if module_dir == module_name:
                             return dep_repo
         return None
-    
+
     #TODO tidy
     def find_repo_containing_module_path(self, module_name):
         root_dir = os.path.join(self.path, "..")
