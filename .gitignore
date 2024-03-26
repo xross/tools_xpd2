@@ -3,3 +3,6 @@
 *.bak
 *.swp
 *.swo
+
+.python-version
+.venv
