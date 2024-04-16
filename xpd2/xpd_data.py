@@ -1,5 +1,6 @@
 from pathlib import Path
 from xpd_cmake import generate_cmake, Manifest_
+from xmos_logging import log_indent, log_unindent, log_error, log_warning, log_info, log_debug, configure_logging, print_status_summary
 import os
 
 class Repo_():
@@ -48,11 +49,11 @@ class Repo_():
         pass
 
     def print(self):
-        print(f"           Name : {self.longname}")
-        print(f"           Path : {self.path}")
-        print(f"       Location : {self.uri}")
-        print(f"        Version : {self.current_githash}")
-        print(f"        Release : {self.current_release}")
+        log_info(f"           Name : {self.longname}")
+        log_info(f"           Path : {self.path}")
+        log_info(f"       Location : {self.uri}")
+        log_info(f"        Version : {self.current_githash}")
+        log_info(f"        Release : {self.current_release}")
 
 
 
@@ -63,7 +64,7 @@ class Sandbox_(Repo_):
         manifest = Manifest_(path / 'build' / 'manifest.txt')
         if not manifest.exists():
             #TODO - error handeling (this is another check that the manifest exists, probably not required)
-            print("ERROR: manifest not found")
+            log_error("Manifest not found")
             pass
         else:
             manifest_items = manifest.items()
@@ -75,11 +76,17 @@ class Sandbox_(Repo_):
                 self._deps.append(Repo_(dep_path,dep))
 
     def print(self):
+        log_info("INFO:\n")
         super().print()
-        print("Dependencies:")
+        log_info("   Dependencies :")
+        log_indent()
         for dep in self._deps:
             dep.print()
+            log_info("\n")
+        log_unindent()
 
+
+configure_logging()
 manifest_location = Path(os.getcwd())
 
 sandbox = Sandbox_(manifest_location)

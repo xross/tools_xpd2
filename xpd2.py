@@ -2,6 +2,7 @@
 
 VERSION = "2.0"
 
+from xmos_logging import log_error, log_warning, log_info, log_debug, configure_logging, print_status_summary
 from optparse import OptionParser
 
 
@@ -17,6 +18,7 @@ WIP_commands = [
 ]
 
 def main():
+    configure_logging()
     usage = "usage: %prog command [options]"
     usage += "\n\nMost useful commands:\n\n"
     for c in common_commands:
@@ -34,6 +36,11 @@ def main():
     (options, args) = optparser.parse_args()
     if len(args) < 1:
         optparser.error("Please specify a command")
+
+    command = args[0]
+
+    args = args[1:]
+
 
 if __name__ == "__main__":
     main()
