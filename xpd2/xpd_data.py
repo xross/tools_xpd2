@@ -3,7 +3,71 @@ from xpd2.xpd_cmake import generate_cmake, Manifest_
 from xmos_logging import log_indent, log_unindent, log_error, log_warning, log_info, log_debug, configure_logging, print_status_summary
 import os, re
 from functools import total_ordering
-from enum import Enum
+import subprocess
+
+
+
+
+class VersionParseError(Exception):
+    def __str__(self):
+        return "VersionParseError"
+
+@total_ordering
+class Release:
+
+    def __init__(self, version_str=None, path=None, virtual=False, notes = None):
+
+        self.parenthash = None
+        self.githash = None
+        self.virtual = virtual
+        self.path = path
+        self.version = None
+        self._notes = notes
+
+        if version_str:
+            try:
+                self.version = Version(version_str=version_str)
+            except VersionParseError:
+                raise VersionParseError
+
+        if path:
+            (self.githash, self.parenthash) = self._find_hashes()
+
+    @property
+    def notes(self):
+        return self._notes
+
+    @notes.setter
+    def notes(self, n):
+        self._notes = n
+
+    def __lt__(self, other):
+        return self.version < other.version
+
+    def __eq__(self, other):
+        return self.version == other.version
+
+    def _find_hashes(self):
+
+        # Return hash at tag and parent
+        result = subprocess.run(["git", "rev-list", "-n", "1", "v"+str(self.version)], capture_output=True, universal_newlines=True)
+        stdout_lines = result.stdout.splitlines()
+
+        if stdout_lines:
+            git_hash = stdout_lines[0].strip()
+
+        result = subprocess.run(["git", "rev-parse", git_hash+"^"], capture_output=True, universal_newlines=True)
+        stdout_lines0 = result.stdout.splitlines()
+
+        if stdout_lines0:
+            parent_hash = stdout_lines0[0].strip()
+        else:
+            parent_hash = None
+
+        return (git_hash, parent_hash)
+
+    def __str__(self):
+        return "<release:" + str(self.version) + ">"
 
 @total_ordering
 class Version(object):
@@ -175,10 +239,10 @@ class Repo_():
     has_local_modifications = None
     current_branch          = None
     get_apps                = None
-    releases                = None
+    _releases               = None
     repotype                = None
 
-    def __init__(self, path: Path, manifest_item: dict | None = None):
+    def __init__(self, path: Path, manifest_item):
         self.path = path.resolve(strict=False)
         if manifest_item is not None:
             self._parse_manifest_item(manifest_item)
@@ -190,6 +254,8 @@ class Repo_():
             self.repotype = "lib"
         elif(self.longname.startswith("an")):
             self.repotype = "appnote"
+
+        self._releases  = self._find_releases()
 
     def _parse_manifest_item(self, manifest_item):
         self.longname = manifest_item.get('Name', None)
@@ -205,9 +271,9 @@ class Repo_():
             # TODO - maybe this should raise an exception?
             log_error("Manifest.txt headings don't match expected.")
 
-
     def _Tag(self):
         pass
+
     def _verify_tag_and_set_current_release(self, detected_tag, required_tag):
         if None in [detected_tag, required_tag]:
             log_error(f"Manifest pase error, unable to read Branch/tag: {detected_tag} or Dependency_requirement: {required_tag}")
@@ -226,6 +292,31 @@ class Repo_():
         pass
     def _check_licence(self):
         pass
+
+    @property
+    def releases(self):
+        rels = self._releases
+        rels.sort()
+        rels.reverse()
+        return rels
+
+    def _find_releases(self):
+
+        releases = []
+
+        result = subprocess.run(["git", "tag", "--merged", "remotes/origin/master", "-l", "v*"], capture_output=True, universal_newlines=True)
+        stdout = result.stdout.splitlines()
+
+        for line in stdout:
+            line = str(line).replace('v','').replace('\n','')
+
+            try:
+                release = Release(version_str=line, path=self.path)
+                releases.append(release)
+            except VersionParseError:
+                log_warning(f'Bad version in tag: {str(line)}')
+
+        return releases
 
     def print(self):
         log_info(f"           Name : {self.longname}")
