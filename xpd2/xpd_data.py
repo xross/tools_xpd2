@@ -1,5 +1,6 @@
+from xmos_git_utils import get_repo, get_current_githash
 from pathlib import Path
-from xpd2.xpd_cmake import generate_cmake, Manifest_
+from xpd_cmake import generate_cmake, Manifest_
 from xmos_logging import log_indent, log_unindent, log_error, log_warning, log_info, log_debug, configure_logging, print_status_summary
 import os, re
 from functools import total_ordering
@@ -29,31 +30,25 @@ class Version(object):
             self.parse_string(version_str)
 
     def parse_string(self, version_string):
-        m = re.match(r'(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)_([-\w*])_(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)', version_string)
+        m = re.match(r'[vV]?(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)_([-\w*])_(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)', version_string)
+        # what is this used for 
 
         if m:
             on_branch = True
         else:
             on_branch = False
-            m = re.match(r'(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)', version_string)
+            m = re.search(r'[vV]?(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)', version_string)
             if not m:
-              m = re.match(r'([^v])v(\d)(\d?)(alpha|beta|rc|)(\d*)', version_string)
+              m = re.match(r'(\d+)[vV](\d)(\d*)(alpha|beta|rc|)(\d*)', version_string)
+              # do we want this
         if not m:
-            log_error("Version parse error")
-            # raise VersionParseError
+            raise Exception("VersionParseError")
 
-        self.major = int(m.groups(0)[0])
-        self.minor = int(m.groups(0)[1])
-        point = m.groups(0)[2]
-        if point == '':
-            point = '0'
-        self.point = int(point)
-        self.rtype = m.groups(0)[3]
-        self.rnumber = m.groups(0)[4]
-        if self.rnumber == "":
-            self.rnumber = 0
-        else:
-            self.rnumber = int(self.rnumber)
+        self.major   = 0         if m.group(1) == '' else int(m.group(1))
+        self.minor   = 0         if m.group(2) == '' else int(m.group(2))
+        self.point   = 0         if m.group(3) == '' else int(m.group(3))
+        self.rtype   = "release" if m.group(4) == '' else     m.group(4)
+        self.rnumber = 0         if m.group(5) == '' else int(m.group(5))
 
         if on_branch:
             self.branch_name = m.groups(0)[5]
@@ -164,11 +159,11 @@ class Version(object):
            return False
 
 class Repo_():
-    longname                = None
-    path                    = None
-    uri                     = None
-    current_githash         = None
-    current_release         = None
+    longname                = None #set by init
+    path                    = None #set by init
+    uri                     = None #set by init
+    current_githash         = None #set by init
+    current_release         = None 
     required_release        = None
     latest_release          = None
     latest_prerelease       = None
@@ -176,47 +171,56 @@ class Repo_():
     current_branch          = None
     get_apps                = None
     releases                = None
-    repotype                = None
+    repotype                = None #set by init
 
     def __init__(self, path: Path, manifest_item: dict | None = None):
         self.path = path.resolve(strict=False)
+        self.uri = get_repo(self.path)
+        if self.uri is None: 
+            raise Exception(f"{self.path} is not a git repo")
+        self.longname = list(filter(None, re.split(r'.*/|\.git',self.uri)))[0]
+        self.current_githash = get_current_githash(self.path)
+        self._set_repotype()
+
         if manifest_item is not None:
-            self._parse_manifest_item(manifest_item)
-        self._parse_changelog()
+            self._versions_from_manifest(manifest_item)
+        else:
+            # TODO - assume if no manifest line then it's the top level and go explore for apps & examples to build for dependencies? 
+            pass
 
-        if(self.longname.startswith("sw_")):
-            self.repotype = "app"
-        elif(self.longname.startswith("lib_")):
-            self.repotype = "lib"
-        elif(self.longname.startswith("an")):
-            self.repotype = "appnote"
+    def _set_repotype(self, repoType=None):
+        if repoType is not None:
+            self.repotype = repoType
+        else:
+            if(self.longname.startswith("sw_")):
+                self.repotype = "app"
+            elif(self.longname.startswith("lib_")):
+                self.repotype = "lib"
+            elif(self.longname.startswith("an")):
+                self.repotype = "appnote"
+            else:
+                self.repotype = "unknown"
 
-    def _parse_manifest_item(self, manifest_item):
-        self.longname = manifest_item.get('Name', None)
-        self.uri = manifest_item.get('Location', None)
-        self.current_githash = manifest_item.get('Changeset', None)
-        self._verify_tag_and_set_current_release(manifest_item.get('Branch/tag', None), manifest_item.get('Dependency_requirement', None))
+    def _versions_from_manifest(self, manifest_item):
+        current_release =  manifest_item.get('Branch/tag', None)
+        required_release = manifest_item.get('Dependency_requirement', None)
+        try:
+            self.current_release = Version(version_str=current_release)
+        except:
+            log_warning(f"{self.longname} not on a release tag {current_release}")
+            self.current_release = current_release
+        try:
+            self.required_release = Version(version_str=required_release)
+        except:
+            log_error(f"{self.longname} required release tag format error {required_release}")
+            self.required_release = required_release
+        if current_release != required_release:
+            log_warning(f"{self.longname} Current tag is {self.current_release}, requires {self.required_release}")
 
-        if None in [
-            self.longname,
-            self.uri,
-            self.current_githash,
-            ]:
-            # TODO - maybe this should raise an exception?
-            log_error("Manifest.txt headings don't match expected.")
 
 
     def _Tag(self):
         pass
-    def _verify_tag_and_set_current_release(self, detected_tag, required_tag):
-        if None in [detected_tag, required_tag]:
-            log_error(f"Manifest pase error, unable to read Branch/tag: {detected_tag} or Dependency_requirement: {required_tag}")
-        elif detected_tag == required_tag:
-            if detected_tag.startswith('v'):
-                detected_tag = detected_tag[1:]
-            self.current_release = Version(version_str=detected_tag)
-        else:
-            log_warning(f"{self.longname} Current tag is {self.current_release}, requires {self.required_release}")
 
     def _parse_changelog(self):
         pass
@@ -268,8 +272,14 @@ class Sandbox_(Repo_):
     def _check_tag(self):
         return True
 
-#configure_logging()
-#manifest_location = Path(os.getcwd())
-
-#sandbox = Sandbox_(manifest_location)
-#sandbox.print()
+configure_logging()
+manifest_location = Path(os.getcwd())
+generate_cmake(manifest_location)
+manifest = Manifest_(manifest_location / 'build' / 'manifest.txt')
+manifest_items = manifest.items()
+for item in manifest_items:
+    item_path = manifest_location.parent / item['Name']
+    repo = Repo_(item_path, item)
+    repo.print()
+# sandbox = Sandbox_(manifest_location)
+# sandbox.print()
