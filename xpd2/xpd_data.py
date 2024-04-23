@@ -1,8 +1,9 @@
 from pathlib import Path
-from xpd_cmake import generate_cmake, Manifest_
+from xpd2.xpd_cmake import generate_cmake, Manifest_
 from xmos_logging import log_indent, log_unindent, log_error, log_warning, log_info, log_debug, configure_logging, print_status_summary
 import os, re
 from functools import total_ordering
+from enum import Enum
 
 @total_ordering
 class Version(object):
@@ -90,7 +91,7 @@ class Version(object):
     def __eq__(self, other):
         return (self.major, self.minor, self.point) == (other.major, other.minor, other.point)
 
-    def __hash__(self): 
+    def __hash__(self):
         return hash((self.major, self.minor, self.point))
 
     def __str__(self):
@@ -162,8 +163,6 @@ class Version(object):
         except:
            return False
 
-
-
 class Repo_():
     longname                = None
     path                    = None
@@ -177,12 +176,20 @@ class Repo_():
     current_branch          = None
     get_apps                = None
     releases                = None
+    repotype                = None
 
     def __init__(self, path: Path, manifest_item: dict | None = None):
         self.path = path.resolve(strict=False)
         if manifest_item is not None:
             self._parse_manifest_item(manifest_item)
         self._parse_changelog()
+
+        if(self.longname.startswith("sw_")):
+            self.repotype = "app"
+        elif(self.longname.startswith("lib_")):
+            self.repotype = "lib"
+        elif(self.longname.startswith("an")):
+            self.repotype = "appnote"
 
     def _parse_manifest_item(self, manifest_item):
         self.longname = manifest_item.get('Name', None)
@@ -195,7 +202,7 @@ class Repo_():
             self.uri,
             self.current_githash,
             ]:
-            # TODO - maybe this should rase an exception? 
+            # TODO - maybe this should raise an exception?
             log_error("Manifest.txt headings don't match expected.")
 
 
@@ -209,7 +216,7 @@ class Repo_():
                 detected_tag = detected_tag[1:]
             self.current_release = Version(version_str=detected_tag)
         else:
-            log_error(f"{self.longname} Current tag is {self.current_release}, requires {self.required_release}")
+            log_warning(f"{self.longname} Current tag is {self.current_release}, requires {self.required_release}")
 
     def _parse_changelog(self):
         pass
@@ -246,7 +253,7 @@ class Sandbox_(Repo_):
             super().__init__(path, sandbox)
 
     # TODO - modify the _verify_tag_and_set_current_release function for sandbox to allow
-    #        the user to increment / update version number for release  
+    #        the user to increment / update version number for release
 
     def print(self):
         log_info("INFO:\n")
@@ -261,8 +268,8 @@ class Sandbox_(Repo_):
     def _check_tag(self):
         return True
 
-configure_logging()
-manifest_location = Path(os.getcwd())
+#configure_logging()
+#manifest_location = Path(os.getcwd())
 
-sandbox = Sandbox_(manifest_location)
-sandbox.print()
+#sandbox = Sandbox_(manifest_location)
+#sandbox.print()
