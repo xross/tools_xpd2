@@ -2,30 +2,39 @@
 
 VERSION = "2.0"
 
-from xmos_logging import log_error, log_warning, log_info, log_debug, configure_logging, print_status_summary
+from xmos_logging import (
+    log_error,
+    log_warning,
+    log_info,
+    log_debug,
+    configure_logging,
+    print_status_summary,
+)
 from optparse import OptionParser
 import sys, os
 from xpd2.xpd_data import Repo, Sandbox
 from pathlib import Path
 
 
-common_commands =  [
-                    ("status", "Show current status (can also use show or info)"),
-                    ("list", "List releases of current repo"),
-                    ]
+common_commands = [
+    ("status", "Show current status (can also use show or info)"),
+    ("list", "List releases of current repo"),
+]
 
 other_commands = []
 
 hidden_commands = []
 
 WIP_commands = [
-    ("update","update %prog to latest version"),
+    ("update", "update %prog to latest version"),
     ("show_deps", "Show dependencies"),
 ]
+
 
 def xpd_status(sandbox, options, args):
 
     sandbox.print()
+
 
 def xpd_list(sandbox, options, args):
 
@@ -34,20 +43,24 @@ def xpd_list(sandbox, options, args):
 
     number_to_show = 10
     if len(rels) > number_to_show and not options.show_all:
-        log_info("Only showing %d most recent releases. Use 'xpd list --all' to see all releases" % number_to_show)
+        log_info(
+            "Only showing %d most recent releases. Use 'xpd list --all' to see all releases"
+            % number_to_show
+        )
 
-    for i,rel in enumerate(rels):
+    for i, rel in enumerate(rels):
         if i == number_to_show and not options.show_all:
             break
 
         if rel.virtual == "True":
             log_info("%s (unknown git location)" % str(rel.version))
         else:
-            #log_info(str(rel.version) + " parenthash: " + str(rel.parenthash))
+            # log_info(str(rel.version) + " parenthash: " + str(rel.parenthash))
             log_info(str(rel.version))
             if rel.notes:
                 for n in rel.notes:
                     log_info(str(n))
+
 
 def main():
     configure_logging()
@@ -64,9 +77,15 @@ def main():
     for c in WIP_commands:
         usage += "%20s: %s" % (c[0], c[1])
 
-    optparser = OptionParser(usage=usage,version=f"\%prog {VERSION}")
+    optparser = OptionParser(usage=usage, version=f"\%prog {VERSION}")
 
-    optparser.add_option("--all", dest="show_all", action="store_true", default=False, help="Show all options")
+    optparser.add_option(
+        "--all",
+        dest="show_all",
+        action="store_true",
+        default=False,
+        help="Show all options",
+    )
 
     (options, args) = optparser.parse_args()
     if len(args) < 1:
@@ -78,10 +97,9 @@ def main():
         optparser.print_help()
         sys.exit(0)
 
-
     repo_path = Path(os.getcwd())
 
-    print("top level repo:" +str(repo_path))
+    print("top level repo:" + str(repo_path))
 
     sandbox = Sandbox(repo_path)
 
@@ -89,6 +107,7 @@ def main():
     command_fn(sandbox, options, args)
 
     args = args[1:]
+
 
 if __name__ == "__main__":
     main()
