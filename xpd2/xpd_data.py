@@ -1,11 +1,28 @@
 from xmos_git_utils import get_repo, get_current_githash
 from pathlib import Path
-from xpd2.xpd_cmake import generate_cmake, Manifest_
-from xpd2.xpd_version import Version
+from xpd2.xpd_cmake import generate_manifest, Manifest
+from xpd2.xpd_version import Version, VersionParseError
 from xmos_logging import log_indent, log_unindent, log_error, log_warning, log_info, log_debug, configure_logging, print_status_summary
 import os, re
 from functools import total_ordering
 import subprocess
+
+def exec_and_match(command, regexp, cwd=None):
+
+    result = subprocess.run(command, capture_output=True, universal_newlines=True, cwd=cwd)
+    stdout_lines = result.stdout.splitlines()
+
+    for line in stdout_lines:
+        m = re.match(regexp, line)
+        if m:
+            return m.groups(0)[0]
+    return None
+
+def call_get_output(command, cwd=None):
+    result = subprocess.run(command, capture_output=True, universal_newlines=True, cwd=cwd)
+    stdout_lines = result.stdout.splitlines()
+    stderr_lines = result.stderr.splitlines()
+    return (stdout_lines, stderr_lines)
 
 @total_ordering
 class Release:
@@ -28,10 +45,12 @@ class Release:
         if path:
             (self.githash, self.parenthash) = self._find_hashes()
 
-    @property
-    def notes(self):
-        return self._notes
+    #@notes.setter
+    #def notes(self, n):
+    #    self._notes = n
 
+    '''
+    # TODO RSO its not clear to me why we need this. Version string parsing is in Version class
     def parse_string(self, version_string):
         m = re.match(r'[vV]?(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)_([-\w*])_(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)', version_string)
         # what is this used for
@@ -52,10 +71,11 @@ class Release:
         self.point   = 0         if m.group(3) == '' else int(m.group(3))
         self.rtype   = "release" if m.group(4) == '' else     m.group(4)
         self.rnumber = 0         if m.group(5) == '' else int(m.group(5))
+    '''
 
-    @notes.setter
-    def notes(self, n):
-        self._notes = n
+    @property
+    def notes(self):
+        return self._notes
 
     def __lt__(self, other):
         return self.version < other.version
@@ -66,13 +86,13 @@ class Release:
     def _find_hashes(self):
 
         # Return hash at tag and parent
-        result = subprocess.run(["git", "rev-list", "-n", "1", "v"+str(self.version)], capture_output=True, universal_newlines=True)
+        result = subprocess.run(["git", "rev-list", "-n", "1", "v"+str(self.version)], capture_output=True, universal_newlines=True, cwd=self.path)
         stdout_lines = result.stdout.splitlines()
 
         if stdout_lines:
             git_hash = stdout_lines[0].strip()
 
-        result = subprocess.run(["git", "rev-parse", git_hash+"^"], capture_output=True, universal_newlines=True)
+        result = subprocess.run(["git", "rev-parse", git_hash+"^"], capture_output=True, universal_newlines=True, cwd=self.path)
         stdout_lines0 = result.stdout.splitlines()
 
         if stdout_lines0:
@@ -85,56 +105,61 @@ class Release:
     def __str__(self):
         return "<release:" + str(self.version) + ">"
 
-class Repo_():
-    longname                = None #set by init
+class Repo():
+    name                    = None #set by init
     path                    = None #set by init
     uri                     = None #set by init
-    current_githash         = None #set by init
-    current_release         = None
-    required_release        = None
     latest_release          = None
     latest_prerelease       = None
-    has_local_modifications = None
+    _local_modifications    = None
     current_branch          = None
     get_apps                = None
     _releases               = None
     repotype                = None #set by init
+    required_version        = None # The version as required by the manifest (could be a release, githash or -)
+    current_release         = None # The current release version of the repo (None if not a release)
+    current_githash         = None # The githash of that the repo is currently at
 
     def __init__(self, path: Path, manifest_item):
+
+        self.dependencies  = []
+
+        self.name = manifest_item["Name"]
+        self.required_version = manifest_item["Dependency_requirement"]
         self.path = path.resolve(strict=False)
+
+        self._releases  = self._find_releases()
+        self.current_release = self._get_current_release()
+        self.current_githash = get_current_githash(self.path)
         self.uri = get_repo(self.path)
         if self.uri is None:
             raise Exception(f"{self.path} is not a git repo")
-        self.longname = list(filter(None, re.split(r'.*/|\.git',self.uri)))[0]
-        self.current_githash = get_current_githash(self.path)
+
         self._set_repotype()
 
-        if manifest_item is not None:
-            self._versions_from_manifest(manifest_item)
-        else:
-            # TODO - assume if no manifest line then it's the top level and go explore for apps & examples to build for dependencies?
-            pass
+        for dep_name in manifest_item["Depends_on"].split(","):
+            self.dependencies.append(dep_name)
+
+
 
     def _set_repotype(self, repoType=None):
         if repoType is not None:
             self.repotype = repoType
         else:
-            if(self.longname.startswith("sw_")):
+            if(self.name.startswith("sw_")):
                 self.repotype = "app"
-            elif(self.longname.startswith("lib_")):
+            elif(self.name.startswith("lib_")):
                 self.repotype = "lib"
-            elif(self.longname.startswith("an")):
+            elif(self.name.startswith("an")):
                 self.repotype = "appnote"
             else:
                 self.repotype = "unknown"
 
-        self._releases  = self._find_releases()
-
-    def _parse_manifest_item(self, manifest_item):
-        self.longname = manifest_item.get('Name', None)
-        self.uri = manifest_item.get('Location', None)
-        self.current_githash = manifest_item.get('Changeset', None)
-        self._verify_tag_and_set_current_release(manifest_item.get('Branch/tag', None), manifest_item.get('Dependency_requirement', None))
+    #def _parse_manifest_item(self, manifest_item):
+    #    self.name = manifest_item.get('Name', None)
+    #    self.uri = manifest_item.get('Location', None)
+    #    self.current_githash = manifest_item.get('Changeset', None)
+    #    self._verify_tag_and_set_current_release(manifest_item.get('Branch/tag', None), manifest_item.get('Dependency_requirement', None))
 
     def _versions_from_manifest(self, manifest_item):
         current_release =  manifest_item.get('Branch/tag', None)
@@ -142,15 +167,15 @@ class Repo_():
         try:
             self.current_release = Version(version_str=current_release)
         except:
-            log_warning(f"{self.longname} not on a release tag {current_release}")
+            log_warning(f"{self.name} not on a release tag {current_release}")
             self.current_release = current_release
         try:
             self.required_release = Version(version_str=required_release)
         except:
-            log_error(f"{self.longname} required release tag format error {required_release}")
+            log_error(f"{self.name} required release tag format error {required_release}")
             self.required_release = required_release
         if current_release != required_release:
-            log_warning(f"{self.longname} Current tag is {self.current_release}, requires {self.required_release}")
+            log_warning(f"{self.name} Current tag is {self.current_release}, requires {self.required_release}")
 
     def _Tag(self):
         pass
@@ -161,9 +186,9 @@ class Repo_():
         elif detected_tag == required_tag:
             if detected_tag.startswith('v'):
                 detected_tag = detected_tag[1:]
-            self.current_release = Version(version_str=detected_tag)
+            self.current_version = Version(version_str=detected_tag)
         else:
-            log_warning(f"{self.longname} Current tag is {self.current_release}, requires {self.required_release}")
+            log_warning(f"{self.name} Current tag is {self.current_release}, requires {self.required_release}")
 
     def _parse_changelog(self):
         pass
@@ -182,10 +207,9 @@ class Repo_():
         return rels
 
     def _find_releases(self):
-
         releases = []
 
-        result = subprocess.run(["git", "tag", "--merged", "remotes/origin/master", "-l", "v*"], capture_output=True, universal_newlines=True)
+        result = subprocess.run(["git", "tag", "--merged", "remotes/origin/master", "-l", "v*"], capture_output=True, universal_newlines=True, cwd=self.path)
         stdout = result.stdout.splitlines()
 
         for line in stdout:
@@ -199,41 +223,95 @@ class Repo_():
 
         return releases
 
-    def print(self):
-        log_info(f"           Name : {self.longname}")
-        log_info(f"           Path : {self.path}")
-        log_info(f"       Location : {self.uri}")
-        log_info(f"        Version : {self.current_githash}")
-        log_info(f"        Release : {self.current_release}")
+    def _get_current_release(self):
 
-class Sandbox_(Repo_):
-    _deps                    = []
-    def __init__(self, path: Path):
-        generate_cmake(path)
-        manifest = Manifest_(path / 'build' / 'manifest.txt')
-        if not manifest.exists():
-            #TODO - error handeling (this is another check that the manifest exists, probably not required)
-            log_error("Manifest not found")
-            pass
+        if not self.path:
+            return None
+
+        parent_hash = exec_and_match(["git","rev-parse","HEAD~1"],r'(.*)',cwd=self.path)
+
+        rels = []
+        for release in self._releases:
+            if hasattr(release,'parenthash') and parent_hash == release.parenthash:
+                rels.append(release)
+
+        rels.sort()
+
+        if rels != []:
+            return rels[-1]
+
+        return None
+
+    def current_release_or_githash(self, short=False):
+        rel = self.current_release
+        if rel:
+            vstr = str(rel.version)
         else:
-            manifest_items = manifest.items()
-            sandbox = manifest_items[0]
-            deps = manifest_items[1:]
-            for dep in deps:
-                dep_path = path.parent / dep['Name'] #TODO - make this safer
-                self._deps.append(Repo_(dep_path,dep))
-            super().__init__(path, sandbox)
+            if short:
+                vstr = self.current_githash[:8]
+            else:
+                vstr = self.current_githash
+        return vstr
+
+    @property
+    def has_local_modifications(self):
+        if self.local_modifications :
+            return True
+        return False
+
+    @property
+    def local_modifications(self):
+        if self._local_modifications == None:
+            self._local_modifications = self._get_local_modifications()
+        return self._local_modifications
+
+    def _get_local_modifications(self, is_dependency=False, unstaged_only=False):
+        (stdout_lines, stderr_lines) = call_get_output(["git", "update-index", "-q", "--refresh"], cwd=self.path)
+
+        if unstaged_only:
+            (stdout_lines, stderr_lines) = call_get_output(["git", "diff", "--name-only"], cwd=self.path)
+        else:
+            (stdout_lines, stderr_lines) = call_get_output(["git", "diff-index", "--name-only", "HEAD", "--"], cwd=self.path)
+
+        # Ignore files which are changed by xpd unless it is a dependent repo which must have no changes
+        if not is_dependency:
+            stdout_lines = [ x.rstrip() for x in stdout_lines if not re.search("(^fatal:|\.xproject|\.cproject|\.project|xpd.xml)", x) ]
+
+        return stdout_lines
+
+    def print(self):
+        log_info(f"            Name : {self.name}")
+        log_info(f"            Path : {self.path}")
+        log_info(f"        Location : {self.uri}")
+        log_info(f"Required Version : {self.required_version}")
+        local_mod = ""
+        if self.has_local_modifications:
+            local_mod = "(local modifications)"
+        log_info(f"  Actual Version : {self.current_release_or_githash()} {local_mod}")
+        log_info(f"     Dependencies:")
+        for d in self.dependencies:
+            log_info(f"                   {d}")
+
+class Sandbox():
+    _repos                    = []
+    def __init__(self, path: Path):
+
+        generate_manifest(path)
+        manifest = Manifest(path / 'build' / 'manifest.txt')
+
+        for item in manifest.contents:
+            repo_path = path.parent / item['Name']
+            self._repos.append(Repo(repo_path, item))
+
+        #super().__init__(path, sandbox)
 
     # TODO - modify the _verify_tag_and_set_current_release function for sandbox to allow
     #        the user to increment / update version number for release
 
     def print(self):
-        log_info("INFO:\n")
-        super().print()
-        log_info("   Dependencies :")
         log_indent()
-        for dep in self._deps:
-            dep.print()
+        for repo in self._repos:
+            repo.print()
             log_info("\n")
         log_unindent()
 

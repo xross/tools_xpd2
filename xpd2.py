@@ -5,13 +5,13 @@ VERSION = "2.0"
 from xmos_logging import log_error, log_warning, log_info, log_debug, configure_logging, print_status_summary
 from optparse import OptionParser
 import sys, os
-from xpd2.xpd_data import Repo_, Sandbox_
+from xpd2.xpd_data import Repo, Sandbox
 from pathlib import Path
 
 
 common_commands =  [
                     ("status", "Show current status (can also use show or info)"),
-                    ("list", "List releases"),
+                    ("list", "List releases of current repo"),
                     ]
 
 other_commands = []
@@ -23,17 +23,14 @@ WIP_commands = [
     ("show_deps", "Show dependencies"),
 ]
 
-def xpd_status(repo, options, args):
+def xpd_status(sandbox, options, args):
 
-    print("XPD_STATUS")
+    sandbox.print()
 
-    repo.print()
+def xpd_list(sandbox, options, args):
 
-    pass
-
-def xpd_list(repo, options, args):
-
-    rels = repo.releases
+    # Assume first repo is the "top-level" repo
+    rels = sandbox._repos[0].releases
 
     number_to_show = 10
     if len(rels) > number_to_show and not options.show_all:
@@ -71,7 +68,6 @@ def main():
 
     optparser.add_option("--all", dest="show_all", action="store_true", default=False, help="Show all options")
 
-
     (options, args) = optparser.parse_args()
     if len(args) < 1:
         optparser.error("Please specify a command")
@@ -87,7 +83,7 @@ def main():
 
     print("top level repo:" +str(repo_path))
 
-    sandbox = Sandbox_(repo_path)
+    sandbox = Sandbox(repo_path)
 
     command_fn = eval("xpd_%s" % command)
     command_fn(sandbox, options, args)
