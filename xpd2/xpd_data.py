@@ -66,30 +66,6 @@ class Release:
     # def notes(self, n):
     #    self._notes = n
 
-    """
-    # TODO RSO its not clear to me why we need this. Version string parsing is in Version class
-    def parse_string(self, version_string):
-        m = re.match(r'[vV]?(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)_([-\w*])_(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)', version_string)
-        # what is this used for
-
-        if m:
-            on_branch = True
-        else:
-            on_branch = False
-            m = re.search(r'[vV]?(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)', version_string)
-            if not m:
-              m = re.match(r'(\d+)[vV](\d)(\d*)(alpha|beta|rc|)(\d*)', version_string)
-              # do we want this
-        if not m:
-            raise Exception("VersionParseError")
-
-        self.major   = 0         if m.group(1) == '' else int(m.group(1))
-        self.minor   = 0         if m.group(2) == '' else int(m.group(2))
-        self.point   = 0         if m.group(3) == '' else int(m.group(3))
-        self.rtype   = "release" if m.group(4) == '' else     m.group(4)
-        self.rnumber = 0         if m.group(5) == '' else int(m.group(5))
-    """
-
     @property
     def notes(self):
         return self._notes

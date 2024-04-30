@@ -54,9 +54,8 @@ class Manifest:
                         "Location": fields[1].strip(),
                         "Branch/tag": fields[2].strip(),
                         "Changeset": fields[3].strip(),
-                        "Dependency_requirement": fields[4].strip(),
                         "Depends_on": (
-                            " ".join(fields[5:]).strip() if len(fields) > 5 else ""
+                            " ".join(fields[4:]).strip() if len(fields) > 5 else ""
                         ),
                     }
                     self._contents.append(row)
@@ -69,7 +68,6 @@ class Manifest:
             print("Location:            ", row["Location"])
             print("Branch/tag:          ", row["Branch/tag"])
             print("Changeset:           ", row["Changeset"])
-            print("Dependency_requirement:", row["Dependency_requirement"])
             print("Depends_on:          ", row["Depends_on"])
             print("-" * 60)
 
