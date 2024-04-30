@@ -412,15 +412,15 @@ class Sandbox:
         manifest_path = generate_manifest(path, repotype)
         manifest = Manifest(manifest_path)
  
-        # for item in manifest.contents:
-        #     repo_path = path.parent / item["Name"]
-        #     self._repos.append(Repo(repo_path, item))
+        for item in manifest.contents:
+            repo_path = path.parent / item["Name"]
+            self._repos.append(Repo(repo_path, item))
 
-        # # Build up dependency tree
-        # for repo in self._repos:
-        #     print(f"{repo.name}")
-        #     for dep in repo.dependencies:
-        #         print(f"{dep}")
+        # Build up dependency tree
+        for repo in self._repos:
+            print(f"{repo.name}")
+            for dep in repo.dependencies:
+                print(f"{dep}")
 
 
 
