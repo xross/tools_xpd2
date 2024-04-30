@@ -42,6 +42,16 @@ class Version(object):
             on_branch = False
             m = re.match(r"(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)", version_string)
             if not m:
+                """
+                I think this is supposed to match eg. 1v23rc4 as
+                major:   1
+                minor:   2
+                point:   3
+                rtype:  rc
+                rnumber: 4
+                It might be better formatted as:
+                r"(\d+)[vV](\d)(\d*)(alpha|beta|rc|)(\d*)"
+                """
                 m = re.match(r"([^v])v(\d)(\d?)(alpha|beta|rc|)(\d*)", version_string)
         if not m:
             log_error("Version parse error")

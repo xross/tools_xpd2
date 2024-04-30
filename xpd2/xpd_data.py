@@ -66,30 +66,6 @@ class Release:
     # def notes(self, n):
     #    self._notes = n
 
-    """
-    # TODO RSO its not clear to me why we need this. Version string parsing is in Version class
-    def parse_string(self, version_string):
-        m = re.match(r'[vV]?(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)_([-\w*])_(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)', version_string)
-        # what is this used for
-
-        if m:
-            on_branch = True
-        else:
-            on_branch = False
-            m = re.search(r'[vV]?(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)', version_string)
-            if not m:
-              m = re.match(r'(\d+)[vV](\d)(\d*)(alpha|beta|rc|)(\d*)', version_string)
-              # do we want this
-        if not m:
-            raise Exception("VersionParseError")
-
-        self.major   = 0         if m.group(1) == '' else int(m.group(1))
-        self.minor   = 0         if m.group(2) == '' else int(m.group(2))
-        self.point   = 0         if m.group(3) == '' else int(m.group(3))
-        self.rtype   = "release" if m.group(4) == '' else     m.group(4)
-        self.rnumber = 0         if m.group(5) == '' else int(m.group(5))
-    """
-
     @property
     def notes(self):
         return self._notes
@@ -154,18 +130,15 @@ class Repo:
 
         self.dependencies = []
 
-        self.name = manifest_item["Name"]
-        #self.required_version = manifest_item["Dependency_requirement"]
         self.path = path.resolve(strict=False)
+        self.name = manifest_item["Name"]
+        self.uri = manifest_item["Location"]
+        self.current_githash = manifest_item["Changeset"]
+        self._set_repotype()
 
         self._releases = self._find_releases()
         self.current_release = self._get_current_release()
-        self.current_githash = get_current_githash(self.path)
-        self.uri = get_repo(self.path)
-        if self.uri is None:
-            raise Exception(f"{self.path} is not a git repo")
 
-        self._set_repotype()
 
         for dep_str in manifest_item["Depends_on"].split(","):
             match = re.search(r'(\w+)\(([\w.]+)\)', dep_str)
@@ -419,22 +392,35 @@ class Sandbox:
     _repos = []
 
     def __init__(self, path: Path):
+        # order of operations
+        # - check this is being run on a git repo
+        # - get the name of the top level repo form the uri
+        # - infer the type of repo from the name
+        # - run cmake in an appropriate way to generate a manifest
+        uri = get_repo(path.resolve(strict=False))
+        name = list(filter(None, re.split(r'.*/|\.git',uri)))[0]
+        if name.startswith("sw_"):
+            repotype = "app"
+        elif name.startswith("lib_"):
+            repotype = "lib"
+        elif name.startswith("an"):
+            repotype = "appnote"
 
         def build_deps(repo):
             pass
 
-        generate_manifest(path)
-        manifest = Manifest(path / "build" / "manifest.txt")
+        manifest_path = generate_manifest(path, repotype)
+        manifest = Manifest(manifest_path)
+ 
+        # for item in manifest.contents:
+        #     repo_path = path.parent / item["Name"]
+        #     self._repos.append(Repo(repo_path, item))
 
-        for item in manifest.contents:
-            repo_path = path.parent / item["Name"]
-            self._repos.append(Repo(repo_path, item))
-
-        # Build up dependency tree
-        for repo in self._repos:
-            print(f"{repo.name}")
-            for dep in repo.dependencies:
-                print(f"{dep}")
+        # # Build up dependency tree
+        # for repo in self._repos:
+        #     print(f"{repo.name}")
+        #     for dep in repo.dependencies:
+        #         print(f"{dep}")
 
 
 
@@ -452,15 +438,3 @@ class Sandbox:
     def _check_tag(self):
         return True
 
-
-# configure_logging()
-# manifest_location = Path(os.getcwd())
-# generate_cmake(manifest_location)
-# manifest = Manifest_(manifest_location / 'build' / 'manifest.txt')
-# manifest_items = manifest.items()
-# for item in manifest_items:
-#    item_path = manifest_location.parent / item['Name']
-#    repo = Repo_(item_path, item)
-#    repo.print()
-# sandbox = Sandbox_(manifest_location)
-# sandbox.print()
