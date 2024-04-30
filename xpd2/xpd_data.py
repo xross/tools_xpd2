@@ -41,7 +41,6 @@ def call_get_output(command, cwd=None):
     stderr_lines = result.stderr.splitlines()
     return (stdout_lines, stderr_lines)
 
-
 @total_ordering
 class Release:
 
@@ -145,7 +144,7 @@ class Repo:
     get_apps = None
     _releases = None
     repotype = None  # set by init
-    required_version = None  # The version as required by the manifest (could be a release, githash or -)
+    #required_version = None  # The version as required by the manifest (could be a release, githash or -)
     current_release = (
         None  # The current release version of the repo (None if not a release)
     )
@@ -156,7 +155,7 @@ class Repo:
         self.dependencies = []
 
         self.name = manifest_item["Name"]
-        self.required_version = manifest_item["Dependency_requirement"]
+        #self.required_version = manifest_item["Dependency_requirement"]
         self.path = path.resolve(strict=False)
 
         self._releases = self._find_releases()
@@ -168,8 +167,14 @@ class Repo:
 
         self._set_repotype()
 
-        for dep_name in manifest_item["Depends_on"].split(","):
-            self.dependencies.append(dep_name)
+        for dep_str in manifest_item["Depends_on"].split(","):
+            match = re.search(r'(\w+)\(([\w.]+)\)', dep_str)
+            dep_version = None
+            if match:
+                dep_name = match.group(1)
+                if match.group(2):
+                    dep_version = match.group(2)
+                self.dependencies.append(Dependency(dep_name, dep_version))
 
     def _set_repotype(self, repoType=None):
         if repoType is not None:
@@ -192,23 +197,23 @@ class Repo:
 
     def _versions_from_manifest(self, manifest_item):
         current_release = manifest_item.get("Branch/tag", None)
-        required_release = manifest_item.get("Dependency_requirement", None)
+        #required_release = manifest_item.get("Dependency_requirement", None)
         try:
             self.current_release = Version(version_str=current_release)
         except:
             log_warning(f"{self.name} not on a release tag {current_release}")
             self.current_release = current_release
-        try:
-            self.required_release = Version(version_str=required_release)
-        except:
-            log_error(
-                f"{self.name} required release tag format error {required_release}"
-            )
-            self.required_release = required_release
-        if current_release != required_release:
-            log_warning(
-                f"{self.name} Current tag is {self.current_release}, requires {self.required_release}"
-            )
+        #try:
+        #    self.required_release = Version(version_str=required_release)
+        #except:
+        #    log_error(
+        #        f"{self.name} required release tag format error {required_release}"
+        #    )
+        #    self.required_release = required_release
+        #if current_release != required_release:
+        #    log_warning(
+        #        f"{self.name} Current tag is {self.current_release}, requires {self.required_release}"
+        #    )
 
     def _Tag(self):
         pass
@@ -352,22 +357,71 @@ class Repo:
         log_info(f"            Name : {self.name}")
         log_info(f"            Path : {self.path}")
         log_info(f"        Location : {self.uri}")
-        log_info(f"Required Version : {self.required_version}")
+        #log_info(f"Required Version : {self.required_version}")
         local_mod = ""
         if self.has_local_modifications:
             local_mod = "(local modifications)"
         log_info(
-            f"  Actual Version : {self.current_release_or_githash()} {local_mod} {self.latest_release}"
+            f"  Actual Version : {self.current_release_or_githash()} {local_mod}"
         )
         log_info(f"     Dependencies:")
         for d in self.dependencies:
-            log_info(f"                   {d}")
+            log_info(f"                   {d.name} ({d.version})")
 
+    def __str__(self):
+        return "<repo:" + str(self.name) + ">"
+
+class Dependency():
+
+    def __init__(self, name, version, parent_repo=None, repo=None, ):
+        self._version = None
+        self._parent_repo = parent_repo
+        self._repo = repo
+        self.name = name
+        self.version = version
+
+    @property
+    def repo(self):
+        return self._repo
+
+    @repo.setter
+    def repo(self, r):
+        self._repo = r
+
+    @property
+    def uri(self):
+        return self._repo.uri()
+
+    @property
+    def githash(self):
+        return self._repo.current_githash
+
+    @property
+    def repo_name(self):
+        return self._repo.name
+
+    @property
+    def version(self):
+        return self._version
+
+    @version.setter
+    def version(self, v):
+        self._version = v
+
+    def get_local_path(self):
+        root_repo = self.parent
+        return os.path.join(os.path.join(root_repo.path,".."),self.repo_name)
+
+    def __str__(self):
+        return f"<Dependency: {self.name}({self.version})>"
 
 class Sandbox:
     _repos = []
 
     def __init__(self, path: Path):
+
+        def build_deps(repo):
+            pass
 
         generate_manifest(path)
         manifest = Manifest(path / "build" / "manifest.txt")
@@ -376,7 +430,14 @@ class Sandbox:
             repo_path = path.parent / item["Name"]
             self._repos.append(Repo(repo_path, item))
 
-        # super().__init__(path, sandbox)
+        # Build up dependency tree
+        for repo in self._repos:
+            print(f"{repo.name}")
+            for dep in repo.dependencies:
+                print(f"{dep}")
+
+
+
 
     # TODO - modify the _verify_tag_and_set_current_release function for sandbox to allow
     #        the user to increment / update version number for release

@@ -17,18 +17,43 @@ from pathlib import Path
 
 
 common_commands = [
-    ("status", "Show current status (can also use show or info)"),
+    ("status", "Show current status"),
     ("list", "List releases of current repo"),
+    ("create_release", "Create a release"),
+
 ]
 
-other_commands = []
+other_commands = [    ("check_sandbox", "Checks a sandbox for errors"),
+]
 
 hidden_commands = []
 
 WIP_commands = [
     ("update", "update %prog to latest version"),
-    ("show_deps", "Show dependencies"),
 ]
+
+def xpd_check_sandbox(sandbox, options, args):
+
+    #errors = get_multiple_version_errors(sandbox)
+    pass
+
+
+
+def xpd_create_release(sandbox, options, args):
+
+    # Check if sandbox has any uncommitted modifications
+    local_mod = False
+    for r in sandbox._repos:
+        if r.has_local_modifications:
+            log_warning(f"{r} has local modifications")
+            local_mod = True
+
+    if local_mod and not options.force:
+        log_error("Cannot create release: uncommitted modifications")
+        sys.exit(1)
+
+
+
 
 
 def xpd_status(sandbox, options, args):
@@ -85,6 +110,14 @@ def main():
         action="store_true",
         default=False,
         help="Show all options",
+    )
+
+    optparser.add_option(
+        "--force",
+        dest="force",
+        action="store_true",
+        default=False,
+        help="Ignore safety checks",
     )
 
     (options, args) = optparser.parse_args()

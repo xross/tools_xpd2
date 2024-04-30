@@ -25,6 +25,8 @@ def generate_manifest(path: Path):
             "-D",
             "FULL_MANIFEST=TRUE",
         ]
+
+        #TODO we miss stderr here
         with open("xpd.log", "w") as logfile:
             subprocess.call(cmd, stdout=logfile)
 
