@@ -11,24 +11,51 @@ import subprocess
 import re
 
 
-def generate_manifest(path: Path):
-    CMakeLists = path / "CMakeLists.txt"
-    if not CMakeLists.exists():
-        log_error(f"{CMakeLists.absolute} not found.")
-    else:
-        cmd = [
-            "cmake",
-            "-G",
-            "Unix Makefiles",
-            "-B",
-            "build",
-            "-D",
-            "FULL_MANIFEST=TRUE",
-        ]
+def generate_manifest(path: Path, repotype: str):
+    CMakeLists_location = path
+    match repotype:
+        case "app":
+            # check for top level CMakeLists
+            if not Path.exists(CMakeLists_location / "CMakeLists.txt"):
+                raise Exception(f"{repotype} repo {path} requires CMakeLists.txt in top level")
+        case "lib":
+            examples_dir = path / "examples"
+            # see if there is a combined cmake for the examples
+            if Path.exists(examples_dir / "CMakeLists.txt"):
+                CMakeLists_location = examples_dir
+            else:
+                # if there's no CMakeLists.txt for all the examples look for one in the folders.
+                for example in examples_dir.iterdir():
+                    if example.is_dir() and Path.exists(example / "CMakeLists.txt"):
+                        CMakeLists_location = example
+                        break
+            if not Path.exists(CMakeLists_location / "CMakeLists.txt"):
+                raise Exception("No examples are setup for use with cmake")
+        case "appnote":
+            raise Exception("appnote release process not yet supported")
+        case _:
+            raise Exception(f"repotype {repotype} not supported")
 
-        #TODO we miss stderr here
-        with open("xpd.log", "w") as logfile:
-            subprocess.call(cmd, stdout=logfile)
+    cmd = [
+        "cmake",
+        "-S",
+        CMakeLists_location,
+        "-G",
+        "Unix Makefiles",
+        "-B",
+        CMakeLists_location / "build",
+        "-D",
+        "FULL_MANIFEST=TRUE",
+    ]
+
+    #TODO we miss stderr here
+    with open("xpd.log", "w") as logfile:
+        subprocess.call(cmd, stdout=logfile)
+    manifest_path = Path(CMakeLists_location / "build" / "manifest.txt")
+    if manifest_path.exists():
+        return manifest_path
+    else:
+        return None
 
 
 class Manifest:
