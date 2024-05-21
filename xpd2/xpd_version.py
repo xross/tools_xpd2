@@ -40,7 +40,8 @@ class Version(object):
             on_branch = True
         else:
             on_branch = False
-            m = re.match(r"(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)", version_string)
+            # try matching the form v1.2.3alpha4 or 1.2.3alpha4
+            m = re.match(r"v?(\d*)\.(\d*)\.(\d*)(alpha|beta|rc|)(\d*)", version_string)
             if not m:
                 """
                 I think this is supposed to match eg. 1v23rc4 as
@@ -52,10 +53,10 @@ class Version(object):
                 It might be better formatted as:
                 r"(\d+)[vV](\d)(\d*)(alpha|beta|rc|)(\d*)"
                 """
+                # try matching the form 1v24alpha4
                 m = re.match(r"([^v])v(\d)(\d?)(alpha|beta|rc|)(\d*)", version_string)
         if not m:
-            log_error("Version parse error")
-            # raise VersionParseError
+            raise VersionParseError
 
         self.major = int(m.groups(0)[0])
         self.minor = int(m.groups(0)[1])
