@@ -231,6 +231,11 @@ class Repo:
             for r in releases:
                 r.notes = notes
 
+    def get_versioned_repo(self, version):
+        rel = self.get_release(version)
+        if not rel or not rel.parenthash:
+            return None
+
     @property
     def behind_upstream(self):
 
@@ -308,6 +313,13 @@ class Repo:
 
     def _check_licence(self):
         pass
+
+    def get_release(self, version):
+        found = None
+        for r in self._releases:
+            if r.version == version:
+                found = r
+        return found
 
     # Returns all releases matching a certain verison (we could have 1.0.0alpha and 1.0.0beta for example)
     def get_releases_for_version(self, version):
@@ -423,15 +435,13 @@ class Repo:
                 vstr = self.current_githash
         return vstr
 
-    @property
     def has_local_modifications(self):
-        if self.local_modifications:
+        if self.local_modifications():
             return True
         return False
 
-    @property
-    def local_modifications(self):
-        if self._local_modifications == None:
+    def local_modifications(self, refresh = False):
+        if (self._local_modifications == None) or refresh:
             self._local_modifications = self._get_local_modifications()
         return self._local_modifications
 

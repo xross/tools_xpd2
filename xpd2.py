@@ -12,10 +12,10 @@ from xmos_logging import (
 )
 from optparse import OptionParser
 import sys, os
-from xpd2.xpd_data import Repo, Sandbox
+from xpd2.xpd_data import Repo, Sandbox, call_get_output
 from pathlib import Path
 from xpd2.xpd_version import Version, VersionParseError
-
+from xmos_changelog_check import do_changelog_check
 
 common_commands = [
     ("status", "Show current status"),
@@ -33,6 +33,51 @@ WIP_commands = [
     ("update", "update %prog to latest version"),
 ]
 
+def confirm(msg, default=False):
+    """ Prompt the user and expect as yes/no answer. Return the default
+        specified if no input is given, or the response given by the user.
+        If no sensible response is found, prompt again.
+    """
+    while True:
+        x = input(msg + " (y/n) [%s]? " % ("y" if default else "n"))
+        if not x:
+            return default
+        if x.upper() in ["N", "NO"]:
+            return False
+        if x.upper() in ["Y", "YES"]:
+            return True
+
+def get_all_dep_versions(repo, ignore_missing=False):
+    ''' Get the set of all versions of a repo there are expected in the dependencies.
+    '''
+    deps = {}
+    for dep in repo.get_all_deps(ignore_missing=ignore_missing):
+        version = dep.version if dep.version else dep.githash
+
+        name = dep.repo_name
+        existing = deps.get(name, set())
+        deps[name] = existing | set([version])
+
+    return deps
+
+
+def xpd_update_changelog(sandbox, options, args):
+    ''' Detect all changes in dependencies and add their changes to the changelog.
+    '''
+
+    log_info("Updating changelog...")
+
+    # Use changelog updating from infr_apps/xmos_changelog_check
+    # TODO this uses xmake and needs updating!
+    result, msg = do_changelog_check(".", update_file=True)
+
+    if not result:
+        sys.stderr.write(msg)
+
+    if not result:
+        print("Updates have been made.")
+
+    return result
 
 def xpd_check_sandbox(sandbox, options, args):
 
@@ -148,6 +193,34 @@ def xpd_create_release(sandbox, options, args):
             except:
                 log_error("Invalid version number '%s'" % x)
 
+    version.rtype = rtype
+    version.set_rnumber(repo.releases)
+
+    if not confirm(f"Create release {version}. Are you sure", default=True):
+        return False
+
+    # Check this isnt a duplicate release
+    (stdout_lines, stderr_lines) = call_get_output(["git", "tag"], cwd=repo.path)
+    for line in stdout_lines + stderr_lines:
+              line = line.replace('v','').replace('\n','')
+              if f"{version}"== line:
+                  log_error("Cannot create release with this version number - a tagged version is already present in your local repo.")
+                  log_error("Do 'git tag -d v<version number>' to delete that tag and try again")
+                  sys.exit(1)
+
+    # Sort out the changelog
+    xpd_update_changelog(repo, options, args)
+
+    # Git add CHANGELOG
+    retval = call(["git", "add", "CHANGELOG.rst"], cwd=repo.path, silent=True)
+    if retval:
+        log_error("git add CHANGELOG.rst} failed")
+
+    # Commit an changelog changes
+    if repo.has_local_modifications(refresh=True):
+        print("COMMMITING")
+        call(["git", "commit", "-m", "xpd: Updated changelog"], cwd=repo.path, silent=True)
+
 
 def xpd_status(sandbox, options, args):
 
@@ -181,7 +254,7 @@ def xpd_list(sandbox, options, args):
 
 
 def main():
-    configure_logging()
+    configure_logging(level_console="INFO")
     usage = "usage: %prog command [options]"
     usage += "\n\nMost useful commands:\n\n"
     for c in common_commands:
@@ -215,6 +288,9 @@ def main():
 
     optparser.add_option("-t", "--release-type", dest="release_type",
                          help="release type: release, alpha, beta or rc")
+
+    optparser.add_option("-r", "--release-version", dest="release_version",
+                         help="release version")
 
     (options, args) = optparser.parse_args()
     if len(args) < 1:
