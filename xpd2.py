@@ -12,10 +12,11 @@ from xmos_logging import (
 )
 from optparse import OptionParser
 import sys, os
-from xpd2.xpd_data import Repo, Sandbox, call_get_output
+from xpd2.xpd_data import Repo, Sandbox, Release, call_get_output, call
 from pathlib import Path
 from xpd2.xpd_version import Version, VersionParseError
 from xmos_changelog_check import do_changelog_check
+import xpd2.check_project
 
 common_commands = [
     ("status", "Show current status"),
@@ -108,6 +109,7 @@ def xpd_check_sandbox(sandbox, options, args):
             log_error("Try a 'git pull'")
             errors += 1
 
+
     return (errors, warnings)
 
 def xpd_create_release(sandbox, options, args):
@@ -115,13 +117,14 @@ def xpd_create_release(sandbox, options, args):
     local_mod = False
     for r in sandbox._repos:
         if r.has_local_modifications:
-            log_warning(f"{r} has local modifications")
+            log_warning(f"{r} has local modifications!")
             local_mod = True
 
     if local_mod and not options.force:
         log_error("Cannot create release: uncommitted modifications")
         sys.exit(1)
 
+    #TODO pass in a quality verison and check all deps are on a release of atleast this quality
     (errors, warnings) = xpd_check_sandbox(sandbox, options, args)
 
     if errors or warnings:
@@ -217,9 +220,74 @@ def xpd_create_release(sandbox, options, args):
         log_error("git add CHANGELOG.rst} failed")
 
     # Commit an changelog changes
-    if repo.has_local_modifications(refresh=True):
+    if repo.has_local_modifications:
         print("COMMMITING")
         call(["git", "commit", "-m", "xpd: Updated changelog"], cwd=repo.path, silent=True)
+
+    fstr=version.final_version_str()
+    found = False
+    changelog_items = []
+    release_notes = ""
+    for (notes_version, changelog_items) in notes:
+        if notes_version == fstr:
+            found = True
+            print(("RELEASE NOTES FOR %s:" % fstr))
+            print("----")
+            for item in changelog_items:
+                print(item)
+                release_notes = release_notes + item
+            print("----")
+            if not confirm("Are these notes up to date", default=True):
+                print("Please update notes and try again")
+                return True
+
+    if not found:
+        log_error("Cannot find release notes for %s, please update CHANGELOG.rst" % fstr)
+        return True
+
+    release = Release()
+    release.version = version
+    release.notes = release_notes
+
+    print(release_notes)
+
+    log_info("Running checks")
+    xpd_check_infr(sandbox, options, args)
+    xpd_check_info(sandbox, options, args)
+    xpd_check_readme(sandbox, options, args)
+
+def xpd_check_readme(sandbox, options, args):
+    # TODO check readme
+    pass
+
+def xpd_check_info(sandbox, options, args):
+    # TODO Check github description etc
+    # TODO Check for documentation
+    # TODO Check repo vendor
+    # TODO Check repo maintainers
+    # TODO check metadata
+    pass
+
+def xpd_check_infr(sandbox, options, args, return_ok=False):
+    ok = True
+    makefiles_ok = xpd2.check_project.check_makefiles(sandbox, force_creation=True)
+    ok = ok and makefiles_ok
+    changelog_ok = xpd2.check_project.check_changelog(sandbox.repos[0], force_creation=True)
+    ok = ok and changelog_ok
+
+    # TODO check CMakeLists
+
+    if return_ok:
+        return ok
+    else:
+        return False
+
+def xpd_check_makefiles(repo, options, args, return_ok=False):
+    ok = xpd2.check_project.check_makefiles(repo)
+    if return_ok:
+        return ok
+    else:
+        return False
 
 
 def xpd_status(sandbox, options, args):

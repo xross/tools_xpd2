@@ -435,8 +435,10 @@ class Repo:
                 vstr = self.current_githash
         return vstr
 
+    @property
     def has_local_modifications(self):
-        if self.local_modifications():
+        mods = self.local_modifications(refresh = False)
+        if mods:
             return True
         return False
 
