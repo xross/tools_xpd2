@@ -381,7 +381,7 @@ class Repo:
         stdout = stdout.splitlines()
 
         for line in stdout:
-            line = str(line).replace("v", "").replace("\n", "")
+            line = str(line).replace("\n", "")
 
             try:
                 release = Release(version_str=line, path=self.path)
