@@ -935,11 +935,19 @@ class Repo_(XmlObject):
 
     def find_releases(self):
 
-        (stdout_lines, stderr_lines) = call_get_output(["git", "tag", "--merged", "remotes/origin/master", "-l", "v*"], cwd=self.path)
-        
+        # RSO made this change to pickup releases on maintenence branches
+        (stdout_lines, stderr_lines) = call_get_output(["git", "tag", "-l", "v*"], cwd=self.path)
+
+        print(f"find_releases for {self.name}")
+        #(stdout_lines, stderr_lines) = call_get_output(["git", "tag", "--merged", "remotes/origin/master", "-l", "v*"], cwd=self.path)
+
+        # try main
+        #if stdout_lines == []:
+        #    (stdout_lines, stderr_lines) = call_get_output(["git", "tag", "--merged", "remotes/origin/main", "-l", "v*"], cwd=self.path)
+
         for line in stdout_lines:
             line = str(line).replace('v','').replace('\n','')
-        
+
             try:
                 release = Release_(version_str=line, path=self.path)
                 self._releases.append(release)
