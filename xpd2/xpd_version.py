@@ -52,8 +52,8 @@ class Version(object):
                 rnumber: 4
                 It might be better formatted as:
                 r"(\d+)[vV](\d)(\d*)(alpha|beta|rc|)(\d*)"
+                as it currently matches Zv1rc1 but not 10v3
                 """
-                # try matching the form 1v24alpha4
                 m = re.match(r"([^v])v(\d)(\d?)(alpha|beta|rc|)(\d*)", version_string)
         if not m:
             raise VersionParseError
@@ -102,18 +102,12 @@ class Version(object):
         return not self.branch_name and self.rtype in ["", "release"]
 
     def __lt__(self, other):
-        return (self.major, self.minor, self.point) < (
-            other.major,
-            other.minor,
-            other.point,
-        )
+        return  (self.major, self.minor, self.point, self.rtype, self.rnumber) < (other.major, other.minor, other.point, other.rtype, other.rnumber)
+
 
     def __eq__(self, other):
-        return (self.major, self.minor, self.point) == (
-            other.major,
-            other.minor,
-            other.point,
-        )
+        return (self.major, self.minor, self.point, self.rtype, self.rnumber) == (other.major, other.minor, other.point, other.rtype, other.rnumber)
+
 
     def __hash__(self):
         return hash((self.major, self.minor, self.point))

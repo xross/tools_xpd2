@@ -1,7 +1,6 @@
-from xmos_git_utils import get_repo, get_current_githash
 from pathlib import Path
-from xpd2.xpd_cmake import generate_manifest, Manifest
-from xpd2.xpd_version import Version, VersionParseError
+from xpd2.xpd_version import VersionParseError
+from build_system.repository import Version
 from xmos_logging import (
     log_indent,
     log_unindent,
@@ -65,7 +64,7 @@ class Release:
                 self.version = Version(version_str=version_str)
             except VersionParseError:
                 raise VersionParseError
-
+ 
         if path:
             (self.githash, self.parenthash) = self._find_hashes()
 
@@ -236,41 +235,6 @@ class Repo:
         if not rel or not rel.parenthash:
             return None
 
-    @property
-    def behind_upstream(self):
-
-        if self._behind_upstream != None:
-            return self._behind_upstream
-
-        self._behind_upstream = False
-        (stdout_lines, stderr_lines) = call_get_output(["git", "status", "-uno"], cwd=self.path)
-
-        for line in stdout_lines:
-            if re.match('.*is behind*', line):
-                self._behind_upstream = True
-            if re.match('.*diverged*', line):
-                self._behind_upstream = True
-
-        return self._behind_upstream
-
-    def _git_fetch(self):
-        retval = call(["git", "fetch"], cwd=self.path, silent=True)
-        if retval:
-          log_error(f"{self.name}: failed to fetch")
-
-    def _set_repotype(self, repoType=None):
-        if repoType is not None:
-            self.repotype = repoType
-        else:
-            if self.name.startswith("sw_"):
-                self.repotype = "app"
-            elif self.name.startswith("lib_"):
-                self.repotype = "lib"
-            elif self.name.startswith("an"):
-                self.repotype = "appnote"
-            else:
-                self.repotype = "unknown"
-
     def _versions_from_manifest(self, manifest_item):
         current_release = manifest_item.get("Branch/tag", None)
         try:
@@ -279,14 +243,6 @@ class Repo:
             log_warning(f"{self.name} not on a release tag {current_release}")
             self.current_release = current_release
 
-    @property
-    def version(self):
-        if self.current_release:
-            return self.current_release.version
-        return None
-
-    def _Tag(self):
-        pass
 
     def _verify_tag_and_set_current_release(self, detected_tag, required_tag):
         if None in [detected_tag, required_tag]:
@@ -302,17 +258,6 @@ class Repo:
                 f"{self.name} Current tag is {self.current_release}, requires {self.required_release}"
             )
 
-    def _parse_changelog(self):
-        pass
-
-    def _check_changelog(self):
-        pass
-
-    def _check_readme(self):
-        pass
-
-    def _check_licence(self):
-        pass
 
     def get_release(self, version):
         found = None
@@ -338,261 +283,3 @@ class Repo:
             if releases:
                 self._latest_release = releases[-1]
         return self._latest_release
-
-    # Latest release that matches a filter
-    def latest_release_filtered(self, filter=None):
-        if filter:
-            rels = [r for r in self._releases if filter(r)]
-        else:
-            rels = self._releases
-        rels.sort()
-        if rels != []:
-            return rels[-1]
-        return None
-
-    # Latest release that isn't alpha/beta..(release object)
-    @property
-    def latest_full_release(self):
-        if self._latest_full_release:
-            return self._latest_full_release
-
-        self._latest_full_release = self.latest_release_filtered(filter=lambda r: r.version.is_full())
-        return self._latest_full_release
-
-     # Latest pre-release i.e. alpha, beta (release object)
-    @property
-    def latest_pre_release(self):
-        if self._latest_pre_release:
-            return self._latest_pre_release
-
-        self._latest_pre_release = self.latest_release_filtered(filter=lambda r: not r.version.is_full() and not r.version.branch_name)
-
-        return self._latest_pre_release
-
-    @property
-    def releases(self):
-        rels = self._releases
-        rels.sort()
-        rels.reverse()
-        return rels
-
-    def _find_releases(self):
-        releases = []
-        stdout = ""
-        #for branch in MAIN_BRANCH_NAMES:
-        result = subprocess.run(
-            #["git", "tag", "--merged", f"remotes/origin/{branch}", "-l", "v*"],
-            # For the moment check all branches
-            ["git", "tag", "-l", "v*"],
-            capture_output=True,
-            universal_newlines=True,
-            cwd=self.path,
-            )
-        stdout = stdout + result.stdout
-
-        stdout = stdout.splitlines()
-
-        for line in stdout:
-            line = str(line).replace("\n", "")
-
-            try:
-                release = Release(version_str=line, path=self.path)
-                releases.append(release)
-            except VersionParseError:
-                log_warning(f"Bad version in tag: {str(line)}")
-
-        return releases
-
-    def _get_current_release(self):
-
-        if not self.path:
-            return None
-
-        parent_hash = exec_and_match(
-            ["git", "rev-parse", "HEAD~1"], r"(.*)", cwd=self.path
-        )
-
-        rels = []
-        for release in self._releases:
-            if hasattr(release, "parenthash") and parent_hash == release.parenthash:
-                rels.append(release)
-
-        rels.sort()
-
-        if rels != []:
-            return rels[-1]
-
-        return None
-
-    def current_version_or_githash(self, short=False):
-        rel = self.current_release
-        if rel:
-            vstr = str(rel.version)
-        else:
-            if short:
-                vstr = self.current_githash[:8]
-            else:
-                vstr = self.current_githash
-        return vstr
-
-    @property
-    def has_local_modifications(self):
-        mods = self.local_modifications(refresh = False)
-        if mods:
-            return True
-        return False
-
-    def local_modifications(self, refresh = False):
-        if (self._local_modifications == None) or refresh:
-            self._local_modifications = self._get_local_modifications()
-        return self._local_modifications
-
-    def _get_local_modifications(self, is_dependency=False, unstaged_only=False):
-        (stdout_lines, stderr_lines) = call_get_output(
-            ["git", "update-index", "-q", "--refresh"], cwd=self.path
-        )
-
-        if unstaged_only:
-            (stdout_lines, stderr_lines) = call_get_output(
-                ["git", "diff", "--name-only"], cwd=self.path
-            )
-        else:
-            (stdout_lines, stderr_lines) = call_get_output(
-                ["git", "diff-index", "--name-only", "HEAD", "--"], cwd=self.path
-            )
-
-        # Ignore files which are changed by xpd unless it is a dependent repo which must have no changes
-        if not is_dependency:
-            stdout_lines = [
-                x.rstrip()
-                for x in stdout_lines
-                if not re.search("(^fatal:|\.xproject|\.cproject|\.project|xpd.xml)", x)
-            ]
-
-        return stdout_lines
-
-    def print(self):
-        log_info(f"            Name : {self.name}")
-        log_info(f"            Path : {self.path}")
-        log_info(f"        Location : {self.uri}")
-        #log_info(f"Required Version : {self.required_version}")
-        local_mod = ""
-        if self.has_local_modifications:
-            local_mod = "(local modifications)"
-        log_info(
-            f"  Actual Version : {self.current_release_or_githash()} {local_mod}"
-        )
-        log_info(f"     Dependencies:")
-        for d in self.dependencies:
-            log_info(f"                   {d.name} ({d.version})")
-
-    def __str__(self):
-        return "<repo:" + str(self.name) + ">"
-
-class Dependency():
-
-    def __init__(self, name, version=None, branch=None, parent_repo=None, repo=None):
-        self._version = version
-        self._parent_repo = parent_repo
-        self._repo = repo
-        self.name = name
-        self.branch = branch
-
-    @property
-    def repo(self):
-        return self._repo
-
-    @repo.setter
-    def repo(self, r):
-        self._repo = r
-
-    @property
-    def uri(self):
-        return self._repo.uri()
-
-    @property
-    def githash(self):
-        return self._repo.current_githash
-
-    @property
-    def repo_name(self):
-        return self._repo.name
-
-    @property
-    def version(self):
-        return self._version
-
-    @version.setter
-    def version(self, v):
-        self._version = v
-
-    def get_local_path(self):
-        root_repo = self.parent
-        return os.path.join(os.path.join(root_repo.path,".."),self.repo_name)
-
-    def __str__(self):
-        return f"<Dependency: {self.name}({self.version})>"
-
-class Sandbox:
-    _repos = []
-
-    def __init__(self, path: Path):
-        # order of operations
-        # - check this is being run on a git repo
-        # - get the name of the top level repo form the uri
-        # - infer the type of repo from the name
-        # - run cmake in an appropriate way to generate a manifest
-        uri = get_repo(path.resolve(strict=False))
-        name = list(filter(None, re.split(r'.*/|\.git',uri)))[0]
-        if name.startswith("sw_"):
-            repotype = "app"
-        elif name.startswith("lib_"):
-            repotype = "lib"
-        elif name.startswith("an"):
-            repotype = "appnote"
-
-        def build_deps(repo):
-            pass
-
-        manifest_path = generate_manifest(path, repotype)
-        manifest = Manifest(manifest_path)
-
-        for item in manifest.contents:
-            repo_path = path.parent / item["Name"]
-            self._repos.append(Repo(repo_path, item))
-
-        #Build up dependency tree
-        #print("DEP_TREE")
-        #for repo in self._repos:
-        #    print(f"{repo.name}")
-        #    for dep in repo.dependencies:
-        #        print(f"{dep}")
-
-    @property
-    def repos(self):
-        return self._repos
-
-    def find_repo_by_name(self, repo_name):
-        for r in self._repos:
-            if r.name == repo_name:
-                return r
-        return None
-
-    def get_all_repos_using_dep(self, dep):
-        repos = []
-        for r in self._repos:
-            for d in r.dependencies:
-                if d == dep:
-                    repos.append(r)
-        return repos
-
-    def print(self):
-        log_indent()
-        for repo in self._repos:
-            repo.print()
-            log_info("\n")
-        log_unindent()
-
-    def _check_tag(self):
-        return True
-

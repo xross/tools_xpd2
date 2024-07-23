@@ -12,11 +12,13 @@ from xmos_logging import (
 )
 from optparse import OptionParser
 import sys, os
-from xpd2.xpd_data import Repo, Sandbox, Release, call_get_output, call
+from xpd2.xpd_data import Release, call_get_output, call
 from pathlib import Path
-from xpd2.xpd_version import Version, VersionParseError
+# from xpd2.xpd_version import Version, VersionParseError
 from xmos_changelog_check import do_changelog_check
 import xpd2.check_project
+from build_system import get_repo_for_build_system
+from build_system.repository import Repo, Version
 
 common_commands = [
     ("status", "Show current status"),
@@ -62,7 +64,7 @@ def get_all_dep_versions(repo, ignore_missing=False):
     return deps
 
 
-def xpd_update_changelog(sandbox, options, args):
+def xpd_update_changelog(focus_repo, options, args):
     ''' Detect all changes in dependencies and add their changes to the changelog.
     '''
 
@@ -70,7 +72,7 @@ def xpd_update_changelog(sandbox, options, args):
 
     # Use changelog updating from infr_apps/xmos_changelog_check
     # TODO this uses xmake and needs updating!
-    result, msg = do_changelog_check(".", update_file=True)
+    result, msg = do_changelog_check(focus_repo, update_file=True)
 
     if not result:
         sys.stderr.write(msg)
@@ -80,7 +82,7 @@ def xpd_update_changelog(sandbox, options, args):
 
     return result
 
-def xpd_check_sandbox(sandbox, options, args):
+def xpd_check_sandbox(focus_repo, options, args):
 
     errors = 0
     warnings = 0
@@ -90,9 +92,9 @@ def xpd_check_sandbox(sandbox, options, args):
 
     # Do some basic checking for now
     # Check we have the version of a repo we specify in the dependencies
-    for repo in sandbox._repos:
+    for repo in focus_repo._repos:
         for dep in repo.dependencies:
-            dep_repo = sandbox.find_repo_by_name(dep.name)
+            dep_repo = focus_repo.find_repo_by_name(dep.name)
             if dep_repo.version:
                 if dep.version:
                     if dep_repo.version != dep.version:
@@ -112,10 +114,10 @@ def xpd_check_sandbox(sandbox, options, args):
 
     return (errors, warnings)
 
-def xpd_create_release(sandbox, options, args):
+def xpd_create_release(focus_repo, options, args):
 
     local_mod = False
-    for r in sandbox._repos:
+    for r in focus_repo._repos:
         if r.has_local_modifications:
             log_warning(f"{r} has local modifications!")
             local_mod = True
@@ -125,7 +127,7 @@ def xpd_create_release(sandbox, options, args):
         sys.exit(1)
 
     #TODO pass in a quality verison and check all deps are on a release of atleast this quality
-    (errors, warnings) = xpd_check_sandbox(sandbox, options, args)
+    (errors, warnings) = xpd_check_sandbox(focus_repo, options, args)
 
     if errors or warnings:
         log_error(f"Fix the {errors + warnings} detected problem(s) before making a release")
@@ -155,7 +157,7 @@ def xpd_create_release(sandbox, options, args):
     #TODO handle branched from case?
 
     # Check for changelog
-    repo = sandbox._repos[0]
+    repo = focus_repo._repos[0]
     notes = repo.changelog_entries
     if not notes and not options.force:
         log_error("No versions found in CHANGELOG.rst, please update file first")
@@ -252,15 +254,15 @@ def xpd_create_release(sandbox, options, args):
     print(release_notes)
 
     log_info("Running checks")
-    xpd_check_infr(sandbox, options, args)
-    xpd_check_info(sandbox, options, args)
-    xpd_check_readme(sandbox, options, args)
+    xpd_check_infr(focus_repo, options, args)
+    xpd_check_info(focus_repo, options, args)
+    xpd_check_readme(focus_repo, options, args)
 
-def xpd_check_readme(sandbox, options, args):
+def xpd_check_readme(focus_repo, options, args):
     # TODO check readme
     pass
 
-def xpd_check_info(sandbox, options, args):
+def xpd_check_info(focus_repo, options, args):
     # TODO Check github description etc
     # TODO Check for documentation
     # TODO Check repo vendor
@@ -268,11 +270,11 @@ def xpd_check_info(sandbox, options, args):
     # TODO check metadata
     pass
 
-def xpd_check_infr(sandbox, options, args, return_ok=False):
+def xpd_check_infr(focus_repo, options, args, return_ok=False):
     ok = True
-    makefiles_ok = xpd2.check_project.check_makefiles(sandbox, force_creation=True)
+    makefiles_ok = xpd2.check_project.check_makefiles(focus_repo, force_creation=True)
     ok = ok and makefiles_ok
-    changelog_ok = xpd2.check_project.check_changelog(sandbox.repos[0], force_creation=True)
+    changelog_ok = xpd2.check_project.check_changelog(focus_repo.repos[0], force_creation=True)
     ok = ok and changelog_ok
 
     # TODO check CMakeLists
@@ -290,16 +292,12 @@ def xpd_check_makefiles(repo, options, args, return_ok=False):
         return False
 
 
-def xpd_status(sandbox, options, args):
+def xpd_status(focus_repo: Repo, options, args) -> None:
+    log_info(str(focus_repo))
 
-    sandbox.print()
+def xpd_list(focus_repo: Repo, options, args) -> None:
 
-
-def xpd_list(sandbox, options, args):
-
-    # Assume first repo is the "top-level" repo
-    rels = sandbox._repos[0].releases
-
+    rels = focus_repo.releases
     number_to_show = 10
     if len(rels) > number_to_show and not options.show_all:
         log_info(
@@ -319,6 +317,13 @@ def xpd_list(sandbox, options, args):
             if rel.notes:
                 for n in rel.notes:
                     log_info(str(n))
+
+    # release_candidate = Version(version_str="7.2.0rc0")
+    release_candidate = (1, "rc")
+    # full_release = Version(version_str="7.2.0release")
+    full_release = (1, "release")
+
+    log_info(f"{str(release_candidate)} < {str(full_release)}: {release_candidate < full_release}")
 
 
 def main():
@@ -372,10 +377,10 @@ def main():
 
     repo_path = Path(os.getcwd())
 
-    sandbox = Sandbox(repo_path)
+    focus_repo = get_repo_for_build_system(repo_path)
 
     command_fn = eval("xpd_%s" % command)
-    command_fn(sandbox, options, args)
+    command_fn(focus_repo, options, args)
 
     args = args[1:]
 
