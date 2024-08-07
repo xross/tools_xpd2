@@ -17,10 +17,10 @@
 # procedure to set up a suitable python environment for that repository may
 # pip-install this one as editable using this repository's setup.py file.  The
 # same modules should appear in the setup.py list as given below.
-docutils==0.21.2
+docutils==0.20.1
 
 # Pin importlib-metadata to <5 due to https://github.com/python/importlib_metadata/issues/409.
-importlib-metadata==8.2.0
+importlib-metadata==4.13.0
 
 # Development dependencies
 #
