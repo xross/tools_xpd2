@@ -18,7 +18,7 @@ from pathlib import Path
 from xmos_changelog_check import do_changelog_check
 import xpd2.check_project
 from build_system import get_repo_for_build_system
-from build_system.repository import Repo, Version
+from build_system.repository import Repo, Version, VersionParseError
 
 common_commands = [
     ("status", "Show current status"),
@@ -92,19 +92,20 @@ def xpd_check_sandbox(focus_repo, options, args):
 
     # Do some basic checking for now
     # Check we have the version of a repo we specify in the dependencies
-    for repo in focus_repo._repos:
-        for dep in repo.dependencies:
-            dep_repo = focus_repo.find_repo_by_name(dep.name)
-            if dep_repo.version:
-                if dep.version:
-                    if dep_repo.version != dep.version:
-                            errors += 1
-                            log_error('%s : %s used by %s' % (dep_repo.name, dep.version, repo.name))
-                            log_info("ERROR: Instead use actual version %s" %(dep_repo.version))
-            else:
-                # TODO properly deal with githash case
-                log_warning(f"{dep_repo} is not on a version but on hash: {dep_repo.current_version_or_githash(short=True)}")
-                warnings += 1
+    
+    for repo in focus_repo.get_dependencies_flat().values():
+        # for dep in repo.dependencies():
+        #     dep_repo = focus_repo.find_repo_by_name(dep.name)
+        #     if dep_repo.version:
+        #         if dep.version:
+        #             if dep_repo.version != dep.version:
+        #                     errors += 1
+        #                     log_error('%s : %s used by %s' % (dep_repo.name, dep.version, repo.name))
+        #                     log_info("ERROR: Instead use actual version %s" %(dep_repo.version))
+        #     else:
+        #         # TODO properly deal with githash case
+        #         log_warning(f"{dep_repo} is not on a version but on hash: {dep_repo.current_version_or_githash(short=True)}")
+        #         warnings += 1
 
         if repo.behind_upstream and not options.force:
             log_error(f"{repo.name}: Upstream changes not merged in. Cannot create release")
@@ -117,9 +118,9 @@ def xpd_check_sandbox(focus_repo, options, args):
 def xpd_create_release(focus_repo, options, args):
 
     local_mod = False
-    for r in focus_repo._repos:
+    for r in focus_repo.get_dependencies_flat().values():
         if r.has_local_modifications:
-            log_warning(f"{r} has local modifications!")
+            log_warning(f"{r.name} has local modifications!")
             local_mod = True
 
     if local_mod and not options.force:
@@ -157,20 +158,37 @@ def xpd_create_release(focus_repo, options, args):
     #TODO handle branched from case?
 
     # Check for changelog
-    repo = focus_repo._repos[0]
-    notes = repo.changelog_entries
-    if not notes and not options.force:
-        log_error("No versions found in CHANGELOG.rst, please update file first")
-        sys.exit(1)
+    # repo = focus_repo._repos[0]
+    # (changelog_passed, changelog_message) = do_changelog_check(focus_repo)
+    # if not changelog_passed:
+    #     log_error(f"Changelog error: {changelog_message}")
+    #     sys.exit(1)
+    # notes = focus_repo.changelog_entries
+    # if not notes and not options.force:
+    #     log_error("No versions found in CHANGELOG.rst, please update file first")
+    #     sys.exit(1)
 
     # Get the version number we want to release
-    (latest_in_changelog, items) = notes[0]
-
+    latest_in_changelog = None
+    changelog_path = os.path.join(focus_repo.path, 'CHANGELOG.rst')
+    if not os.path.exists(changelog_path):
+        log_warning("Cannot find CHANGELOG.rst in %s" % focus_repo.name)
+        sys.exit(1)
+    with open(os.path.join(focus_repo.path, "CHANGELOG.rst")) as file:
+        for line in file:
+            try: latest_in_changelog = Version(version_str=line)
+            except VersionParseError:
+                if line.startswith("UNRELEASED"):
+                    log_error("CHangelog contains unreleased changes, please update it to reflect the release status.")
+                    # sys.exit(1)
+            if latest_in_changelog: break
+    # (latest_in_changelog, items) = notes[0]
+    # log_info(f"latest version = {str(latest_in_changelog)}")
     if hasattr(options, 'release_version') and options.release_version:
         print('release_version: ' + str(options.release_version))
         version = Version(version_str=options.release_version)
     else:
-        latest = repo.latest_full_release
+        latest = focus_repo.latest_full_release
         if latest:
             print(("Latest release: %s" % latest.version))
             latest_version = latest.version
@@ -182,30 +200,27 @@ def xpd_create_release(focus_repo, options, args):
         print(f"    Next minor: {latest_version.minor_increment()}")
         print(f"    Next point: {latest_version.point_increment()}")
 
-        latest_pre = repo.latest_pre_release
+        latest_pre = focus_repo.latest_pre_release
         if latest_pre and (not latest or latest_pre > latest):
             print(("Latest pre-release: %s" % latest_pre.version))
 
         version = None
         while True:
             x = input(f"Enter version number [{latest_in_changelog}]:")
-            if not x:
-                x = latest_in_changelog
-
             try:
-                version = Version(version_str=x)
+                version = Version(version_str=str(x)) if x else latest_in_changelog
                 break
             except:
                 log_error("Invalid version number '%s'" % x)
 
     version.rtype = rtype
-    version.set_rnumber(repo.releases)
+    version.set_rnumber(focus_repo.releases)
 
     if not confirm(f"Create release {version}. Are you sure", default=True):
         return False
 
     # Check this isnt a duplicate release
-    (stdout_lines, stderr_lines) = call_get_output(["git", "tag"], cwd=repo.path)
+    (stdout_lines, stderr_lines) = call_get_output(["git", "tag"], cwd=focus_repo.path)
     for line in stdout_lines + stderr_lines:
               line = line.replace('v','').replace('\n','')
               if f"{version}"== line:
@@ -214,17 +229,17 @@ def xpd_create_release(focus_repo, options, args):
                   sys.exit(1)
 
     # Sort out the changelog
-    xpd_update_changelog(repo, options, args)
+    xpd_update_changelog(focus_repo, options, args)
 
     # Git add CHANGELOG
-    retval = call(["git", "add", "CHANGELOG.rst"], cwd=repo.path, silent=True)
+    retval = call(["git", "add", "CHANGELOG.rst"], cwd=focus_repo.path, silent=True)
     if retval:
         log_error("git add CHANGELOG.rst} failed")
 
     # Commit an changelog changes
-    if repo.has_local_modifications:
+    if focus_repo.has_local_modifications:
         print("COMMMITING")
-        call(["git", "commit", "-m", "xpd: Updated changelog"], cwd=repo.path, silent=True)
+        call(["git", "commit", "-m", "xpd: Updated changelog"], cwd=focus_repo.path, silent=True)
 
     fstr=version.final_version_str()
     found = False
@@ -293,7 +308,10 @@ def xpd_check_makefiles(repo, options, args, return_ok=False):
 
 
 def xpd_status(focus_repo: Repo, options, args) -> None:
-    log_info(str(focus_repo))
+    # log_info(str(focus_repo))
+    (result, message) = do_changelog_check(focus_repo)
+    log_info(f"result  = {result}")
+    log_info(f"message = {message}")
 
 def xpd_list(focus_repo: Repo, options, args) -> None:
 
